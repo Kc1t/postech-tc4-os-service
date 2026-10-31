@@ -69,6 +69,8 @@ jobs:
         with:
           go-version-file: go.mod
           go-package: ./...
+          # O checkout próprio da action limpa o workspace e apagaria os relatórios do upload abaixo.
+          repo-checkout: false
 
       - uses: actions/upload-artifact@v4
         with:
