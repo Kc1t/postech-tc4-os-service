@@ -12,3 +12,10 @@ os-service
 golangci-report.xml
 gosec-report.json
 .scannerwork/
+
+# Terraform (providers baixados pelo init e state local não vão para o repo)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
