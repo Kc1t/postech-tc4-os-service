@@ -149,7 +149,7 @@ func GetContainer() *Container {
 
 func (c *Container) initialize() {
 	c.Config = config.Load()
-	c.Logger = logger.New(c.Config.LogLevel)
+	c.Logger = logger.New(c.Config.LogLevel).With("service", "os-service")
 	slog.SetDefault(c.Logger)
 	c.setupNewRelic()
 	c.setupDatabase()
