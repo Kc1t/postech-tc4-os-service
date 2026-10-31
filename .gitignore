@@ -9,3 +9,6 @@ _bmad-output
 coverage_filtered.out
 coverage.out
 os-service
+golangci-report.xml
+gosec-report.json
+.scannerwork/
