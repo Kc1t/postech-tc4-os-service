@@ -2,7 +2,7 @@
 
 Microsserviço de **Ordem de Serviço** da oficina mecânica e **orquestrador da saga** que coordena orçamento, pagamento e execução entre os serviços.
 
-Tech Challenge Fase 4, FIAP Pós Tech SOAT. A aplicação monolítica da fase 3 foi dividida em microsserviços com o padrão Strangler Fig. Este repositório nasceu do monolito, com o histórico preservado, e ficou com o núcleo da OS; orçamento, pagamento e execução saíram para serviços próprios ([RFC da decomposição](docs/rfc/)).
+Tech Challenge Fase 4, FIAP Pós Tech SOAT. A aplicação monolítica da fase 3 foi dividida em microsserviços com o padrão Strangler Fig. Este repositório nasceu do monolito, com o histórico preservado, e ficou com o núcleo da OS; orçamento, pagamento e execução saíram para serviços próprios ([RFC-0004](docs/rfc/0004-decomposicao-em-microsservicos.md)).
 
 | Repositório | Papel | Banco |
 |---|---|---|
@@ -18,7 +18,7 @@ Tech Challenge Fase 4, FIAP Pós Tech SOAT. A aplicação monolítica da fase 3 
 | Requisito da fase 4 | Onde está |
 |---|---|
 | Microsserviço com repositório, infraestrutura e banco próprios | este repo: `infra/` (RDS em Terraform), `k8s/`, `Dockerfile` |
-| Saga com compensação, escolha justificada | [Saga orquestrada](#saga-orquestrada) abaixo e [ADR-0017](docs/adr/) |
+| Saga com compensação, escolha justificada | [Saga orquestrada](#saga-orquestrada) abaixo e [ADR-0017](docs/adr/0017-saga-orquestrada-no-os-service.md) |
 | Mensageria e REST | [Mensagens](#mensagens), [AsyncAPI](docs/asyncapi/asyncapi.yaml), [API REST](#api-rest) |
 | Nenhum acesso ao banco de outro serviço | a API composition usa REST; a Lambda auth consulta `GET /internal/requesters` em vez de abrir o banco |
 | Testes unitários, BDD e cobertura ≥ 80% | [Testes e qualidade](#testes-e-qualidade); BDD em [`features/saga.feature`](features/saga.feature) |
@@ -91,7 +91,7 @@ A saga é **orquestrada**, e o orquestrador fica **dentro do os-service**, dono 
 - **Serviços participantes simples.** Billing e execution só recebem comandos e respondem eventos. Nenhum conhece a ordem das etapas, e isso deixa a saga mudar sem mexer neles.
 - **Alternativas descartadas.** A coreografia gera acoplamento implícito por eventos e é difícil de depurar com mais de três passos; a literatura (Richardson) a recomenda para sagas curtas. O AWS Step Functions tiraria a regra do código e do teste BDD e prenderia a saga a um serviço gerenciado sem equivalente no LocalStack para o e2e. Um orquestrador separado seria mais um serviço para operar sem ganho, porque a saga existe por causa da OS.
 
-Detalhes e consequências: [ADR-0017](docs/adr/). O outbox, a idempotência e o controle de concorrência que tornam a saga confiável estão na [ADR-0018](docs/adr/).
+Detalhes e consequências: [ADR-0017](docs/adr/0017-saga-orquestrada-no-os-service.md). O outbox, a idempotência e o controle de concorrência que tornam a saga confiável estão na [ADR-0018](docs/adr/0018-outbox-inbox-e-lock-otimista.md).
 
 ### Fluxo
 
@@ -171,11 +171,11 @@ Swagger em [`docs/swagger.yaml`](docs/swagger.yaml) (servido em `/swagger/index.
 
 Pelo API Gateway, as mesmas rotas passam pelo Lambda authorizer; o serviço valida o JWT de novo e confere papel e posse.
 
-**API composition** (`GET /service-orders/{id}/details`): chama billing e execution em paralelo com timeout, retry com backoff só em métodos idempotentes e circuit breaker por destino (`pkg/httpclient`). Se um deles estiver fora, a resposta sai com `partial: true` e a lista `unavailable`, em vez de erro ([ADR-0019](docs/adr/)).
+**API composition** (`GET /service-orders/{id}/details`): chama billing e execution em paralelo com timeout, retry com backoff só em métodos idempotentes e circuit breaker por destino (`pkg/httpclient`). Se um deles estiver fora, a resposta sai com `partial: true` e a lista `unavailable`, em vez de erro ([ADR-0019](docs/adr/0019-api-composition-no-details.md)).
 
 ## Banco de dados
 
-PostgreSQL próprio, criado pelo Terraform em [`infra/`](infra/) (RDS, banco `workshop`, usuário `workshop_app`, TLS obrigatório, credenciais no Secrets Manager). As tabelas são criadas pelo `AutoMigrate` do GORM na subida: `users`, `refresh_tokens`, `requesters`, `vehicles`, `services`, `parts`, `service_orders` e itens, `service_order_status_history`, `saga_instances`, `outbox_messages` e `processed_messages`. Nenhum outro serviço acessa este banco ([ADR-0012](docs/adr/)).
+PostgreSQL próprio, criado pelo Terraform em [`infra/`](infra/) (RDS, banco `workshop`, usuário `workshop_app`, TLS obrigatório, credenciais no Secrets Manager). As tabelas são criadas pelo `AutoMigrate` do GORM na subida: `users`, `refresh_tokens`, `requesters`, `vehicles`, `services`, `parts`, `service_orders` e itens, `service_order_status_history`, `saga_instances`, `outbox_messages` e `processed_messages`. Nenhum outro serviço acessa este banco ([ADR-0012](docs/adr/0012-banco-por-servico.md)).
 
 ## Testes e qualidade
 
@@ -230,8 +230,8 @@ O fluxo completo, com os três serviços e as Lambdas, está no ambiente e2e do 
 
 ## Limitações conhecidas
 
-- O AWS Learner Lab não deixa criar roles: os pods usam a `LabRole` pelo IMDS em vez de IRSA ([ADR-0016](docs/adr/)), e a integração da conta AWS com o New Relic não é possível (métricas de SQS e RDS ficam no CloudWatch).
-- RDS single-AZ e sem proteção contra exclusão, por custo e pelas sessões do lab ([ADR-0015](docs/adr/)).
-- Um só ambiente no EKS; a homologação é o e2e local ([ADR-0021](docs/adr/)).
+- O AWS Learner Lab não deixa criar roles: os pods usam a `LabRole` pelo IMDS em vez de IRSA ([ADR-0016](docs/adr/0016-credenciais-dos-pods-pela-labrole.md)), e a integração da conta AWS com o New Relic não é possível (métricas de SQS e RDS ficam no CloudWatch).
+- RDS single-AZ e sem proteção contra exclusão, por custo e pelas sessões do lab ([ADR-0015](docs/adr/0015-rds-single-az-sem-deletion-protection.md)).
+- Um só ambiente no EKS; a homologação é o e2e local ([ADR-0021](docs/adr/0021-ambiente-unico-no-eks.md)).
 - O NLB de cada serviço é público. A defesa é o JWT validado no serviço e o token interno; o caminho para fechar é VPC Link com NLB interno.
 - Sem CQRS: a leitura composta é feita na hora (API composition), o que é suficiente no volume atual e mais simples de manter.

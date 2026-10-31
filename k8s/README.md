@@ -1,6 +1,6 @@
 # Manifestos Kubernetes do os-service
 
-Deploy do os-service no EKS, namespace `postech` ([ADR-0021](../docs/adr/)). O namespace, a `ResourceQuota` e o `LimitRange` são da plataforma e ficam em [`postech-tc4-infra-k8s/k8s/namespace.yaml`](https://github.com/Kc1t/postech-tc4-infra-k8s/blob/main/k8s/namespace.yaml), porque a cota vale para os três serviços somados.
+Deploy do os-service no EKS, namespace `postech` ([ADR-0021](../docs/adr/0021-ambiente-unico-no-eks.md)). O namespace, a `ResourceQuota` e o `LimitRange` são da plataforma e ficam em [`postech-tc4-infra-k8s/k8s/namespace.yaml`](https://github.com/Kc1t/postech-tc4-infra-k8s/blob/main/k8s/namespace.yaml), porque a cota vale para os três serviços somados.
 
 Quem aplica é o job `deploy` do [CI](../.github/workflows/ci.yml), na `main`. Os manifests não declaram namespace e trazem marcadores (`*_PLACEHOLDER`) que o job substitui; o job falha se sobrar algum.
 
