@@ -86,6 +86,10 @@ set -e
 
 measures=$(curl -s -u "admin:${PASSWORD}" "$API/measures/component?component=${PROJECT_KEY}&metricKeys=coverage,bugs,vulnerabilities,code_smells,security_hotspots,duplicated_lines_density,ncloc")
 gate=$(curl -s -u "admin:${PASSWORD}" "$API/qualitygates/project_status?projectKey=${PROJECT_KEY}" | sed -n 's/.*"projectStatus":{"status":"\([A-Z]*\)".*/\1/p')
+# Issues abertas (bugs, vulnerabilidades e code smells, inclusive as importadas do golangci-lint e
+# do gosec), para o motivo de um gate reprovado aparecer no log e no resumo do job.
+issues=$(curl -s -u "admin:${PASSWORD}" "$API/issues/search?componentKeys=${PROJECT_KEY}&resolved=false&ps=50" |
+  jq -r '.issues[]? | "| \(.type) | \(.severity) | `\(.rule)` | `\(.component | split(":")[1])`:\(.line // "-") | \(.message) |"')
 
 summary() {
   echo "### SonarQube: ${PROJECT_KEY}"
@@ -95,6 +99,12 @@ summary() {
   echo "| Métrica | Valor |"
   echo "|---|---|"
   echo "$measures" | grep -o '"metric":"[a-z_]*","value":"[^"]*"' | sed 's/"metric":"\([a-z_]*\)","value":"\([^"]*\)"/| \1 | \2 |/'
+  if [[ -n "$issues" ]]; then
+    echo
+    echo "| Tipo | Severidade | Regra | Onde | Mensagem |"
+    echo "|---|---|---|---|---|"
+    echo "$issues"
+  fi
 }
 summary
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then summary >> "$GITHUB_STEP_SUMMARY"; fi
