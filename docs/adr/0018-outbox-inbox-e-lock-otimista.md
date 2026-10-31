@@ -23,9 +23,11 @@ Há ainda escritas concorrentes na mesma OS: duas réplicas processando resposta
 
 O caso de uso grava a mensagem **na mesma transação** da mudança de estado. Um relay publica depois.
 
-- **PostgreSQL (os e billing, `pkg/outbox`):** tabela `outbox_messages`, com o ID da mensagem, destino (tópico ou fila), tipo, `saga_id`, corpo, headers de trace, `created_at`, `published_at`, `attempts` e `last_error`. O relay varre a cada `OUTBOX_POLL_INTERVAL` (500 ms) um lote de 50 pendentes, em ordem de criação, com `FOR UPDATE SKIP LOCKED`: várias réplicas rodam o relay sem publicar a mesma linha em paralelo. Falha de publicação incrementa `attempts` e a linha fica para a próxima varredura.
+- **PostgreSQL (os e billing, `pkg/outbox`):** tabela `outbox_messages`, com o ID da mensagem, destino (tópico ou fila), tipo, `saga_id`, corpo, headers de trace, `created_at`, `published_at`, `next_attempt_at`, `attempts` e `last_error`. O relay varre a cada `OUTBOX_POLL_INTERVAL` (500 ms) um lote de 50 pendentes cuja espera já passou, em ordem de criação, com `FOR UPDATE SKIP LOCKED`: várias réplicas rodam o relay sem publicar a mesma linha em paralelo.
+- **Falha de publicação espera antes de tentar de novo** (os três serviços): `attempts` sobe e a próxima tentativa fica para 1 s, 2 s, 4 s... até 5 min depois (`next_attempt_at` no PostgreSQL, `lease_until` no DynamoDB). Enquanto espera, a mensagem não entra no lote, então uma mensagem que não publica não trava as outras. A partir da 10ª tentativa (uns 8 min falhando), cada falha é logada como erro `outbox_message_stuck`, e a falha também aparece como erro na transação `OutboxRelay/<tipo>` do New Relic.
+- **Limpeza:** o relay do PostgreSQL apaga, uma vez por hora, o outbox publicado há mais de 7 dias e o inbox com mais de 21 dias. A retenção do inbox passa a das DLQs (14 dias) de propósito: um redrive reentrega mensagens antigas, e sem o registro elas reaplicariam o efeito.
 - **No os-service, enviar fora de transação é erro** (`ErrNoTransaction`). O `outboxMessenger` só grava no outbox da transação corrente, então não existe caminho que publique direto.
-- **DynamoDB (execution):** o item `OUTBOX` entra na mesma `TransactWriteItems` do `STATE` ([ADR-0012](./0012-banco-por-servico.md)). Sem `SKIP LOCKED`, cada réplica reserva a mensagem com um `UpdateItem` condicional (lease de 30 s). Publicada, a mensagem ganha TTL de 24 h.
+- **DynamoDB (execution):** o item `OUTBOX` entra na mesma `TransactWriteItems` do `STATE` ([ADR-0012](./0012-banco-por-servico.md)). Sem `SKIP LOCKED`, cada réplica reserva a mensagem com um `UpdateItem` condicional (lease de 30 s). Publicada, a mensagem ganha TTL de 24 h. Na falha, o lease vira a hora da próxima tentativa.
 - **O trace atravessa o outbox.** Os headers de distributed tracing do New Relic são capturados na gravação e reaceitos pelo relay antes de publicar, então o trace da requisição HTTP continua no consumidor do outro serviço.
 
 ### Inbox (consumidor idempotente)
@@ -70,8 +72,9 @@ O consumidor registra o `message_id` **na mesma transação** dos efeitos do han
 ### Negativas
 
 - **Latência de até um intervalo de varredura** (500 ms) entre o commit e a publicação, somada em cada passo da saga.
-- **As tabelas crescem.** O `outbox_messages` guarda as mensagens já publicadas e o `processed_messages` guarda todo ID processado. No PostgreSQL não há limpeza automática; no DynamoDB, o TTL resolve.
-- **Uma mensagem que nunca publica** (destino inexistente, por exemplo) fica sendo tentada a cada varredura. O `attempts` e o `last_error` mostram o problema, mas não há limite nem DLQ do lado do outbox. Como o lote é sempre o das 50 mais antigas, 50 mensagens nesse estado ocupariam o lote inteiro e travariam as mais novas.
+- **Uma mensagem que nunca publica** (destino inexistente, por exemplo) continua sendo tentada a cada 5 min, para sempre: não há DLQ do lado do outbox. Ela não trava as outras, mas alguém precisa agir quando o `outbox_message_stuck` aparecer (corrigir o destino ou apagar a linha).
+- **A ordem entre mensagens não é garantida depois de uma falha.** A mensagem que espera é ultrapassada pelas mais novas. A saga já trata resposta fora de ordem (`ErrSagaOutOfStep`); onde isso aparece é na notificação, que pode mandar dois e-mails de status fora de ordem.
+- **A limpeza é um `DELETE` por data**, sem lotes. No volume de uma oficina é instantâneo; em escala maior, apagaria em lotes ou particionaria a tabela por data.
 - **A entrega continua "pelo menos uma vez".** O outbox garante que a mensagem sai, não que sai uma vez só. Todo consumidor novo precisa de inbox, ou repete efeitos.
 - **O lock pessimista na saga e o otimista na OS convivem.** Quem mexer no orquestrador precisa respeitar a ordem de travamento.
 
