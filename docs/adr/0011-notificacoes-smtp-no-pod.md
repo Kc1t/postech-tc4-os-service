@@ -1,6 +1,6 @@
 # ADR-0011: Notificações por SMTP dentro da aplicação, com caminho para serverless
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0022](./0022-notificacao-por-lambda.md)
 - **Data:** 2026-09
 - **Decisão por:** Reservoir Devs
 

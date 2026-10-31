@@ -1,6 +1,6 @@
 # ADR-0010: Um cluster com dois namespaces em vez de dois clusters
 
-- **Status:** Accepted
+- **Status:** Partially superseded by [ADR-0021](./0021-ambiente-unico-no-eks.md)
 - **Data:** 2026-09
 - **Decisão por:** Reservoir Devs
 

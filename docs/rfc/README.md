@@ -17,3 +17,4 @@ Quando uma proposta estabiliza, sua conclusão vira ADR. Enquanto isso, a RFC é
 | [0001](./0001-escolha-da-nuvem.md) | Escolha da nuvem — por que continuar na AWS | Aceita |
 | [0002](./0002-banco-gerenciado.md) | Escolha do banco de dados gerenciado — RDS PostgreSQL | Aceita |
 | [0003](./0003-autenticacao-por-cpf.md) | Estratégia de autenticação por CPF — Lambda própria, não Cognito | Aceita |
+| [0004](./0004-decomposicao-em-microsservicos.md) | Decomposição do monolito em microsserviços (Strangler Fig) | Aceita |
