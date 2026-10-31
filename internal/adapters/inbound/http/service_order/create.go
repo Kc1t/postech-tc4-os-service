@@ -9,6 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// SimulateFailureHeader é o header de demonstração das compensações da saga.
+const SimulateFailureHeader = "X-Simulate-Failure"
+
 // Create godoc
 // @Summary     Criar ordem de servico
 // @Tags        service-orders
@@ -25,9 +28,6 @@ import (
 // @Failure     422 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /service-orders [post]
-// SimulateFailureHeader é o header de demonstração das compensações da saga.
-const SimulateFailureHeader = "X-Simulate-Failure"
-
 func (h *ServiceOrderHandler) Create(c *gin.Context) {
 	var req commands.CreateServiceOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -643,6 +643,67 @@
                         }
                     }
                 }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Abre a OS e inicia a saga (StartDiagnosis para o execution-service). Com\nFAULT_INJECTION_ENABLED=true, o header X-Simulate-Failure (budget, payment ou\nrepair) força a falha da etapa para demonstrar as compensações.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service-orders"
+                ],
+                "summary": "Criar ordem de servico",
+                "parameters": [
+                    {
+                        "description": "Dados da OS",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/commands.CreateServiceOrderRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Falha simulada: budget, payment ou repair",
+                        "name": "X-Simulate-Failure",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/commands.ServiceOrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/service-orders/code/{code}": {
@@ -1385,6 +1446,24 @@
                     "type": "string"
                 },
                 "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "commands.CreateServiceOrderRequest": {
+            "type": "object",
+            "required": [
+                "requester_document",
+                "vehicle_plate"
+            ],
+            "properties": {
+                "notes": {
+                    "type": "string"
+                },
+                "requester_document": {
+                    "type": "string"
+                },
+                "vehicle_plate": {
                     "type": "string"
                 }
             }
