@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 650" width="1000" height="650" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+  <title>Arquitetura da fase 4: microsserviços, bancos e comunicação</title>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker>
+    <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7a3fc0"/></marker>
+  </defs>
+  <style>
+    .box{fill:#f6f8fa;stroke:#444;stroke-width:1.3}
+    .svc{fill:#e8f0fe;stroke:#3a6fd8;stroke-width:1.6}
+    .fn{fill:#fff4e0;stroke:#d08a00;stroke-width:1.3}
+    .db{fill:#e6f4ea;stroke:#2f8a4a;stroke-width:1.3}
+    .ext{fill:#fff;stroke:#888;stroke-width:1.2;stroke-dasharray:4 3}
+    .grp{fill:none;stroke:#9aa4ae;stroke-width:1.2;stroke-dasharray:7 5}
+    .l{stroke:#444;stroke-width:1.4;fill:none;marker-end:url(#a)}
+    .ll{stroke:#444;stroke-width:1.3;fill:none}
+    .both{stroke:#444;stroke-width:1.4;fill:none;marker-end:url(#a);marker-start:url(#a)}
+    .msg{stroke:#7a3fc0;stroke-width:1.7;fill:none;marker-end:url(#m)}
+    .rest{stroke:#444;stroke-width:1.3;fill:none;stroke-dasharray:5 4;marker-end:url(#a)}
+    .t{fill:#1f2328;text-anchor:middle}
+    .b{font-weight:600}
+    .s{font-size:11px;fill:#57606a;text-anchor:middle}
+    .lm{font-size:11px;fill:#7a3fc0;text-anchor:middle}
+    .st{font-size:11px;fill:#57606a}
+  </style>
+
+  <!-- borda -->
+  <rect class="ext" x="330" y="12" width="340" height="40" rx="8"/>
+  <text class="t" x="500" y="37">Cliente · equipe da oficina · webhook do Mercado Pago</text>
+  <rect class="ext" x="790" y="10" width="195" height="62" rx="8"/>
+  <text class="t b" x="887" y="31">New Relic</text>
+  <text class="s" x="887" y="47">APM · trace pelas filas · logs</text>
+  <text class="s" x="887" y="62">de todos os serviços e Lambdas</text>
+  <path class="l" d="M500,52 L500,90"/>
+
+  <rect class="ext" x="15" y="92" width="140" height="52" rx="8"/>
+  <text class="t b" x="85" y="114">Mercado Pago</text>
+  <text class="s" x="85" y="132">Checkout Pro</text>
+
+  <rect class="fn" x="175" y="98" width="160" height="40" rx="8"/>
+  <text class="t" x="255" y="123">λ auth-authorizer</text>
+  <rect class="box" x="390" y="92" width="220" height="52" rx="8"/>
+  <text class="t b" x="500" y="114">API Gateway HTTP</text>
+  <text class="s" x="500" y="132">authorizer JWT · throttling</text>
+  <rect class="fn" x="670" y="98" width="160" height="40" rx="8"/>
+  <text class="t b" x="750" y="116">λ auth-issuer</text>
+  <text class="s" x="750" y="131">CPF → JWT</text>
+  <path class="rest" d="M390,118 L337,118"/>
+  <path class="l" d="M610,118 L668,118"/>
+  <text class="s" x="640" y="110">/auth</text>
+
+  <!-- EKS -->
+  <rect class="grp" x="20" y="172" width="960" height="214" rx="12"/>
+  <text class="st b" x="170" y="191">Amazon EKS · namespace postech</text>
+
+  <path class="l" d="M450,144 L450,222 L135,222 L135,258"/>
+  <path class="l" d="M500,144 L500,258"/>
+  <path class="l" d="M550,144 L550,222 L865,222 L865,258"/>
+  <text class="s" x="300" y="216">HTTP pelo NLB de cada serviço</text>
+  <path class="l" d="M760,138 L760,242 L572,242 L572,258"/>
+  <text class="s" x="666" y="237">GET /internal/requesters</text>
+  <path class="both" d="M85,146 L85,258"/>
+  <text class="st" x="92" y="196">preferência,</text>
+  <text class="st" x="92" y="210">estorno</text>
+
+  <rect class="svc" x="45" y="260" width="180" height="62" rx="8"/>
+  <text class="t b" x="135" y="286">billing-service</text>
+  <text class="s" x="135" y="304">orçamento e pagamento</text>
+  <rect class="svc" x="410" y="260" width="180" height="62" rx="8"/>
+  <text class="t b" x="500" y="286">os-service</text>
+  <text class="s" x="500" y="304">OS, estoque, orquestrador da saga</text>
+  <rect class="svc" x="775" y="260" width="180" height="62" rx="8"/>
+  <text class="t b" x="865" y="286">execution-service</text>
+  <text class="s" x="865" y="304">fila de diagnóstico e reparo</text>
+
+  <path class="msg" d="M410,274 L227,274"/>
+  <path class="rest" d="M410,291 L227,291"/>
+  <path class="msg" d="M225,308 L408,308"/>
+  <text class="lm" x="318" y="267">comandos (SQS)</text>
+  <text class="lm" x="318" y="324">eventos (SNS → SQS)</text>
+  <path class="msg" d="M590,274 L773,274"/>
+  <path class="rest" d="M590,291 L773,291"/>
+  <path class="msg" d="M775,308 L592,308"/>
+  <text class="lm" x="682" y="267">comandos (SQS)</text>
+  <text class="lm" x="682" y="324">eventos (SNS → SQS)</text>
+  <text class="lm" x="146" y="358" style="text-anchor:start">comandos: filas billing-commands e execution-commands</text>
+  <text class="lm" x="146" y="374" style="text-anchor:start">eventos: tópicos billing/execution-events → fila os-saga-replies</text>
+
+  <!-- bancos -->
+  <path class="ll" d="M135,322 L135,410"/>
+  <path class="ll" d="M500,322 L500,410"/>
+  <path class="ll" d="M865,322 L865,410"/>
+  <path class="db" d="M55,418 a80,8 0 0,0 160,0 a80,8 0 0,0 -160,0 v42 a80,8 0 0,0 160,0 v-42"/>
+  <text class="t b" x="135" y="444">PostgreSQL</text>
+  <text class="s" x="135" y="460">billing (RDS)</text>
+  <path class="db" d="M420,418 a80,8 0 0,0 160,0 a80,8 0 0,0 -160,0 v42 a80,8 0 0,0 160,0 v-42"/>
+  <text class="t b" x="500" y="444">PostgreSQL</text>
+  <text class="s" x="500" y="460">workshop (RDS)</text>
+  <path class="db" d="M785,418 a80,8 0 0,0 160,0 a80,8 0 0,0 -160,0 v42 a80,8 0 0,0 160,0 v-42"/>
+  <text class="t b" x="865" y="444">DynamoDB</text>
+  <text class="s" x="865" y="460">executions (tabela única)</text>
+
+  <!-- notificação -->
+  <path class="msg" d="M578,322 L578,398 L700,398 L700,518"/>
+  <text class="lm" x="692" y="496" style="text-anchor:end">status da OS: SNS os-events</text>
+  <text class="lm" x="692" y="510" style="text-anchor:end">→ SQS notification-os-events</text>
+  <rect class="fn" x="620" y="520" width="160" height="44" rx="8"/>
+  <text class="t b" x="700" y="540">λ notifier</text>
+  <text class="s" x="700" y="556">e-mail a cada status</text>
+  <rect class="ext" x="830" y="520" width="150" height="44" rx="8"/>
+  <text class="t" x="905" y="547">E-mail (SMTP Brevo)</text>
+  <path class="l" d="M780,542 L828,542"/>
+  <path class="db" d="M440,522 a70,7 0 0,0 140,0 a70,7 0 0,0 -140,0 v34 a70,7 0 0,0 140,0 v-34"/>
+  <text class="t b" x="510" y="544">DynamoDB</text>
+  <text class="s" x="510" y="559">dedup</text>
+  <path class="ll" d="M620,542 L580,542"/>
+
+  <!-- legenda -->
+  <path class="msg" d="M30,618 L72,618"/>
+  <text class="st" x="80" y="622">mensagem SNS/SQS (toda fila com DLQ e alarme)</text>
+  <path class="l" d="M380,618 L422,618"/>
+  <text class="st" x="430" y="622">HTTP</text>
+  <path class="rest" d="M480,618 L522,618"/>
+  <text class="st" x="530" y="622">REST interna (API composition do /details) ou validação do token</text>
+</svg>
