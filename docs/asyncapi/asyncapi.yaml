@@ -1,0 +1,578 @@
+# Contrato assíncrono da oficina (Tech Challenge FIAP SOAT, fase 4).
+#
+# Os payloads referenciam os JSON Schemas canônicos de pkg/contracts/schemas: são os mesmos arquivos
+# que os serviços embutem e usam nos testes de contrato (contracts.Validate). Para validar:
+#   make asyncapi   (CLI oficial do AsyncAPI em contêiner, sem instalar nada)
+asyncapi: 3.0.0
+info:
+  title: Oficina - mensageria da saga da OS
+  version: 1.0.0
+  description: |
+    Mensagens trocadas entre os-service (orquestrador da saga), billing-service, execution-service e a
+    Lambda de notificação, sobre AWS SNS e SQS (LocalStack no ambiente local).
+
+    - **Comandos** vão direto para a fila SQS do destinatário (`billing-commands`, `execution-commands`).
+    - **Eventos** vão para o tópico SNS do publicador (`os-events`, `billing-events`, `execution-events`);
+      as assinaturas SNS → SQS usam *raw message delivery*, então a fila recebe o envelope JSON sem o
+      invólucro do SNS (o consumidor aceita os dois formatos).
+    - Todo corpo é um **envelope** (`envelope.schema.json`) com `message_id`, `type`, `version`, `saga_id`,
+      `os_id`, `correlation_id`, `causation_id`, `producer`, `occurred_at` e o `payload` do tipo.
+      Os campos de roteamento e o contexto de trace do New Relic também viajam como MessageAttributes.
+    - Publicação pelo Transactional Outbox, entrega *pelo menos uma vez*: os consumidores são
+      idempotentes pelo `message_id` (inbox). Depois de 5 entregas sem sucesso a mensagem vai para a
+      DLQ `<fila>-dlq`.
+    - Leitor tolerante: campos desconhecidos são ignorados; mudança incompatível incrementa `version`.
+  contact:
+    name: Grupo do Tech Challenge (Kc1t)
+    url: https://github.com/Kc1t/postech-tc4-os-service
+  tags:
+    - name: os-service
+      description: "Orquestrador da saga da OS"
+    - name: billing-service
+      description: "Orçamento e pagamento"
+    - name: execution-service
+      description: "Diagnóstico e reparo"
+    - name: notification-lambda
+      description: "E-mail ao cliente"
+defaultContentType: application/json
+
+servers:
+  aws-sns:
+    host: "sns.{region}.amazonaws.com"
+    protocol: sns
+    description: "Tópicos de eventos na AWS (Terraform em postech-tc4-infra-k8s/messaging.tf)."
+    variables:
+      region:
+        default: us-east-1
+  aws-sqs:
+    host: "sqs.{region}.amazonaws.com"
+    protocol: sqs
+    description: "Filas de comandos e de consumo na AWS, cada uma com DLQ."
+    variables:
+      region:
+        default: us-east-1
+  localstack-sns:
+    host: localhost:4566
+    protocol: sns
+    description: "LocalStack do ambiente ponta a ponta (postech-tc4-infra-k8s/local), mesma topologia."
+  localstack-sqs:
+    host: localhost:4566
+    protocol: sqs
+    description: "LocalStack do ambiente ponta a ponta (postech-tc4-infra-k8s/local), mesma topologia."
+
+channels:
+  osEvents:
+    address: os-events
+    title: "Tópico SNS os-events"
+    description: "Eventos do os-service. Assinado pela fila notification-os-events."
+    servers:
+      - $ref: '#/servers/aws-sns'
+      - $ref: '#/servers/localstack-sns'
+    messages:
+      ServiceOrderStatusChanged:
+        $ref: '#/components/messages/ServiceOrderStatusChanged'
+    bindings:
+      sns:
+        name: os-events
+        bindingVersion: 0.1.0
+  billingEvents:
+    address: billing-events
+    title: "Tópico SNS billing-events"
+    description: "Eventos do billing-service. Assinado pela fila os-saga-replies."
+    servers:
+      - $ref: '#/servers/aws-sns'
+      - $ref: '#/servers/localstack-sns'
+    messages:
+      BudgetCreated:
+        $ref: '#/components/messages/BudgetCreated'
+      BudgetCreationFailed:
+        $ref: '#/components/messages/BudgetCreationFailed'
+      BudgetApproved:
+        $ref: '#/components/messages/BudgetApproved'
+      BudgetRejected:
+        $ref: '#/components/messages/BudgetRejected'
+      BudgetCancelled:
+        $ref: '#/components/messages/BudgetCancelled'
+      PaymentLinkCreated:
+        $ref: '#/components/messages/PaymentLinkCreated'
+      PaymentApproved:
+        $ref: '#/components/messages/PaymentApproved'
+      PaymentFailed:
+        $ref: '#/components/messages/PaymentFailed'
+      PaymentRefunded:
+        $ref: '#/components/messages/PaymentRefunded'
+    bindings:
+      sns:
+        name: billing-events
+        bindingVersion: 0.1.0
+  executionEvents:
+    address: execution-events
+    title: "Tópico SNS execution-events"
+    description: "Eventos do execution-service. Assinado pela fila os-saga-replies."
+    servers:
+      - $ref: '#/servers/aws-sns'
+      - $ref: '#/servers/localstack-sns'
+    messages:
+      DiagnosisStarted:
+        $ref: '#/components/messages/DiagnosisStarted'
+      DiagnosisCompleted:
+        $ref: '#/components/messages/DiagnosisCompleted'
+      RepairStarted:
+        $ref: '#/components/messages/RepairStarted'
+      RepairFinished:
+        $ref: '#/components/messages/RepairFinished'
+      RepairRejected:
+        $ref: '#/components/messages/RepairRejected'
+      ExecutionCancelled:
+        $ref: '#/components/messages/ExecutionCancelled'
+    bindings:
+      sns:
+        name: execution-events
+        bindingVersion: 0.1.0
+  osSagaReplies:
+    address: os-saga-replies
+    title: "Fila SQS os-saga-replies"
+    description: "Respostas da saga: recebe billing-events e execution-events (raw delivery). DLQ: os-saga-replies-dlq."
+    servers:
+      - $ref: '#/servers/aws-sqs'
+      - $ref: '#/servers/localstack-sqs'
+    messages:
+      BudgetCreated:
+        $ref: '#/components/messages/BudgetCreated'
+      BudgetCreationFailed:
+        $ref: '#/components/messages/BudgetCreationFailed'
+      BudgetApproved:
+        $ref: '#/components/messages/BudgetApproved'
+      BudgetRejected:
+        $ref: '#/components/messages/BudgetRejected'
+      BudgetCancelled:
+        $ref: '#/components/messages/BudgetCancelled'
+      PaymentLinkCreated:
+        $ref: '#/components/messages/PaymentLinkCreated'
+      PaymentApproved:
+        $ref: '#/components/messages/PaymentApproved'
+      PaymentFailed:
+        $ref: '#/components/messages/PaymentFailed'
+      PaymentRefunded:
+        $ref: '#/components/messages/PaymentRefunded'
+      DiagnosisStarted:
+        $ref: '#/components/messages/DiagnosisStarted'
+      DiagnosisCompleted:
+        $ref: '#/components/messages/DiagnosisCompleted'
+      RepairStarted:
+        $ref: '#/components/messages/RepairStarted'
+      RepairFinished:
+        $ref: '#/components/messages/RepairFinished'
+      RepairRejected:
+        $ref: '#/components/messages/RepairRejected'
+      ExecutionCancelled:
+        $ref: '#/components/messages/ExecutionCancelled'
+  billingCommands:
+    address: billing-commands
+    title: "Fila SQS billing-commands"
+    description: "Comandos do orquestrador para o billing-service. DLQ: billing-commands-dlq."
+    servers:
+      - $ref: '#/servers/aws-sqs'
+      - $ref: '#/servers/localstack-sqs'
+    messages:
+      CreateBudget:
+        $ref: '#/components/messages/CreateBudget'
+      RequestPayment:
+        $ref: '#/components/messages/RequestPayment'
+      CancelBudget:
+        $ref: '#/components/messages/CancelBudget'
+      RefundPayment:
+        $ref: '#/components/messages/RefundPayment'
+  executionCommands:
+    address: execution-commands
+    title: "Fila SQS execution-commands"
+    description: "Comandos do orquestrador para o execution-service. DLQ: execution-commands-dlq."
+    servers:
+      - $ref: '#/servers/aws-sqs'
+      - $ref: '#/servers/localstack-sqs'
+    messages:
+      StartDiagnosis:
+        $ref: '#/components/messages/StartDiagnosis'
+      StartRepair:
+        $ref: '#/components/messages/StartRepair'
+      CancelExecution:
+        $ref: '#/components/messages/CancelExecution'
+  notificationOsEvents:
+    address: notification-os-events
+    title: "Fila SQS notification-os-events"
+    description: "Eventos de status da OS para a Lambda de notificação (assina os-events, raw delivery). DLQ: notification-os-events-dlq."
+    servers:
+      - $ref: '#/servers/aws-sqs'
+      - $ref: '#/servers/localstack-sqs'
+    messages:
+      ServiceOrderStatusChanged:
+        $ref: '#/components/messages/ServiceOrderStatusChanged'
+
+operations:
+  osServiceSendExecutionCommands:
+    action: send
+    channel:
+      $ref: '#/channels/executionCommands'
+    summary: "O orquestrador abre, libera e compensa a execução (StartDiagnosis na abertura da OS, StartRepair depois do pagamento, CancelExecution nas compensações)."
+    tags:
+      - name: os-service
+    messages:
+      - $ref: '#/channels/executionCommands/messages/StartDiagnosis'
+      - $ref: '#/channels/executionCommands/messages/StartRepair'
+      - $ref: '#/channels/executionCommands/messages/CancelExecution'
+  osServiceSendBillingCommands:
+    action: send
+    channel:
+      $ref: '#/channels/billingCommands'
+    summary: "O orquestrador pede o orçamento e o pagamento e dispara as compensações (CancelBudget, RefundPayment)."
+    tags:
+      - name: os-service
+    messages:
+      - $ref: '#/channels/billingCommands/messages/CreateBudget'
+      - $ref: '#/channels/billingCommands/messages/RequestPayment'
+      - $ref: '#/channels/billingCommands/messages/CancelBudget'
+      - $ref: '#/channels/billingCommands/messages/RefundPayment'
+  osServicePublishStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/osEvents'
+    summary: "A cada mudança de status da OS (e quando sai o link de pagamento)."
+    tags:
+      - name: os-service
+    messages:
+      - $ref: '#/channels/osEvents/messages/ServiceOrderStatusChanged'
+    bindings:
+      sns:
+        consumers:
+          - protocol: sqs
+            endpoint:
+              name: notification-os-events
+            rawMessageDelivery: true
+        bindingVersion: 0.1.0
+  osServiceReceiveSagaReplies:
+    action: receive
+    channel:
+      $ref: '#/channels/osSagaReplies'
+    summary: "O orquestrador avança ou compensa a saga. BudgetCancelled e ExecutionCancelled só confirmam compensações."
+    tags:
+      - name: os-service
+    messages:
+      - $ref: '#/channels/osSagaReplies/messages/BudgetCreated'
+      - $ref: '#/channels/osSagaReplies/messages/BudgetCreationFailed'
+      - $ref: '#/channels/osSagaReplies/messages/BudgetApproved'
+      - $ref: '#/channels/osSagaReplies/messages/BudgetRejected'
+      - $ref: '#/channels/osSagaReplies/messages/BudgetCancelled'
+      - $ref: '#/channels/osSagaReplies/messages/PaymentLinkCreated'
+      - $ref: '#/channels/osSagaReplies/messages/PaymentApproved'
+      - $ref: '#/channels/osSagaReplies/messages/PaymentFailed'
+      - $ref: '#/channels/osSagaReplies/messages/PaymentRefunded'
+      - $ref: '#/channels/osSagaReplies/messages/DiagnosisStarted'
+      - $ref: '#/channels/osSagaReplies/messages/DiagnosisCompleted'
+      - $ref: '#/channels/osSagaReplies/messages/RepairStarted'
+      - $ref: '#/channels/osSagaReplies/messages/RepairFinished'
+      - $ref: '#/channels/osSagaReplies/messages/RepairRejected'
+      - $ref: '#/channels/osSagaReplies/messages/ExecutionCancelled'
+  billingServiceReceiveCommands:
+    action: receive
+    channel:
+      $ref: '#/channels/billingCommands'
+    summary: "Consumo idempotente (inbox) dos comandos do orquestrador."
+    tags:
+      - name: billing-service
+    messages:
+      - $ref: '#/channels/billingCommands/messages/CreateBudget'
+      - $ref: '#/channels/billingCommands/messages/RequestPayment'
+      - $ref: '#/channels/billingCommands/messages/CancelBudget'
+      - $ref: '#/channels/billingCommands/messages/RefundPayment'
+  billingServicePublishEvents:
+    action: send
+    channel:
+      $ref: '#/channels/billingEvents'
+    summary: "Respostas aos comandos e eventos da API (aprovação/recusa do cliente) e do provedor de pagamento."
+    tags:
+      - name: billing-service
+    messages:
+      - $ref: '#/channels/billingEvents/messages/BudgetCreated'
+      - $ref: '#/channels/billingEvents/messages/BudgetCreationFailed'
+      - $ref: '#/channels/billingEvents/messages/BudgetApproved'
+      - $ref: '#/channels/billingEvents/messages/BudgetRejected'
+      - $ref: '#/channels/billingEvents/messages/BudgetCancelled'
+      - $ref: '#/channels/billingEvents/messages/PaymentLinkCreated'
+      - $ref: '#/channels/billingEvents/messages/PaymentApproved'
+      - $ref: '#/channels/billingEvents/messages/PaymentFailed'
+      - $ref: '#/channels/billingEvents/messages/PaymentRefunded'
+    bindings:
+      sns:
+        consumers:
+          - protocol: sqs
+            endpoint:
+              name: os-saga-replies
+            rawMessageDelivery: true
+        bindingVersion: 0.1.0
+  executionServiceReceiveCommands:
+    action: receive
+    channel:
+      $ref: '#/channels/executionCommands'
+    summary: "Consumo idempotente (inbox) dos comandos do orquestrador."
+    tags:
+      - name: execution-service
+    messages:
+      - $ref: '#/channels/executionCommands/messages/StartDiagnosis'
+      - $ref: '#/channels/executionCommands/messages/StartRepair'
+      - $ref: '#/channels/executionCommands/messages/CancelExecution'
+  executionServicePublishEvents:
+    action: send
+    channel:
+      $ref: '#/channels/executionEvents'
+    summary: "Ações do mecânico (diagnóstico e reparo) e respostas aos comandos."
+    tags:
+      - name: execution-service
+    messages:
+      - $ref: '#/channels/executionEvents/messages/DiagnosisStarted'
+      - $ref: '#/channels/executionEvents/messages/DiagnosisCompleted'
+      - $ref: '#/channels/executionEvents/messages/RepairStarted'
+      - $ref: '#/channels/executionEvents/messages/RepairFinished'
+      - $ref: '#/channels/executionEvents/messages/RepairRejected'
+      - $ref: '#/channels/executionEvents/messages/ExecutionCancelled'
+    bindings:
+      sns:
+        consumers:
+          - protocol: sqs
+            endpoint:
+              name: os-saga-replies
+            rawMessageDelivery: true
+        bindingVersion: 0.1.0
+  notificationLambdaReceiveStatusChanged:
+    action: receive
+    channel:
+      $ref: '#/channels/notificationOsEvents'
+    summary: "Envia o e-mail do status ao cliente (deduplicado pelo message_id)."
+    tags:
+      - name: notification-lambda
+    messages:
+      - $ref: '#/channels/notificationOsEvents/messages/ServiceOrderStatusChanged'
+
+components:
+  schemas:
+    MessageAttributes:
+      type: object
+      description: |
+        MessageAttributes (DataType String) que pkg/messaging grava em toda publicação. Com raw delivery
+        eles chegam à fila como atributos da mensagem SQS. Os três headers de trace são os do
+        distributed tracing do New Relic (W3C trace context).
+      required: [message_type, message_id]
+      properties:
+        message_type:
+          type: string
+          description: "Igual ao campo type do envelope."
+        message_id:
+          type: string
+          description: "Igual ao message_id do envelope."
+        saga_id:
+          type: string
+          description: "Igual ao saga_id do envelope (omitido quando vazio)."
+        os_id:
+          type: string
+          description: "Igual ao os_id do envelope (omitido quando vazio)."
+        traceparent:
+          type: string
+          description: "W3C trace context."
+        tracestate:
+          type: string
+          description: "W3C trace context."
+        newrelic:
+          type: string
+          description: "Header proprietário do New Relic."
+  messageTraits:
+    envelope:
+      contentType: application/json
+      headers:
+        $ref: '#/components/schemas/MessageAttributes'
+      correlationId:
+        description: Correlação da cadeia de mensagens (campo correlation_id do envelope).
+        location: $message.payload#/correlation_id
+  messages:
+    StartDiagnosis:
+      name: execution.StartDiagnosis
+      title: "Comando execution.StartDiagnosis"
+      summary: "Comando do os-service para o execution-service (fila execution-commands): abre a execução da OS na fila de diagnóstico. Enviado na abertura da OS."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/execution.StartDiagnosis.schema.json'
+    StartRepair:
+      name: execution.StartRepair
+      title: "Comando execution.StartRepair"
+      summary: "Comando do os-service para o execution-service (fila execution-commands): coloca a execução diagnosticada na fila de reparo. Enviado depois do pagamento aprovado."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/execution.StartRepair.schema.json'
+    CancelExecution:
+      name: execution.CancelExecution
+      title: "Comando execution.CancelExecution"
+      summary: "Comando do os-service para o execution-service (fila execution-commands): compensação que cancela a execução (qualquer status não final)."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/execution.CancelExecution.schema.json'
+    CreateBudget:
+      name: billing.CreateBudget
+      title: "Comando billing.CreateBudget"
+      summary: "Comando do os-service para o billing-service (fila billing-commands): gera o orçamento da OS a partir do diagnóstico, com os preços do catálogo. Resposta: BudgetCreated ou BudgetCreationFailed."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.CreateBudget.schema.json'
+    RequestPayment:
+      name: billing.RequestPayment
+      title: "Comando billing.RequestPayment"
+      summary: "Comando do os-service para o billing-service (fila billing-commands): cria a cobrança do orçamento aprovado. Resposta: PaymentLinkCreated (ou PaymentApproved, se já pago) ou PaymentFailed."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.RequestPayment.schema.json'
+    CancelBudget:
+      name: billing.CancelBudget
+      title: "Comando billing.CancelBudget"
+      summary: "Comando do os-service para o billing-service (fila billing-commands): compensação que cancela o orçamento e a cobrança em aberto. Resposta: BudgetCancelled."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.CancelBudget.schema.json'
+    RefundPayment:
+      name: billing.RefundPayment
+      title: "Comando billing.RefundPayment"
+      summary: "Comando do os-service para o billing-service (fila billing-commands): compensação que estorna o pagamento aprovado do orçamento. Resposta: PaymentRefunded."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.RefundPayment.schema.json'
+    DiagnosisStarted:
+      name: execution.DiagnosisStarted
+      title: "Evento execution.DiagnosisStarted"
+      summary: "Evento do execution-service (tópico execution-events → fila os-saga-replies): o mecânico tirou o veículo da fila de diagnóstico."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/execution.DiagnosisStarted.schema.json'
+    DiagnosisCompleted:
+      name: execution.DiagnosisCompleted
+      title: "Evento execution.DiagnosisCompleted"
+      summary: "Evento do execution-service (tópico execution-events → fila os-saga-replies): diagnóstico concluído com os serviços e peças necessários. O os-service reserva as peças e pede o orçamento."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/execution.DiagnosisCompleted.schema.json'
+    RepairStarted:
+      name: execution.RepairStarted
+      title: "Evento execution.RepairStarted"
+      summary: "Evento do execution-service (tópico execution-events → fila os-saga-replies): o mecânico começou o reparo."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/execution.RepairStarted.schema.json'
+    RepairFinished:
+      name: execution.RepairFinished
+      title: "Evento execution.RepairFinished"
+      summary: "Evento do execution-service (tópico execution-events → fila os-saga-replies): reparo concluído. A saga termina e a OS fica pronta para entrega."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/execution.RepairFinished.schema.json'
+    RepairRejected:
+      name: execution.RepairRejected
+      title: "Evento execution.RepairRejected"
+      summary: "Evento do execution-service (tópico execution-events → fila os-saga-replies): o reparo foi recusado (capacidade esgotada, execução em status inválido ou falha simulada). A saga compensa e estorna."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/execution.RepairRejected.schema.json'
+    ExecutionCancelled:
+      name: execution.ExecutionCancelled
+      title: "Evento execution.ExecutionCancelled"
+      summary: "Evento do execution-service (tópico execution-events → fila os-saga-replies): confirmação do CancelExecution. Não muda a saga; fica como auditoria."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/execution.ExecutionCancelled.schema.json'
+    BudgetCreated:
+      name: billing.BudgetCreated
+      title: "Evento billing.BudgetCreated"
+      summary: "Evento do billing-service (tópico billing-events → fila os-saga-replies): orçamento criado e aguardando a aprovação do cliente. Reentregas do CreateBudget repetem o evento com o mesmo orçamento."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.BudgetCreated.schema.json'
+    BudgetCreationFailed:
+      name: billing.BudgetCreationFailed
+      title: "Evento billing.BudgetCreationFailed"
+      summary: "Evento do billing-service (tópico billing-events → fila os-saga-replies): o CreateBudget violou as regras do orçamento (ou a falha foi simulada). A saga compensa."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.BudgetCreationFailed.schema.json'
+    BudgetApproved:
+      name: billing.BudgetApproved
+      title: "Evento billing.BudgetApproved"
+      summary: "Evento do billing-service (tópico billing-events → fila os-saga-replies): o cliente aprovou o orçamento pela API. A saga pede o pagamento."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.BudgetApproved.schema.json'
+    BudgetRejected:
+      name: billing.BudgetRejected
+      title: "Evento billing.BudgetRejected"
+      summary: "Evento do billing-service (tópico billing-events → fila os-saga-replies): o cliente recusou o orçamento pela API. A saga compensa."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.BudgetRejected.schema.json'
+    BudgetCancelled:
+      name: billing.BudgetCancelled
+      title: "Evento billing.BudgetCancelled"
+      summary: "Evento do billing-service (tópico billing-events → fila os-saga-replies): confirmação do CancelBudget. Não muda a saga; fica como auditoria."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.BudgetCancelled.schema.json'
+    PaymentLinkCreated:
+      name: billing.PaymentLinkCreated
+      title: "Evento billing.PaymentLinkCreated"
+      summary: "Evento do billing-service (tópico billing-events → fila os-saga-replies): cobrança criada no provedor. O os-service avisa o cliente com o link de checkout."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.PaymentLinkCreated.schema.json'
+    PaymentApproved:
+      name: billing.PaymentApproved
+      title: "Evento billing.PaymentApproved"
+      summary: "Evento do billing-service (tópico billing-events → fila os-saga-replies): pagamento confirmado pelo provedor (webhook ou simulador do gateway fake). A saga inicia o reparo."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.PaymentApproved.schema.json'
+    PaymentFailed:
+      name: billing.PaymentFailed
+      title: "Evento billing.PaymentFailed"
+      summary: "Evento do billing-service (tópico billing-events → fila os-saga-replies): a cobrança falhou (recusa do provedor, orçamento inválido ou falha simulada). A saga compensa."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.PaymentFailed.schema.json'
+    PaymentRefunded:
+      name: billing.PaymentRefunded
+      title: "Evento billing.PaymentRefunded"
+      summary: "Evento do billing-service (tópico billing-events → fila os-saga-replies): estorno concluído no provedor. A compensação da saga termina."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/billing.PaymentRefunded.schema.json'
+    ServiceOrderStatusChanged:
+      name: os.ServiceOrderStatusChanged
+      title: "Evento os.ServiceOrderStatusChanged"
+      summary: "Evento do os-service (tópico os-events → fila notification-os-events): a OS mudou de status. A Lambda de notificação avisa o cliente por e-mail."
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../../pkg/contracts/schemas/os.ServiceOrderStatusChanged.schema.json'

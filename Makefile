@@ -1,4 +1,4 @@
-.PHONY: help run build up down logs tidy swagger mocks test cover lint test-db bdd
+.PHONY: help run build up down logs tidy swagger asyncapi mocks test cover lint test-db bdd
 
 APP_NAME=os-service
 MAIN=./cmd/api
@@ -6,7 +6,7 @@ COVER_PKGS=$$(go list ./... | grep -v -E '/cmd/|/docs|/mocks|/scripts')
 TEST_DB_ENV=TEST_DB_HOST=localhost TEST_DB_PORT=55432 TEST_DB_USER=test TEST_DB_PASSWORD=test TEST_DB_NAME=testdb
 
 help:
-	@echo "run | build | up | down | logs | swagger | mocks | test-db | test | cover | lint | tidy"
+	@echo "run | build | up | down | logs | swagger | asyncapi | mocks | test-db | test | cover | lint | tidy"
 
 run:
 	go run $(MAIN)
@@ -25,6 +25,11 @@ logs:
 
 swagger:
 	swag init -g $(MAIN)/main.go -o docs --parseInternal
+
+# Valida docs/asyncapi/asyncapi.yaml (e os schemas de pkg/contracts que ele referencia) com o CLI
+# oficial do AsyncAPI, em contêiner e sem rede.
+asyncapi:
+	docker run --rm --network none -v "$(CURDIR)":/work -w /work asyncapi/cli:6.2.2 validate docs/asyncapi/asyncapi.yaml
 
 mocks:
 	cd internal/ports && for f in usecases repositories transactions clients security; do \
