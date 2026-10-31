@@ -8,6 +8,7 @@ package inbox
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/Kc1t/postech-tc4-os-service/pkg/contracts"
@@ -20,13 +21,23 @@ type ProcessedMessage struct {
 	MessageID   string    `gorm:"primaryKey"`
 	Consumer    string    `gorm:"primaryKey"`
 	Type        string    `gorm:"not null"`
-	ProcessedAt time.Time `gorm:"not null"`
+	ProcessedAt time.Time `gorm:"not null;index"`
 }
 
 func (ProcessedMessage) TableName() string { return "processed_messages" }
 
 // Migrate cria/atualiza a tabela do inbox.
 func Migrate(db *gorm.DB) error { return db.AutoMigrate(&ProcessedMessage{}) }
+
+// Purge apaga os registros processados antes de before. Quem chama é a limpeza do relay do
+// outbox; a retenção precisa passar da retenção das DLQs, senão um redrive reaplicaria efeitos.
+func Purge(ctx context.Context, db *gorm.DB, before time.Time) (int64, error) {
+	res := db.WithContext(ctx).Where("processed_at < ?", before).Delete(&ProcessedMessage{})
+	if res.Error != nil {
+		return 0, fmt.Errorf("inbox: limpar processadas: %w", res.Error)
+	}
+	return res.RowsAffected, nil
+}
 
 // Once executa fn dentro de uma transação, uma única vez por (consumer, message_id).
 // Devolve duplicate=true quando a mensagem já tinha sido processada e fn não rodou.

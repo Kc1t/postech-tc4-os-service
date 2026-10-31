@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/Kc1t/postech-tc4-os-service/pkg/contracts"
 	gormpostgres "gorm.io/driver/postgres"
@@ -70,5 +71,39 @@ func TestOnce_FalhaPermiteNovaTentativa(t *testing.T) {
 	dup, err := Once(context.Background(), testDB, "os-saga", e, func(*gorm.DB) error { ran = true; return nil })
 	if err != nil || dup || !ran {
 		t.Fatal("após falha (rollback) a mensagem precisa ser reprocessada")
+	}
+}
+
+func TestPurge(t *testing.T) {
+	ctx := context.Background()
+	velha, _ := contracts.NewEnvelope(contracts.EvtBudgetCreated, "billing", contracts.Meta{}, struct{}{})
+	nova, _ := contracts.NewEnvelope(contracts.EvtBudgetCreated, "billing", contracts.Meta{}, struct{}{})
+	now := time.Now().UTC()
+	consumer := "purge-" + velha.MessageID // único por execução: o banco de teste persiste
+	testDB.Create(&ProcessedMessage{MessageID: velha.MessageID, Consumer: consumer, Type: velha.Type, ProcessedAt: now.Add(-30 * 24 * time.Hour)})
+	testDB.Create(&ProcessedMessage{MessageID: nova.MessageID, Consumer: consumer, Type: nova.Type, ProcessedAt: now})
+
+	n, err := Purge(ctx, testDB, now.Add(-21*24*time.Hour))
+	if err != nil || n < 1 {
+		t.Fatalf("purge: n=%d err=%v", n, err)
+	}
+	var left []string
+	testDB.Model(&ProcessedMessage{}).Where("consumer = ?", consumer).Pluck("message_id", &left)
+	if len(left) != 1 || left[0] != nova.MessageID {
+		t.Fatalf("depois do purge ficou %v", left)
+	}
+	// Mensagem apagada do inbox volta a ser processável: por isso a retenção passa a da DLQ.
+	if dup, err := Once(ctx, testDB, consumer, velha, func(*gorm.DB) error { return nil }); err != nil || dup {
+		t.Fatalf("dup=%v err=%v", dup, err)
+	}
+}
+
+func TestPurgeBancoFechado(t *testing.T) {
+	db, err := gorm.Open(gormpostgres.Open("host=127.0.0.1 port=1 user=x dbname=x sslmode=disable connect_timeout=1"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent), DisableAutomaticPing: true})
+	if err != nil {
+		t.Skip(err)
+	}
+	if _, err := Purge(context.Background(), db, time.Now()); err == nil {
+		t.Fatal("esperava erro sem banco")
 	}
 }
