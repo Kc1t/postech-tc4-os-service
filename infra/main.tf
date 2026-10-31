@@ -139,6 +139,7 @@ resource "aws_db_instance" "this" {
   multi_az               = var.multi_az
   apply_immediately      = true
 
+  # tfsec:ignore:aws-rds-specify-backup-retention Retenção mínima de propósito (ADR-0015): dados de demonstração que voltam pelo seed, e snapshots por sessão consomem crédito do Learner Lab.
   backup_retention_period = 1
   skip_final_snapshot     = true
 
