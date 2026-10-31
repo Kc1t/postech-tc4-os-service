@@ -80,5 +80,5 @@ Na descrição do vídeo no YouTube, colar os timestamps dos blocos (o avaliador
 
 ## Plano B
 
-- Se a sessão do lab cair: o ambiente e2e local (`postech-tc4-infra-k8s/local`, `make all`) roda os mesmos serviços e Lambdas com LocalStack e Mailpit, e o `e2e.sh` mostra o caminho feliz e as três compensações.
+- Se a sessão do lab cair: o ambiente e2e local (`postech-tc4-infra-k8s/local`, `make all`) roda os mesmos serviços e Lambdas com LocalStack e Mailpit, e o `e2e.sh` mostra o caminho feliz e as três compensações. Para gravar os blocos 3 e 4 com o mesmo roteiro, `./gateway.sh up` põe um nginx com as rotas do API Gateway na porta 8090 e `GATEWAY=http://localhost:8090 ADMIN_PASSWORD=admin123 ../scripts/demo.sh tudo` roda a demo inteira contra ele (validado em 31/10). Os e-mails aparecem no Mailpit, em http://localhost:8026.
 - Se o deploy demorar: gravar o merge, cortar a espera e voltar no resumo do job concluído.
