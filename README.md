@@ -1,668 +1,237 @@
-<div align="center">
+# postech-tc4-os-service
 
-# Workshop API
+Microsserviço de **Ordem de Serviço** da oficina mecânica e **orquestrador da saga** que coordena orçamento, pagamento e execução entre os serviços.
 
-Sistema integrado de atendimento e execução de serviços para oficinas mecânicas.
+Tech Challenge Fase 4, FIAP Pós Tech SOAT. A aplicação monolítica da fase 3 foi dividida em microsserviços com o padrão Strangler Fig. Este repositório nasceu do monolito, com o histórico preservado, e ficou com o núcleo da OS; orçamento, pagamento e execução saíram para serviços próprios ([RFC da decomposição](docs/rfc/)).
 
-![Go](https://img.shields.io/badge/Go-1.25-00ADD8?style=for-the-badge&logo=go&logoColor=white)
-![Gin](https://img.shields.io/badge/Gin-HTTP%20Framework-008ECF?style=for-the-badge&logo=gin&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-EKS-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
-![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
-![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
-
-</div>
-
-## Fase 3 — segurança, escalabilidade e observabilidade
-
-A Fase 3 quebrou o projeto em **quatro repositórios**, cada um com CI/CD próprio. Este aqui é a aplicação; a infraestrutura mora nos outros três.
-
-| Repositório | Responsabilidade |
-|---|---|
-| **`postech-tc3-app`** (este) | Aplicação Go rodando no EKS |
-| [`postech-tc3-lambda-auth`](https://github.com/Kc1t/postech-tc3-lambda-auth) | Autenticação serverless por CPF e authorizer do gateway |
-| [`postech-tc3-infra-k8s`](https://github.com/Kc1t/postech-tc3-infra-k8s) | Cluster EKS, metrics-server, API Gateway e agente New Relic |
-| [`postech-tc3-infra-database`](https://github.com/Kc1t/postech-tc3-infra-database) | RDS PostgreSQL gerenciado |
-
-### Deploy ativo
-
-| O quê | Link |
-|---|---|
-| API Gateway (entrada pública) | https://tkh5cum8g8.execute-api.us-east-1.amazonaws.com |
-| Swagger UI, pelo gateway | https://tkh5cum8g8.execute-api.us-east-1.amazonaws.com/swagger/index.html |
-| Health check | https://tkh5cum8g8.execute-api.us-east-1.amazonaws.com/health |
-| Autenticação por CPF | `POST https://tkh5cum8g8.execute-api.us-east-1.amazonaws.com/auth` com `{"cpf": "..."}` |
-| Collection Postman | [`postman_collection.json`](postman_collection.json) |
-| Vídeo de demonstração | https://youtu.be/pxW0rp4isL0 |
-| Dashboard New Relic (snapshots) | [Negócio](https://web-snapshots.newrelic.com/snapshot/1789177336_1791769336_894d3355-b437-4cc0-ab1b-9dadf67d483a.pdf?token=70a5d90cd8f031d9b0968fb33995088e50a7e9ac94500e38d5c6af7ec21e9456) · [APIs](https://web-snapshots.newrelic.com/snapshot/1789177340_1791769340_7463b348-e349-4420-b056-1578aa47a2a7.pdf?token=f9c373e10a688bd424a354488057a241fb9cfc29a7977729b4e65c0464666ace) · [Kubernetes](https://web-snapshots.newrelic.com/snapshot/1789177344_1791769344_31fc75d4-6e34-415e-9ed6-6db4fffa6bba.pdf?token=c6c8db3cca86059c97904bfcbd7f25603d325b7fe7fbf4b92f79885af8a689bb) |
-
-> O ambiente roda no AWS Academy Learner Lab: os endereços valem enquanto a infraestrutura estiver de pé. Os links do dashboard são snapshots em PDF, válidos por 30 dias — o plano gratuito do New Relic não permite link público do painel ao vivo, que aparece no vídeo.
-
-```mermaid
-flowchart TB
-    cli(["Cliente<br/>dono do veículo"]) -->|CPF| gw["API Gateway"]
-    op(["Operação<br/>atendente · mecânico · admin"]) -->|e-mail e senha| gw
-
-    gw -.->|autoriza| az["Lambda authorizer"]
-    gw -->|"POST /auth"| iss["Lambda issuer"]
-    gw -->|"HTTP_PROXY"| nlb["NLB"]
-
-    nlb --> app["<b>workshop-api</b><br/>este repositório<br/>2 a 10 pods no EKS"]
-
-    iss --> db[("RDS PostgreSQL")]
-    app --> db
-    app -->|"JSON + correlation id"| nr["New Relic<br/>APM · logs · dashboards"]
-
-    style app fill:#e6f4ea,stroke:#4a7
-    style az fill:#fff4e0,stroke:#d90
-```
-
-O que mudou na aplicação nesta fase:
-
-- **Autenticação por CPF.** As rotas de consulta e aprovação de OS, públicas na Fase 2, passaram a exigir o JWT emitido pela Lambda a partir do CPF. Ver [`docs/rfc/0003-autenticacao-por-cpf.md`](docs/rfc/0003-autenticacao-por-cpf.md).
-- **`requesters.status`.** Nova coluna que permite à Lambda consultar existência **e** status do cliente. Ver [`docs/MODELAGEM_DE_DADOS.md`](docs/MODELAGEM_DE_DADOS.md).
-- **Logs estruturados em JSON com correlação.** Todo request recebe um `X-Correlation-ID`, devolvido na resposta e presente em cada log.
-- **Deploy por branch em namespaces separados.** `homolog` entrega em `postech-homolog`, `main` em `postech`, no mesmo cluster. Ver [`docs/adr/0010-cluster-unico-dois-namespaces.md`](docs/adr/0010-cluster-unico-dois-namespaces.md).
-- **Posse do documento.** Não basta ter um token válido: o documento consultado precisa ser o do próprio token, senão a resposta é 403. Sem isso, qualquer cliente autenticado leria as OS de outro conhecendo apenas o CPF.
-
-### Camadas de proteção
-
-```mermaid
-flowchart LR
-    r(["Requisição"]) --> l1{{"1 · Gateway<br/>authorizer Lambda"}}
-    l1 -->|nega| e1(["401"])
-    l1 --> l2{{"2 · Middleware Auth<br/>valida o mesmo JWT"}}
-    l2 -->|nega| e2(["401"])
-    l2 --> l3{{"3 · Papel ou posse<br/>RequireRole · authorizeDocument"}}
-    l3 -->|nega| e3(["403"])
-    l3 --> h(["handler"])
-
-    style e1 fill:#ffe4e1,stroke:#c66
-    style e2 fill:#ffe4e1,stroke:#c66
-    style e3 fill:#ffe0b2,stroke:#e80
-```
-
-As três camadas são independentes. Alcançar o NLB direto, contornando o gateway, ainda esbarra na segunda e na terceira. O grafo completo das 37 rotas está em [`docs/diagrams/roteamento.md`](docs/diagrams/roteamento.md).
-
-### Documentação da Fase 3
-
-| Documento | Conteúdo |
-|---|---|
-| [`docs/diagrams/componentes.md`](docs/diagrams/componentes.md) | Diagrama de componentes com visão de nuvem |
-| [`docs/diagrams/roteamento.md`](docs/diagrams/roteamento.md) | Grafos de roteamento: gateway, aplicação, inventário das 37 rotas e mapa de códigos de erro |
-| [`docs/diagrams/pipelines.md`](docs/diagrams/pipelines.md) | Grafos dos quatro pipelines e matriz de secrets por repositório |
-| [`docs/diagrams/sequencia-autenticacao.md`](docs/diagrams/sequencia-autenticacao.md) | Sequência da autenticação por CPF |
-| [`docs/diagrams/sequencia-ordem-servico.md`](docs/diagrams/sequencia-ordem-servico.md) | Sequência da abertura de OS |
-| [`docs/MODELAGEM_DE_DADOS.md`](docs/MODELAGEM_DE_DADOS.md) | Justificativa do banco, relacionamentos e diagrama ER |
-| [`docs/rfc/README.md`](docs/rfc/README.md) | RFCs: nuvem, banco gerenciado, autenticação |
-| [`docs/adr/README.md`](docs/adr/README.md) | ADRs 0001–0011 |
-| [`docs/newrelic/README.md`](docs/newrelic/README.md) | Observabilidade: dashboards, alertas e origem de cada métrica |
-| [`docs/DOCUMENTO_ENTREGA_FASE3.md`](docs/DOCUMENTO_ENTREGA_FASE3.md) | Documento de entrega, base do PDF do portal |
-| [`docs/ROTEIRO_VIDEO.md`](docs/ROTEIRO_VIDEO.md) | Roteiro do vídeo de demonstração |
-
----
+| Repositório | Papel | Banco |
+|---|---|---|
+| **postech-tc4-os-service** (este) | OS, clientes, veículos, catálogo de serviços e peças, estoque; orquestrador da saga | PostgreSQL (RDS) |
+| [postech-tc4-billing-service](https://github.com/Kc1t/postech-tc4-billing-service) | orçamento e pagamento com Mercado Pago | PostgreSQL (RDS) |
+| [postech-tc4-execution-service](https://github.com/Kc1t/postech-tc4-execution-service) | fila de diagnóstico e reparo da oficina | DynamoDB |
+| [postech-tc4-notification-lambda](https://github.com/Kc1t/postech-tc4-notification-lambda) | e-mail ao cliente a cada mudança de status | DynamoDB (deduplicação) |
+| [postech-tc4-lambda-auth](https://github.com/Kc1t/postech-tc4-lambda-auth) | CPF → JWT e authorizer do API Gateway | (consulta este serviço) |
+| [postech-tc4-infra-k8s](https://github.com/Kc1t/postech-tc4-infra-k8s) | EKS, API Gateway, SNS/SQS/DLQ, observabilidade, e2e local | — |
 
 ## Guia rápido para avaliação
 
-Esta seção abaixo é o **hub técnico da entrega da Fase 2**, mantido como referência histórica.
+| Requisito da fase 4 | Onde está |
+|---|---|
+| Microsserviço com repositório, infraestrutura e banco próprios | este repo: `infra/` (RDS em Terraform), `k8s/`, `Dockerfile` |
+| Saga com compensação, escolha justificada | [Saga orquestrada](#saga-orquestrada) abaixo e [ADR-0017](docs/adr/) |
+| Mensageria e REST | [Mensagens](#mensagens), [AsyncAPI](docs/asyncapi/asyncapi.yaml), [API REST](#api-rest) |
+| Nenhum acesso ao banco de outro serviço | a API composition usa REST; a Lambda auth consulta `GET /internal/requesters` em vez de abrir o banco |
+| Testes unitários, BDD e cobertura ≥ 80% | [Testes e qualidade](#testes-e-qualidade); BDD em [`features/saga.feature`](features/saga.feature) |
+| SonarQube no CI | job `sonarqube` do [CI](.github/workflows/ci.yml), quality gate próprio |
+| CI/CD com deploy em Kubernetes | [CI/CD](#cicd) |
+| Swagger e Postman | [`docs/swagger.yaml`](docs/swagger.yaml) e [`postman_collection.json`](postman_collection.json) |
+| Observabilidade da fase 3 | [Observabilidade](#observabilidade) |
+| Decisões de arquitetura | [ADRs](docs/adr/) e [RFCs](docs/rfc/) |
 
-Para avaliar o projeto com mais contexto, recomenda-se seguir esta ordem:
+## Responsabilidades
 
-1. **Entendimento da entrega:** [`docs/DOCUMENTO_ENTREGA_FASE2.md`](docs/DOCUMENTO_ENTREGA_FASE2.md)
-2. **Visão da solução:** [Sobre o projeto](#sobre-o-projeto), [Objetivos da Fase 2](#objetivos-da-fase-2) e [Arquitetura](#arquitetura)
-3. **Fluxo de negócio da Fase 2:** [Ordem de Serviço](#ordem-de-serviço-fluxo-da-fase-2) e [`postman_collection.json`](postman_collection.json)
-4. **Infraestrutura e deploy:** [`k8s/README.md`](k8s/README.md), [CI/CD](#cicd) e os repositórios de infraestrutura da Fase 3
-5. **Decisões técnicas:** [`docs/adr/README.md`](docs/adr/README.md)
-6. **Segurança e qualidade:** [`docs/security-reports/RELATORIO.md`](docs/security-reports/RELATORIO.md) e [Testes](#testes)
-7. **Demonstração em vídeo:** https://www.youtube.com/watch?v=PiraAX3RVzg
+- Abrir a OS, guardar o status e o histórico de cada transição, e consultar a OS pelo id, pelo código ou pelo CPF do cliente.
+- Manter clientes, veículos, catálogo de serviços e peças e o estoque. O estoque é reservado e devolvido pela saga.
+- Orquestrar a saga da OS: mandar comandos ao execution e ao billing, reagir às respostas, compensar quando alguma etapa falha e expirar sagas paradas.
+- Montar a visão completa da OS (`/details`) por API composition, juntando orçamento, pagamento e execução dos outros serviços.
+- Autenticar a equipe da oficina (login, refresh com rotação, bloqueio após tentativas) e expor `GET /internal/requesters/{doc}` para a Lambda issuer.
 
-## Checklist da entrega
+## Arquitetura do serviço
 
-| Item exigido | Referência |
-|--------------|------------|
-| Repositório do projeto | https://github.com/Kc1t/postech-tc1 |
-| README com solução, arquitetura, deploy e execução | Este arquivo |
-| Desenho da arquitetura com componentes, infraestrutura e fluxo de deploy | [Arquitetura](#arquitetura) e [`docs/documentation-diagram.drawio`](docs/documentation-diagram.drawio) |
-| Collection das APIs | [`postman_collection.json`](postman_collection.json) |
-| Swagger estático | [`docs/swagger.yaml`](docs/swagger.yaml) |
-| Hub de documentação | https://tc-doc.vercel.app/ |
-| Vídeo demonstrativo da Fase 2 | https://www.youtube.com/watch?v=PiraAX3RVzg |
-| Documento formal da entrega | [`docs/DOCUMENTO_ENTREGA_FASE2.md`](docs/DOCUMENTO_ENTREGA_FASE2.md) |
-| Conteúdo para o PDF do portal | Repositório, desenho da arquitetura e link do vídeo estão consolidados neste checklist e no documento formal da entrega. |
-
-## Sumário
-
-- [Guia rápido para avaliação](#guia-rápido-para-avaliação)
-- [Checklist da entrega](#checklist-da-entrega)
-- [Sobre o projeto](#sobre-o-projeto)
-- [Objetivos da Fase 2](#objetivos-da-fase-2)
-- [Rastreabilidade da Fase 2](#rastreabilidade-da-fase-2)
-- [Principais recursos](#principais-recursos)
-- [Tecnologias](#tecnologias)
-- [Arquitetura](#arquitetura)
-  - [Componentes da aplicação](#componentes-da-aplicação)
-  - [Infraestrutura provisionada](#infraestrutura-provisionada)
-  - [Fluxo de deploy (CI/CD)](#fluxo-de-deploy-cicd)
-- [Ordem de Serviço (fluxo da Fase 2)](#ordem-de-serviço-fluxo-da-fase-2)
-- [Banco de dados](#banco-de-dados)
-- [Índice de documentação](#índice-de-documentação)
-- [Como rodar](#como-rodar)
-  - [Execução local com Docker](#execução-local-com-docker)
-  - [Deploy em Kubernetes](#deploy-em-kubernetes)
-  - [Provisionamento da infraestrutura com Terraform](#provisionamento-da-infraestrutura-com-terraform)
-- [CI/CD](#cicd)
-- [Variáveis de ambiente](#variáveis-de-ambiente)
-- [Endpoints](#endpoints)
-- [Testes](#testes)
-- [Entregáveis](#entregáveis)
-- [Contribuidores](#contribuidores)
-
-## Sobre o projeto
-
-O **Workshop API** é uma API REST para gestão do fluxo operacional de uma oficina mecânica. A aplicação centraliza o cadastro de clientes, veículos, serviços, peças e ordens de serviço, além de oferecer autenticação JWT, controle de perfis administrativos e consulta pública de ordens por código.
-
-O projeto foi desenvolvido como parte do Tech Challenge da **FIAP Pós Tech — SOAT**. Na **Fase 1**, a aplicação foi construída como um monolito modular em Arquitetura Hexagonal com foco em domínio e documentação. Na **Fase 2**, a aplicação evoluiu para garantir **qualidade, resiliência e escalabilidade**, incorporando containerização, orquestração com Kubernetes, Infraestrutura como Código (Terraform) e uma pipeline de CI/CD completa.
-
-## Objetivos da Fase 2
-
-A Fase 2 evolui a aplicação da Fase 1 com práticas modernas de infraestrutura e automação, atendendo às seguintes metas:
-
-- **Reduzir riscos operacionais** com infraestrutura escalável (Kubernetes + HPA na AWS EKS).
-- **Automatizar provisionamento e deploy** do ambiente (Terraform + GitHub Actions).
-- **Melhorar a qualidade e a organização do código**, mantendo a evolução sustentável (Clean Code + Arquitetura Hexagonal + testes com cobertura mínima de 80%).
-- **Suportar picos de demanda** com escalabilidade dinâmica (Horizontal Pod Autoscaler por CPU e memória).
-
-## Rastreabilidade da Fase 2
-
-| Requisito avaliado | Implementação / evidência |
-|--------------------|---------------------------|
-| Evolução da aplicação da Fase 1 | Monolito Go com Arquitetura Hexagonal, novos fluxos de OS, autenticação JWT, notificação por e-mail e endpoints públicos para cliente. |
-| Clean Code e organização | Separação entre `internal/domain`, `internal/application/usecase`, `internal/ports` e `internal/adapters`; um use case por operação; ADRs registrando decisões. |
-| Testes automatizados e cobertura | Arquivos `_test.go` por domínio/use case/adapter; pipeline com gate de cobertura mínima de 80%. |
-| Abertura de Ordem de Serviço | `POST /api/v1/service-orders`, use case `internal/application/usecase/service_order/create.go` e handler HTTP correspondente. |
-| Consulta de status da OS | `GET /api/v1/service-orders/code/:code?document=<cpf/cnpj>` e `GET /api/v1/service-orders/:id`. |
-| Aprovação/recusa de orçamento | `PUT /api/v1/service-orders/code/:code/status`, rota do cliente protegida pelo JWT emitido por CPF; o app confere que o CPF do token é o dono da OS. |
-| Listagem ordenada de OS | `GET /api/v1/service-orders`, ordenação por prioridade de status e data de criação, excluindo finalizadas/entregues da visão operacional. |
-| Notificação por e-mail | Adapter SMTP em `internal/adapters/outbound/smtp/email_notifier.go`; a migração para serverless está no [ADR-0011](docs/adr/0011-notificacoes-smtp-no-pod.md). |
-| Docker e execução local | [`Dockerfile`](Dockerfile), [`docker-compose.yml`](docker-compose.yml), [Execução local com Docker](#execução-local-com-docker). |
-| Kubernetes | Manifestos em [`k8s/`](k8s/) com Deployment, Service, ConfigMap, HPA, ResourceQuota/LimitRange e NetworkPolicy; o namespace e o Secret são criados pelo pipeline. |
-| Escalabilidade automática | [`k8s/hpa.yaml`](k8s/hpa.yaml), 2 a 10 réplicas por CPU/memória. |
-| Infraestrutura como Código | Terraform nos repositórios [`postech-tc3-infra-k8s`](https://github.com/Kc1t/postech-tc3-infra-k8s) (EKS e API Gateway), [`postech-tc3-infra-database`](https://github.com/Kc1t/postech-tc3-infra-database) (RDS) e [`postech-tc3-lambda-auth`](https://github.com/Kc1t/postech-tc3-lambda-auth) (Lambdas). |
-| CI/CD | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) com lint, dependências, testes, build/push no ECR, deploy no EKS e aplicação dos manifestos YAML. |
-| Banco de dados em infraestrutura | RDS PostgreSQL 16 provisionado por Terraform em [`postech-tc3-infra-database`](https://github.com/Kc1t/postech-tc3-infra-database), com DSN consumido pelo Secret do Kubernetes. |
-| APIs documentadas | Swagger UI, [`docs/swagger.yaml`](docs/swagger.yaml) e [`postman_collection.json`](postman_collection.json). |
-| Entrega formal da Fase 2 | [`docs/DOCUMENTO_ENTREGA_FASE2.md`](docs/DOCUMENTO_ENTREGA_FASE2.md), [Checklist da entrega](#checklist-da-entrega), vídeo e links oficiais em [Entregáveis](#entregáveis). |
-| Vídeo demonstrativo | Demonstra deploy, execução da pipeline, consumo das APIs e escalabilidade automática: https://www.youtube.com/watch?v=PiraAX3RVzg |
-
-## Principais recursos
-
-- Autenticação com access token e refresh token rotativo.
-- Controle de acesso por perfil administrativo.
-- Cadastro e manutenção de solicitantes, veículos, serviços e peças.
-- **Abertura de Ordem de Serviço** com cliente, veículo, serviços e peças, retornando o identificador único da OS.
-- **Consulta do status da OS** (Recebida, Diagnóstico, Aguardando Aprovação, Execução, Finalizada, Entregue).
-- **Aprovação/recusa de orçamento** pelo próprio cliente, autenticado pelo JWT emitido a partir do CPF.
-- **Listagem de OS ordenada** por prioridade de status e mais antigas primeiro, excluindo (logicamente) as finalizadas e entregues.
-- **Notificação por e-mail** a cada mudança de status relevante (SMTP).
-- Ajuste de estoque de peças e insumos.
-- Métricas de tempo médio de execução das ordens.
-- Documentação interativa via Swagger UI.
-
-## Tecnologias
-
-| Camada | Tecnologia | Uso no projeto |
-|--------|------------|----------------|
-| Aplicação | Go 1.25 | Linguagem principal da API |
-| Aplicação | Gin | Framework HTTP e roteamento |
-| Aplicação | GORM | ORM para persistência em PostgreSQL |
-| Aplicação | JWT | Autenticação e autorização |
-| Aplicação | SMTP (Brevo) | Notificação de mudança de status por e-mail |
-| Aplicação | Swagger / swaggo | Geração da documentação OpenAPI |
-| Dados | PostgreSQL 16 | Banco de dados relacional (local e AWS RDS) |
-| Container | Docker / Docker Compose | Build e orquestração local dos serviços |
-| Orquestração | Kubernetes (AWS EKS) | Deploy, Services, ConfigMaps, Secrets e HPA |
-| IaC | Terraform | Provisionamento do cluster EKS e do RDS |
-| Registry | AWS ECR | Registro das imagens Docker |
-| CI/CD | GitHub Actions | Lint, testes, build, push e deploy automatizados |
-| Autenticação | AWS Lambda + API Gateway v2 | Token por CPF e authorizer ([`postech-tc3-lambda-auth`](https://github.com/Kc1t/postech-tc3-lambda-auth)) |
-| Observabilidade | New Relic | APM Go (`nrgin`), logs JSON com `X-Correlation-ID`, dashboard e alertas ([`docs/newrelic/`](docs/newrelic/)) |
-
-## Arquitetura
-
-A aplicação segue **Arquitetura Hexagonal (Ports & Adapters)** em um monolito modular. A regra de negócio fica isolada de detalhes externos (framework HTTP, banco de dados, JWT, SMTP e infraestrutura), o que garante testabilidade e permite trocar adapters sem tocar no domínio.
-
-### Componentes da aplicação
+Arquitetura hexagonal ([ADR-0002](docs/adr/0002-hexagonal-architecture.md)): o domínio e os casos de uso não conhecem Gin, GORM, SQS ou HTTP.
 
 ```mermaid
 flowchart LR
-    http(["HTTP"]) --> inb
-
-    subgraph inb["Inbound Adapters · Gin"]
-        h["Auth · Requester · Vehicle<br/>Service · Part · ServiceOrder"]
-        mw["middlewares<br/>CorrelationID · RequestLogger<br/>Auth · RequireRole"]
+    subgraph in["Adapters de entrada"]
+        http["HTTP (Gin)<br/>/api/v1 · /internal · /health"]
+        cons["Consumidor SQS<br/>os-saga-replies"]
+        tick["Worker de prazos<br/>ExpireSagas"]
     end
-
-    subgraph appl["Application"]
-        uc["use cases<br/>um Execute por operação"]
+    subgraph core["Aplicação e domínio"]
+        uc["Casos de uso<br/>OS, cadastros, auth"]
+        orch["Orquestrador da saga"]
+        dom["Entidades<br/>ServiceOrder, Saga, Part..."]
     end
-
-    subgraph dom["Domain"]
-        ent["entidades e value objects<br/>ServiceOrder · Requester · Vehicle<br/>Document · Plate"]
-        st["máquina de estados da OS"]
-        err["erros sentinela<br/>domainerrors"]
+    subgraph out["Adapters de saída"]
+        pg[("PostgreSQL<br/>OS, saga, histórico,<br/>outbox, inbox")]
+        relay["Relay do outbox"]
+        comp["Cliente HTTP<br/>timeout, retry, circuit breaker"]
     end
-
-    subgraph ports["Ports · interfaces"]
-        pr["repositories"]
-        ps["TokenService · PasswordHasher · EmailNotifier"]
-    end
-
-    subgraph outb["Outbound Adapters"]
-        pg["PostgreSQL · GORM"]
-        jwt["JWT"]
-        smtp["SMTP"]
-    end
-
-    mw --> h
-    h --> uc
-    uc --> ent
-    uc --> ports
-    ports -.->|implementado por| outb
-    pg --> db[("RDS")]
-
-    style dom fill:#e6f4ea,stroke:#4a7
-    style ports fill:#fff4e0,stroke:#d90
+    http --> uc & orch
+    cons --> orch
+    tick --> orch
+    uc & orch --> dom
+    uc & orch --> pg
+    relay -->|lê outbox_messages| pg
+    relay -->|comandos| sqs[["SQS billing-commands<br/>execution-commands"]]
+    relay -->|eventos| sns{{"SNS os-events"}}
+    comp --> bi["billing-service"] & ex["execution-service"]
+    http -.->|/details| comp
 ```
 
-A seta pontilhada é a inversão de dependência: a camada de aplicação conhece apenas as **interfaces** em `internal/ports`, nunca o GORM, o `golang-jwt` ou o SMTP. Trocar o banco significa escrever outro adapter outbound, sem tocar em domínio nem em caso de uso.
+| Pasta | Conteúdo |
+|---|---|
+| `cmd/api` | `main`, injeção de dependências, rotas, workers (consumidor, relay, prazos) |
+| `internal/domain` | entidades, regras de transição de status, erros de domínio |
+| `internal/application/usecase` | casos de uso; `saga/` tem o orquestrador |
+| `internal/adapters` | HTTP (Gin), Postgres (GORM), JWT, cliente dos outros serviços |
+| `pkg/` | chassis comum aos três serviços: `contracts` (envelope e mensagens), `messaging` (SNS/SQS com trace), `outbox`, `inbox`, `httpclient`, `observability`, `logger` |
+| `features/` | cenários BDD da saga |
+| `infra/` | Terraform do RDS do serviço |
+| `k8s/` | manifests ([README](k8s/README.md)) |
 
-```
-cmd/api/                        entrypoint, bootstrap (DI), rotas e middleware
-internal/domain/                entidades, value objects e erros de domínio
-internal/ports/                 contratos (repositories, use cases, token, hasher, notifier)
-internal/application/usecase/   casos de uso (1 arquivo por operação)
-internal/adapters/inbound/http/ handlers HTTP (Gin)
-internal/adapters/outbound/     postgresql (GORM), jwt, smtp
-pkg/                            código genérico (env, hasher, ioc, logger, observability)
-```
+## Saga orquestrada
 
-**Regra central:** um use case nunca importa GORM, JWT ou bcrypt — apenas interfaces de `ports/`. As implementações concretas vivem em `internal/adapters/outbound/<tech>/` ou em `pkg/` quando são genéricas.
+### Escolha
 
-### Infraestrutura provisionada
+A saga é **orquestrada**, e o orquestrador fica **dentro do os-service**, dono da OS.
 
-O ambiente de produção roda na **AWS**, provisionado por Terraform e orquestrado por Kubernetes (EKS). O tráfego externo entra por um Network Load Balancer, e o HPA escala os pods conforme a carga.
+- **Fluxo longo, com espera humana e dinheiro.** Entre abrir a OS e entregar o carro há diagnóstico, orçamento, decisão do cliente (horas ou dias), pagamento e reparo. Com o estado da saga persistido num lugar só (`saga_instances`), dá para responder "em que etapa a OS está e por quê" e saber exatamente o que compensar.
+- **Compensação dependente da etapa.** Estornar o pagamento só vale se ele foi aprovado; devolver peças, só se foram reservadas. O orquestrador decide o plano pelo estado; na coreografia, essa regra ficaria espalhada pelos três serviços.
+- **Serviços participantes simples.** Billing e execution só recebem comandos e respondem eventos. Nenhum conhece a ordem das etapas, e isso deixa a saga mudar sem mexer neles.
+- **Alternativas descartadas.** A coreografia gera acoplamento implícito por eventos e é difícil de depurar com mais de três passos; a literatura (Richardson) a recomenda para sagas curtas. O AWS Step Functions tiraria a regra do código e do teste BDD e prenderia a saga a um serviço gerenciado sem equivalente no LocalStack para o e2e. Um orquestrador separado seria mais um serviço para operar sem ganho, porque a saga existe por causa da OS.
+
+Detalhes e consequências: [ADR-0017](docs/adr/). O outbox, a idempotência e o controle de concorrência que tornam a saga confiável estão na [ADR-0018](docs/adr/).
+
+### Fluxo
 
 ```mermaid
-flowchart TB
-    net(["Internet"]) --> gw["API Gateway v2"]
-    gw --> nlb["NLB · Service LoadBalancer"]
-
-    subgraph aws["AWS"]
-        subgraph eks["EKS · namespace postech ou postech-homolog"]
-            nlb --> dep["Deployment workshop-api<br/>2 a 10 réplicas"]
-            cm["ConfigMap<br/>config não sensível"] -.->|envFrom| dep
-            sec["Secret<br/>JWT · DSN · SMTP · admin"] -.->|envFrom| dep
-            hpa["HPA<br/>CPU 70% · Mem 80%"] -->|escala| dep
-            ms["metrics-server"] --> hpa
-            probe["readiness e liveness<br/>em /health"] -.-> dep
-        end
-        dep --> rds[("RDS PostgreSQL 16<br/>db.t3.micro")]
-        ecr["ECR<br/>imagem versionada por SHA"] -.->|pull| dep
-    end
-
-    style dep fill:#e6f4ea,stroke:#4a7
-    style hpa fill:#fff4e0,stroke:#d90
+sequenceDiagram
+    autonumber
+    actor E as Equipe
+    actor C as Cliente
+    participant OS as os-service (orquestrador)
+    participant EX as execution-service
+    participant BI as billing-service
+    E->>OS: POST /service-orders
+    OS->>EX: StartDiagnosis
+    EX-->>OS: DiagnosisStarted
+    E->>EX: diagnóstico concluído (serviços e peças)
+    EX-->>OS: DiagnosisCompleted
+    Note over OS: reserva as peças no estoque (transação local)
+    OS->>BI: CreateBudget (itens com preço do catálogo)
+    BI-->>OS: BudgetCreated
+    C->>BI: aprova o orçamento (JWT do CPF)
+    BI-->>OS: BudgetApproved
+    OS->>BI: RequestPayment
+    BI-->>OS: PaymentLinkCreated
+    C->>BI: paga no Mercado Pago (webhook)
+    BI-->>OS: PaymentApproved
+    OS->>EX: StartRepair
+    EX-->>OS: RepairStarted, RepairFinished
+    E->>OS: POST /service-orders/{id}/deliver
 ```
 
-Recursos criados pelo Terraform (agora em [`postech-tc3-infra-k8s`](https://github.com/Kc1t/postech-tc3-infra-k8s) e [`postech-tc3-infra-database`](https://github.com/Kc1t/postech-tc3-infra-database)):
+Cada seta é uma mensagem: comando para a fila do serviço, evento pelo tópico do serviço até a fila `os-saga-replies`. A OS acompanha a saga: `received → in_diagnosis → awaiting_budget → awaiting_approval → awaiting_payment → in_execution → finished → delivered`, ou `cancelled`.
 
-- **Cluster EKS** (`terraform-aws-modules/eks`) com managed node group.
-- **RDS PostgreSQL 16** com subnet group e security group dedicado.
-- **Outputs** com endpoint do cluster, comando de kubeconfig e DSN do banco.
+### Compensações
 
-Recursos Kubernetes (detalhes em [`k8s/README.md`](k8s/README.md)):
+| Falha | O que o orquestrador desfaz |
+|---|---|
+| Orçamento não criado (`BudgetCreationFailed`) | devolve as peças e cancela a execução |
+| Cliente recusa (`BudgetRejected`) | devolve as peças e cancela a execução |
+| Pagamento recusado (`PaymentFailed`) | cancela o orçamento, devolve as peças e cancela a execução |
+| Reparo recusado depois do pagamento (`RepairRejected`) | **estorna o pagamento** (`RefundPayment`; a saga fica em `compensating` até o `PaymentRefunded`), cancela o orçamento e devolve as peças |
+| Prazo vencido: aprovação em 72 h, pagamento em 24 h (`SAGA_APPROVAL_TIMEOUT`, `SAGA_PAYMENT_TIMEOUT`) | as compensações da etapa em que parou; log `saga_expired` |
+| Cancelamento pela oficina (`POST /service-orders/{id}/cancel`) | as compensações da etapa em que está |
+| Pagamento aprovado depois que a saga já expirou | estorna o valor (a saga volta a `compensating` até o `PaymentRefunded`) |
 
-- **Namespace** definido pela branch (`postech` ou `postech-homolog`), **Deployment**, **Service** (LoadBalancer/NLB).
-- **ConfigMap** (variáveis não sensíveis) e **Secret** (JWT, DSN, SMTP, admin).
-- **HorizontalPodAutoscaler** (2 a 10 réplicas, CPU 70% / memória 80%).
+Para demonstrar, com `FAULT_INJECTION_ENABLED=true`, o header `X-Simulate-Failure: budget|payment|repair` na abertura da OS faz a etapa correspondente falhar no serviço responsável.
 
-### Fluxo de deploy (CI/CD)
+### Garantias
 
-```mermaid
-flowchart TD
-    push(["git push em homolog ou main"]) --> ci{{"GitHub Actions"}}
+- **Transactional outbox:** a mudança de estado e a mensagem a publicar são gravadas na mesma transação (`outbox_messages`); um relay publica depois. Não existe "gravou e não publicou".
+- **Consumidor idempotente:** cada mensagem processada fica em `processed_messages`; reentrega do SQS (at-least-once) não repete efeito.
+- **Concorrência:** `SELECT ... FOR UPDATE` na saga e depois na OS, na mesma ordem em todos os handlers, e lock otimista na saga (coluna `version`), para respostas concorrentes e réplicas do worker de prazos não se atropelarem.
+- **DLQ:** depois de 5 falhas a mensagem vai para a DLQ, com alarme e [runbook](https://github.com/Kc1t/postech-tc4-infra-k8s/blob/main/docs/runbooks/dlq.md).
 
-    ci --> lint["lint<br/>golangci-lint"]
-    ci --> deps["dependencies<br/>go mod tidy · govulncheck"]
-    ci --> test["tests<br/>Postgres como service<br/>gate de cobertura ≥ 80%"]
+## Mensagens
 
-    lint --> gate{{"os três passaram?"}}
-    deps --> gate
-    test --> gate
+Contratos no pacote [`pkg/contracts`](pkg/contracts), o mesmo nos serviços, e documentados em [AsyncAPI](docs/asyncapi/asyncapi.yaml). Toda mensagem tem envelope com `type`, `message_id`, `saga_id`, `os_id` e `correlation_id`, e os headers de trace do New Relic viajam como atributos.
 
-    gate -->|não| stop(["deploy não roda"])
-    gate -->|sim| dep["deploy"]
+| Direção | Canal | Tipos |
+|---|---|---|
+| envia | fila `execution-commands` | `execution.StartDiagnosis`, `execution.StartRepair`, `execution.CancelExecution` |
+| envia | fila `billing-commands` | `billing.CreateBudget`, `billing.RequestPayment`, `billing.CancelBudget`, `billing.RefundPayment` |
+| publica | tópico `os-events` | `os.ServiceOrderStatusChanged` (consumido pela Lambda de notificação) |
+| consome | fila `os-saga-replies` (assinada nos tópicos `billing-events` e `execution-events`) | eventos `billing.*` e `execution.*` de orçamento, pagamento, diagnóstico e reparo |
 
-    dep --> s1["1 · credenciais de sessão AWS"]
-    s1 --> s2["2 · login no ECR"]
-    s2 --> s3["3 · build e push<br/>tag = SHA + nome da branch"]
-    s3 --> s4["4 · aws eks update-kubeconfig"]
-    s4 --> s5["5 · cria namespace e Secret"]
-    s5 --> s6["6 · substitui os placeholders<br/>de imagem e namespace"]
-    s6 --> s7["7 · kubectl apply<br/>configmap · deployment · service · hpa"]
-    s7 --> s8["8 · rollout status · timeout 300s"]
+## API REST
 
-    style stop fill:#ffe4e1,stroke:#c66
-    style gate fill:#fff4e0,stroke:#d90
-```
+Swagger em [`docs/swagger.yaml`](docs/swagger.yaml) (servido em `/swagger/index.html`) e collection em [`postman_collection.json`](postman_collection.json), organizada pelo fluxo da saga. Erros seguem um envelope único: `{"error": {"code": "...", "message": "..."}}`.
 
-O detalhamento dos quatro pipelines está em [`docs/diagrams/pipelines.md`](docs/diagrams/pipelines.md).
+| Grupo | Rotas (prefixo `/api/v1`) | Quem |
+|---|---|---|
+| Autenticação da equipe | `POST /auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/register` | aberta / equipe |
+| Cadastros | `requesters`, `vehicles`, `services`, `parts` (CRUD) e `PATCH /parts/{id}/stock` | equipe |
+| OS e saga | `POST /service-orders`, `GET /service-orders[/{id}]`, `GET /{id}/details`, `GET /{id}/history`, `POST /{id}/cancel`, `POST /{id}/deliver`, `GET /metrics/execution-time` | equipe |
+| Cliente | `GET /service-orders/code/{code}`, `GET /service-orders/requester` | cliente (JWT do CPF, só as próprias OS) |
+| Interna | `GET /internal/requesters/{document}` (fora do `/api/v1`) | Lambda issuer, com `X-Internal-Token`; sem rota no gateway |
+| Saúde | `GET /health`, `/health/live`, `/health/ready` | aberta |
 
-## Ordem de Serviço (fluxo da Fase 2)
+Pelo API Gateway, as mesmas rotas passam pelo Lambda authorizer; o serviço valida o JWT de novo e confere papel e posse.
 
-A OS possui uma **máquina de estados** validada no domínio (`internal/domain/entities/service_order.go`). Os nomes internos (enum) mapeiam os status do enunciado:
-
-| Status (enunciado) | Enum interno | Transições permitidas |
-|--------------------|--------------|-----------------------|
-| Recebida | `received` | → Diagnóstico |
-| Diagnóstico | `in_diagnosis` | → Aguardando Aprovação |
-| Aguardando Aprovação | `awaiting_approval` | → Execução (aprovar) · → Recebida (recusar) |
-| Execução | `in_execution` | → Finalizada |
-| Finalizada | `finished` | → Entregue |
-| Entregue | `delivered` | — |
-
-- **Abertura da OS:** `POST /api/v1/service-orders` recebe cliente, veículo, serviços e peças e retorna o identificador único.
-- **Consulta de status:** `GET /api/v1/service-orders/code/:code` (cliente, JWT do CPF) e `GET /api/v1/service-orders/:id` (admin).
-- **Aprovação/recusa de orçamento:** `PUT /api/v1/service-orders/code/:code/status` (cliente, JWT do CPF) — o cliente aprova (→ Execução) ou recusa (→ Recebida) o orçamento. As demais transições são restritas ao fluxo operacional da oficina.
-- **Listagem:** `GET /api/v1/service-orders` ordena por **Execução > Aguardando Aprovação > Diagnóstico > Recebida**, mais antigas primeiro (`created_at ASC`), e **exclui logicamente** as OS *finalizadas* e *entregues* (elas não somem do banco, apenas da listagem).
-- **Atualização de status via e-mail:** a cada mudança relevante (Aguardando Aprovação, Execução, Finalizada, Entregue), o cliente é notificado por e-mail via SMTP (adapter `internal/adapters/outbound/smtp`).
-
-### Exemplos de request
-
-> As rotas do cliente exigem o JWT emitido por `POST /auth` no gateway, a partir do CPF. O documento (CPF/CNPJ) vai na query string nos GETs e no corpo na aprovação. CPF do token diferente do documento pedido, ou token de cliente sem CPF, retorna `403`; documento que não bate com a OS retorna `404` (não vaza a existência da ordem).
-
-```bash
-# 0. Token do cliente, emitido pela Lambda a partir do CPF
-TOKEN_CPF=$(curl -s -X POST "$GATEWAY/auth" -d '{"cpf":"50891498877"}' | jq -r .access_token)
-
-# 1. Abrir OS (admin) — retorna a OS com o código único
-curl -X POST "$BASE/api/v1/service-orders" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"requester_document":"50891498877","vehicle_plate":"ABC1234","notes":"Barulho no motor"}'
-
-# 2. Consultar status (cliente) — o document precisa ser o CPF do token
-curl "$BASE/api/v1/service-orders/code/1?document=50891498877" \
-  -H "Authorization: Bearer $TOKEN_CPF"
-
-# 3. Aprovar orçamento (cliente) — status "in_execution" aprova, "received" recusa
-curl -X PUT "$BASE/api/v1/service-orders/code/1/status" \
-  -H "Authorization: Bearer $TOKEN_CPF" -H "Content-Type: application/json" \
-  -d '{"requester_document":"50891498877","status":"in_execution"}'
-
-# 4. Avançar status pelo fluxo da oficina (admin) — services/parts são opcionais
-curl -X PUT "$BASE/api/v1/service-orders/<id>/status" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"status":"finished"}'
-```
+**API composition** (`GET /service-orders/{id}/details`): chama billing e execution em paralelo com timeout, retry com backoff só em métodos idempotentes e circuit breaker por destino (`pkg/httpclient`). Se um deles estiver fora, a resposta sai com `partial: true` e a lista `unavailable`, em vez de erro ([ADR-0019](docs/adr/)).
 
 ## Banco de dados
 
-O PostgreSQL foi escolhido por oferecer recursos importantes para o domínio da aplicação:
+PostgreSQL próprio, criado pelo Terraform em [`infra/`](infra/) (RDS, banco `workshop`, usuário `workshop_app`, TLS obrigatório, credenciais no Secrets Manager). As tabelas são criadas pelo `AutoMigrate` do GORM na subida: `users`, `refresh_tokens`, `requesters`, `vehicles`, `services`, `parts`, `service_orders` e itens, `service_order_status_history`, `saga_instances`, `outbox_messages` e `processed_messages`. Nenhum outro serviço acessa este banco ([ADR-0012](docs/adr/)).
 
-- **Integridade relacional:** solicitantes, veículos e ordens de serviço possuem relações fortes protegidas por chaves estrangeiras.
-- **UUID nativo:** identificadores gerados com `gen_random_uuid()` sem dependência externa.
-- **JSONB:** armazenamento flexível de value objects (serviços e peças da OS) sem perder capacidade de consulta.
-- **Transações ACID:** consistência em operações críticas como atualização de estoque e mudança de status.
-- **Ecossistema maduro:** integração com Go via `pgx`, GORM e ferramentas como pgAdmin. Em produção, o mesmo engine roda no **AWS RDS**.
+## Testes e qualidade
 
-## Índice de documentação
+| Tipo | O que cobre | Como rodar |
+|---|---|---|
+| Unitários | domínio, casos de uso, orquestrador, handlers HTTP, chassis | `make test` |
+| Integração | repositórios, outbox e inbox contra Postgres real | `make test-db` e `make test` |
+| **BDD (godog)** | [`features/saga.feature`](features/saga.feature): caminho feliz completo e cada compensação, contra o orquestrador real e o Postgres | `make bdd` |
+| Contrato | mensagens produzidas e consumidas validadas contra os JSON Schemas de `pkg/contracts` | `make test` |
+| Ponta a ponta | os três serviços, as Lambdas no LocalStack e o Mailpit: caminho feliz e três compensações | `make all` em [`postech-tc4-infra-k8s/local`](https://github.com/Kc1t/postech-tc4-infra-k8s/tree/main/local) |
 
-| Documento / artefato | Finalidade |
-|----------------------|------------|
-| [`docs/DOCUMENTO_ENTREGA_FASE2.md`](docs/DOCUMENTO_ENTREGA_FASE2.md) | Documento objetivo da entrega da Fase 2, com grupo, links, requisitos e roteiro do vídeo. |
-| [`docs/DOCUMENTO_ENTREGA.md`](docs/DOCUMENTO_ENTREGA.md) | Documento da Fase 1, útil para entender a origem do domínio e a evolução da solução. |
-| [`postech-tc3-infra-k8s`](https://github.com/Kc1t/postech-tc3-infra-k8s) e [`postech-tc3-infra-database`](https://github.com/Kc1t/postech-tc3-infra-database) | Terraform da infraestrutura, movido para repositórios próprios na Fase 3. |
-| [`k8s/README.md`](k8s/README.md) | Detalha os manifestos Kubernetes, ordem de aplicação, HPA, metrics-server e Secret da pipeline. |
-| [`docs/adr/README.md`](docs/adr/README.md) | Índice das decisões arquiteturais registradas no projeto. |
-| [`docs/adr/0001-go-language.md`](docs/adr/0001-go-language.md) | Justificativa da escolha de Go. |
-| [`docs/adr/0002-hexagonal-architecture.md`](docs/adr/0002-hexagonal-architecture.md) | Justificativa da Arquitetura Hexagonal. |
-| [`docs/adr/0003-postgresql.md`](docs/adr/0003-postgresql.md) | Justificativa da escolha do PostgreSQL. |
-| [`docs/adr/0004-gorm-orm.md`](docs/adr/0004-gorm-orm.md) | Justificativa do uso do GORM. |
-| [`docs/adr/0005-jwt-refresh-token.md`](docs/adr/0005-jwt-refresh-token.md) | Decisão sobre autenticação JWT com refresh token rotativo. |
-| [`docs/adr/0006-domain-errors-sentinels.md`](docs/adr/0006-domain-errors-sentinels.md) | Decisão sobre erros de domínio centralizados. |
-| [`docs/security-reports/RELATORIO.md`](docs/security-reports/RELATORIO.md) | Relatório de análise de vulnerabilidades com `gosec`, `govulncheck` e `trivy`. |
-| [`docs/swagger.yaml`](docs/swagger.yaml) | Especificação OpenAPI estática. |
-| [`postman_collection.json`](postman_collection.json) | Collection para validação prática dos endpoints. |
-| [`docs/database-model.dbml`](docs/database-model.dbml) | Modelo de dados em DBML. |
-| [`docs/documentation-diagram.drawio`](docs/documentation-diagram.drawio) | Diagrama editável da documentação/arquitetura. |
-| [`docs/site/`](docs/site/) | Site estático de documentação publicado no hub da entrega. |
-
-## Como rodar
-
-### Pré-requisitos
-
-- **Local:** Docker e Docker Compose (ou Go 1.25 para rodar sem container).
-- **Kubernetes:** `kubectl` e acesso a um cluster (EKS, Minikube, kind ou Docker Desktop).
-- **Terraform:** Terraform ≥ 1.5, AWS CLI configurado com credenciais válidas.
-
-### Execução local com Docker
-
-```bash
-cp .env.example .env
-docker compose up --build
-```
-
-Também é possível usar o Makefile: `make up`.
-
-| Serviço | URL | Observação |
-|---------|-----|------------|
-| API | `http://localhost:8080` | Serviço principal |
-| Swagger UI | `http://localhost:8080/swagger/index.html` | Documentação interativa da API |
-| Health check | `http://localhost:8080/health` | Usado por readiness/liveness no K8s |
-| pgAdmin | `http://localhost:8082` | Login: `admin@workshop.com` / senha: `admin` |
-| Documentação | `http://localhost:8083` | Site estático do projeto |
-
-Execução local sem Docker:
-
-```bash
-cp .env.example .env
-go install github.com/swaggo/swag/cmd/swag@latest
-swag init -g cmd/api/main.go -o docs
-go run ./cmd/api
-```
-
-### Deploy em Kubernetes
-
-Os manifestos estão em [`k8s/`](k8s/). Aplicação manual (ordem importa):
-
-Os manifestos não declaram namespace: ele é escolhido na aplicação, o que permite usar os mesmos arquivos nos dois ambientes.
-
-```bash
-NAMESPACE=postech-homolog   # ou postech, para produção
-
-# 1. Namespace
-kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
-
-# 2. Configuração e segredos
-#    Ajuste os valores do Secret antes (JWT_SECRET, POSTGRES_DSN, SMTP_*, ADMIN_PASSWORD)
-kubectl apply -n "$NAMESPACE" -f k8s/configmap.yaml
-kubectl apply -n "$NAMESPACE" -f k8s/secret.yaml
-
-# 3. Deployment, Service e HPA
-#    Substitua IMAGE_PLACEHOLDER pela imagem publicada no ECR
-kubectl apply -n "$NAMESPACE" -f k8s/deployment.yaml
-kubectl apply -n "$NAMESPACE" -f k8s/service.yaml
-kubectl apply -n "$NAMESPACE" -f k8s/hpa.yaml
-
-# 4. Acompanhar o rollout e a URL pública
-kubectl rollout status deployment/workshop-api -n "$NAMESPACE"
-kubectl get svc workshop-api -n "$NAMESPACE"
-```
-
-> O `JWT_SECRET` precisa ser **o mesmo** configurado nas Lambdas de autenticação, senão os tokens emitidos por CPF são rejeitados com 401.
-
-Verificar a escalabilidade automática:
-
-```bash
-kubectl get hpa -n postech -w
-kubectl get pods -n postech -w   # observar as réplicas subindo sob carga
-```
-
-> Em produção o deploy é automatizado pela pipeline (ver [CI/CD](#cicd)), que também substitui a imagem no manifesto e cria o Secret a partir dos GitHub Secrets. Consulte [`k8s/README.md`](k8s/README.md) para detalhes de cada manifesto.
-
-### Provisionamento da infraestrutura com Terraform
-
-Na Fase 3 o Terraform saiu deste repositório e foi para três repositórios próprios, cada um com seu pipeline:
-
-| Repositório | Provisiona |
-|---|---|
-| [`postech-tc3-infra-database`](https://github.com/Kc1t/postech-tc3-infra-database) | RDS PostgreSQL 16 e credenciais no Secrets Manager |
-| [`postech-tc3-infra-k8s`](https://github.com/Kc1t/postech-tc3-infra-k8s) | EKS, metrics-server, vpc-cni, API Gateway e agente do New Relic |
-| [`postech-tc3-lambda-auth`](https://github.com/Kc1t/postech-tc3-lambda-auth) | Lambdas de emissão de token por CPF e authorizer |
-
-A ordem de aplicação entre eles está no [README do `postech-tc3-infra-k8s`](https://github.com/Kc1t/postech-tc3-infra-k8s#ordem-de-aplicação-entre-repositórios). Depois do apply, configurar o kubectl:
-
-```bash
-aws eks update-kubeconfig --name postech-tc3-prod --region us-east-1
-```
+**Cobertura:** 86,0% no `go test -coverprofile` (exclui `cmd/`, `docs/`, mocks e scripts) e 83,3% no SonarQube, com quality gate aprovado: 0 bugs, 0 vulnerabilidades, 0 code smells e 0% de duplicação. O CI publica os números no resumo de cada execução e reprova abaixo de 80%.
 
 ## CI/CD
 
-A pipeline está em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (GitHub Actions) e executa:
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml), independente dos outros serviços:
 
-| Job | Gatilho | O que faz |
-|-----|---------|-----------|
-| **lint** | PR e push | `golangci-lint` |
-| **dependencies** | PR e push | Verifica `go mod tidy` e roda `govulncheck` |
-| **tests** | PR e push | Sobe Postgres, roda os testes com cobertura e falha se `< 80%` |
-| **deploy** | push na `homolog` e na `main` | Build/push da imagem no ECR e deploy no EKS (aplica os manifestos + rollout): `homolog` → namespace `postech-homolog`, `main` → `postech` |
+| Job | O que faz |
+|---|---|
+| `quality` | `go mod tidy` sem diff, gofmt, `go vet`, golangci-lint (inclui gosec, errorlint, bodyclose), gosec com falha a partir de severidade média, govulncheck e Swagger em dia com o código |
+| `tests` | Postgres de teste, `make cover` e cobertura mínima de 80% |
+| `bdd` | cenários godog da saga |
+| `sonarqube` | SonarQube Community num container do job, com quality gate próprio: cobertura ≥ 80%, duplicação ≤ 3% e nota A em confiabilidade, segurança e manutenibilidade |
+| `terraform` | fmt, validate e tfsec do `infra/` |
+| `image` | build da imagem e Trivy (CRITICAL com correção bloqueia) |
+| `deploy` | só na `main`, depois de tudo acima: `terraform apply` do RDS, DSN lida do Secrets Manager, imagem no ECR, Secret e manifests no EKS, rollout e smoke test em `/health/ready` pelo NLB |
 
-Secrets necessários no GitHub (Settings → Secrets and variables → Actions): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_REGION`, `EKS_CLUSTER_NAME`, `JWT_SECRET`, `POSTGRES_DSN`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `ADMIN_PASSWORD`, `NEW_RELIC_LICENSE_KEY`.
+A `main` é protegida: só recebe PR, com os jobs acima obrigatórios. O deploy só roda com a variável `AWS_DEPLOY_ENABLED=true`, porque as credenciais do Learner Lab expiram a cada sessão.
 
-## Variáveis de ambiente
-
-| Variável | Padrão | Descrição |
-|----------|--------|-----------|
-| `APP_PORT` | `8080` | Porta da API |
-| `APP_ENV` | `development` | Ambiente da aplicação |
-| `POSTGRES_DSN` | `postgres://postgres:postgres@localhost:5432/workshop?sslmode=disable` | DSN do PostgreSQL |
-| `JWT_SECRET` | `change-me-in-production` | Chave secreta para assinatura JWT |
-| `ACCESS_TOKEN_EXP_MIN` | `15` | Expiração do access token em minutos |
-| `REFRESH_TOKEN_EXP_DAYS` | `7` | Expiração do refresh token em dias |
-| `BCRYPT_COST` | `12` | Custo do hash de senha com bcrypt |
-| `MAX_FAILED_LOGINS` | `5` | Tentativas permitidas antes do bloqueio de login |
-| `LOGIN_LOCK_MIN` | `15` | Tempo de bloqueio após falhas de login, em minutos |
-| `ADMIN_EMAIL` | `admin@workshop.com` | E-mail do admin criado no seed |
-| `ADMIN_PASSWORD` | `change-me-in-production` | Senha do admin criado no seed |
-| `SMTP_HOST` | `smtp-relay.brevo.com` | Host do servidor SMTP (vazio desativa o envio) |
-| `SMTP_PORT` | `587` | Porta SMTP |
-| `SMTP_USERNAME` | — | Usuário/login do SMTP |
-| `SMTP_PASSWORD` | — | Chave/senha do SMTP |
-| `SMTP_FROM` | `noreply@workshop.com` | Remetente das notificações |
-
-## Endpoints
-
-As rotas de cadastro, login e refresh são públicas. As demais rotas sob `/api/v1/*` exigem o header `Authorization: Bearer <token>`. Rotas marcadas como `admin` também exigem `role=admin` nas claims do JWT.
-
-| Método | Rota | Auth | Descrição |
-|--------|------|------|-----------|
-| GET | `/health` | público | Health check da aplicação |
-| **Auth** | | | |
-| POST | `/api/v1/auth/register` | público | Registra usuário com perfil `client` |
-| POST | `/api/v1/auth/login` | público | Autentica usuário e retorna access e refresh token |
-| POST | `/api/v1/auth/refresh` | público | Rotaciona tokens |
-| POST | `/api/v1/auth/logout` | JWT | Encerra sessão |
-| **Requesters** | | | |
-| POST | `/api/v1/requesters` | admin | Cria solicitante |
-| GET | `/api/v1/requesters` | admin | Lista solicitantes |
-| GET | `/api/v1/requesters/:id` | admin | Busca solicitante por ID |
-| GET | `/api/v1/requesters/document/:document` | admin | Busca solicitante por CPF/CNPJ |
-| PUT | `/api/v1/requesters/:id` | admin | Atualiza solicitante |
-| DELETE | `/api/v1/requesters/:id` | admin | Remove solicitante |
-| **Vehicles** | | | |
-| POST | `/api/v1/vehicles` | admin | Cadastra veículo |
-| GET | `/api/v1/vehicles` | admin | Lista veículos |
-| GET | `/api/v1/vehicles/:id` | admin | Busca veículo por ID |
-| GET | `/api/v1/requesters/:id/vehicles` | admin | Lista veículos por solicitante |
-| PUT | `/api/v1/vehicles/:id` | admin | Atualiza veículo |
-| DELETE | `/api/v1/vehicles/:id` | admin | Remove veículo |
-| **Services** | | | |
-| POST | `/api/v1/services` | admin | Cadastra serviço |
-| GET | `/api/v1/services` | admin | Lista serviços |
-| GET | `/api/v1/services/:id` | admin | Busca serviço por ID |
-| PUT | `/api/v1/services/:id` | admin | Atualiza serviço |
-| DELETE | `/api/v1/services/:id` | admin | Remove serviço |
-| **Parts** | | | |
-| POST | `/api/v1/parts` | admin | Cadastra peça ou insumo |
-| GET | `/api/v1/parts` | admin | Lista peças e insumos |
-| GET | `/api/v1/parts/:id` | admin | Busca peça por ID |
-| PUT | `/api/v1/parts/:id` | admin | Atualiza peça |
-| DELETE | `/api/v1/parts/:id` | admin | Remove peça |
-| PATCH | `/api/v1/parts/:id/stock` | admin | Ajusta estoque por delta positivo ou negativo |
-| **Service Orders** | | | |
-| POST | `/api/v1/service-orders` | admin | **Abre OS** (cliente, veículo, serviços e peças) → retorna ID único |
-| GET | `/api/v1/service-orders` | admin | **Lista OS** ordenada por status e mais antigas primeiro (exclui finalizadas/entregues) |
-| GET | `/api/v1/service-orders/:id` | admin | Busca OS por ID |
-| GET | `/api/v1/service-orders/metrics/execution-time` | admin | Tempo médio de execução das ordens |
-| GET | `/api/v1/service-orders/code/:code?document=<cpf/cnpj>` | cliente (JWT do CPF) | **Consulta status** da OS por código (o `document` precisa ser o CPF do token → senão 403; documento que não é o dono da OS → 404) |
-| GET | `/api/v1/service-orders/requester?document=<cpf/cnpj>` | cliente (JWT do CPF) | Lista ordens do solicitante (o `document` precisa ser o CPF do token) |
-| PUT | `/api/v1/service-orders/code/:code/status` | cliente (JWT do CPF) | **Aprova/recusa orçamento** — body com `requester_document` + `status` |
-| PUT | `/api/v1/service-orders/:id/status` | admin | Atualiza status da OS (fluxo operacional) |
-| PUT | `/api/v1/service-orders/:id` | admin | Atualiza OS |
-| DELETE | `/api/v1/service-orders/:id` | admin | Remove OS |
-
-Collection completa das APIs: [`postman_collection.json`](postman_collection.json) · Swagger ao vivo: https://tkh5cum8g8.execute-api.us-east-1.amazonaws.com/swagger/index.html · Swagger estático: [`docs/swagger.yaml`](docs/swagger.yaml).
-
-## Testes
+## Executar localmente
 
 ```bash
-go test ./... -v -coverprofile=coverage.out
-go tool cover -func=coverage.out
+make test-db && make test   # Postgres de teste na porta 55432
+make bdd                    # cenários da saga
+docker compose -p tc4-os up -d && ./scripts/smoke-saga.sh   # só este serviço, com billing e execution simulados
 ```
 
-Ou via Makefile: `make test`. A cobertura é validada na pipeline com **gate mínimo de 80%** nos domínios críticos.
+O fluxo completo, com os três serviços e as Lambdas, está no ambiente e2e do [postech-tc4-infra-k8s](https://github.com/Kc1t/postech-tc4-infra-k8s/tree/main/local).
 
-## Entregáveis
+## Observabilidade
 
-| Item | Link |
-|------|------|
-| 📂 Repositório (privado, acesso `soat-architecture`) | https://github.com/Kc1t/postech-tc1 |
-| 🔧 Collection das APIs (Postman) | [`postman_collection.json`](postman_collection.json) |
-| 📄 Swagger estático | [`docs/swagger.yaml`](docs/swagger.yaml) |
-| 🏛️ Hub de documentação | https://tc-doc.vercel.app/ |
-| 🎬 Vídeo demonstrativo (Fase 2 · até 15 min) | https://www.youtube.com/watch?v=PiraAX3RVzg |
+- **APM e trace distribuído:** agente Go do New Relic com `nrgin`. O trace atravessa as mensagens: o publicador injeta os headers W3C nos atributos SNS/SQS e o consumidor os aceita na transação `Consume/<tipo>`, então uma OS aparece como um trace só do HTTP de abertura até o reparo.
+- **Logs em contexto:** JSON com `trace.id`, `span.id`, `saga_id`, `os_id` e `correlation_id`. Eventos de negócio da saga são logs (`saga_step`, `saga_completed`, `saga_compensated`, `saga_expired`), base do funil no dashboard. O CPF nunca aparece inteiro.
+- **Dashboards, alertas com runbook e SLOs:** em Terraform, no [`postech-tc4-infra-k8s/observability`](https://github.com/Kc1t/postech-tc4-infra-k8s/tree/main/observability).
 
-O vídeo deve demonstrar: deploy da aplicação, execução do CI/CD, consumo das APIs e escalabilidade automática (simulação de carga).
+## Documentação
 
-## Contribuidores
+- [ADRs](docs/adr/): da 0001 à 0011 vêm das fases anteriores; a partir da 0012, decisões da fase 4 (banco por serviço, mensageria, saga, outbox, API composition, Mercado Pago, ambiente, notificação).
+- [RFCs](docs/rfc/), incluindo a decomposição do monolito.
+- [AsyncAPI](docs/asyncapi/asyncapi.yaml) das mensagens.
+- Documentos das fases anteriores: `docs/DOCUMENTO_ENTREGA_FASE2.md`, `docs/DOCUMENTO_ENTREGA_FASE3.md`, `docs/newrelic/` (dashboards da fase 3).
 
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/yuriLpadlipskas">
-        <img src="https://github.com/yuriLpadlipskas.png?size=100" width="100px;" alt="Avatar de yuriLpadlipskas"/><br />
-        <sub><b>yuriLpadlipskas</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/PedroHCarlini">
-        <img src="https://github.com/PedroHCarlini.png?size=100" width="100px;" alt="Avatar de PedroHCarlini"/><br />
-        <sub><b>PedroHCarlini</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/kc1t">
-        <img src="https://github.com/kc1t.png?size=100" width="100px;" alt="Avatar de kc1t"/><br />
-        <sub><b>kc1t</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/diegoliveiraa">
-        <img src="https://github.com/diegoliveiraa.png?size=100" width="100px;" alt="Avatar de diegoliveiraa"/><br />
-        <sub><b>diegoliveiraa</b></sub>
-      </a>
-    </td>
-  </tr>
-</table>
+## Limitações conhecidas
+
+- O AWS Learner Lab não deixa criar roles: os pods usam a `LabRole` pelo IMDS em vez de IRSA ([ADR-0016](docs/adr/)), e a integração da conta AWS com o New Relic não é possível (métricas de SQS e RDS ficam no CloudWatch).
+- RDS single-AZ e sem proteção contra exclusão, por custo e pelas sessões do lab ([ADR-0015](docs/adr/)).
+- Um só ambiente no EKS; a homologação é o e2e local ([ADR-0021](docs/adr/)).
+- O NLB de cada serviço é público. A defesa é o JWT validado no serviço e o token interno; o caminho para fechar é VPC Link com NLB interno.
+- Sem CQRS: a leitura composta é feita na hora (API composition), o que é suficiente no volume atual e mais simples de manter.
