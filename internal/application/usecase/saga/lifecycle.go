@@ -96,7 +96,8 @@ func (uc *CancelServiceOrder) Execute(ctx context.Context, id, reason string) er
 	} else {
 		reason = "cancelada pela oficina: " + reason
 	}
-	return uc.o.d.Tx.WithinTx(ctx, func(ctx context.Context) error {
+	var st *step
+	err := uc.o.d.Tx.WithinTx(ctx, func(ctx context.Context) error {
 		// Mesma ordem de travamento dos handlers (saga, depois OS) para não haver deadlock.
 		saga, err := uc.o.d.Sagas.FindByOSIDForUpdate(ctx, id)
 		if err != nil {
@@ -109,7 +110,7 @@ func (uc *CancelServiceOrder) Execute(ctx context.Context, id, reason string) er
 		if so.Status() == entities.StatusFinished || so.Status().IsFinal() || !saga.State.IsActive() {
 			return domainerrors.ErrOrderNotCancellable
 		}
-		st := &step{
+		st = &step{
 			saga: saga, so: so, actor: entities.ActorStaff,
 			meta: contracts.Meta{SagaID: saga.ID, OSID: so.ID(), CorrelationID: logger.CorrelationID(ctx)},
 		}
@@ -118,6 +119,11 @@ func (uc *CancelServiceOrder) Execute(ctx context.Context, id, reason string) er
 		}
 		return uc.o.save(ctx, st)
 	})
+	if err != nil {
+		return err
+	}
+	st.committed()
+	return nil
 }
 
 // DeliverServiceOrder registra a entrega do veículo ao cliente (finished → delivered).
@@ -201,6 +207,7 @@ func (uc *ExpireSagas) Execute(ctx context.Context, now time.Time) (int, error) 
 		}
 		if st != nil {
 			expired++
+			st.committed()
 			uc.o.log(ctx, st).Warn("saga_expired", "reason", st.saga.FailureReason)
 		}
 	}

@@ -79,6 +79,23 @@ type step struct {
 	actor     string
 	messageID string
 	soDirty   bool
+	// logs adiados para depois do commit: um passo que falha e é reentregue não loga duas
+	// vezes o que o dashboard conta (saga_compensated, por exemplo).
+	afterCommit []func()
+}
+
+// onCommit guarda fn para rodar quando a transação do passo for confirmada.
+func (st *step) onCommit(fn func()) { st.afterCommit = append(st.afterCommit, fn) }
+
+// committed roda o que o passo adiou. Quem abre a transação chama depois do commit.
+func (st *step) committed() {
+	if st == nil {
+		return
+	}
+	for _, fn := range st.afterCommit {
+		fn()
+	}
+	st.afterCommit = nil
 }
 
 func (o *Orchestrator) loadRequester(ctx context.Context, st *step) (*entities.Requester, error) {
@@ -191,12 +208,14 @@ func (o *Orchestrator) compensate(ctx context.Context, st *step, reason string, 
 	if err := st.so.Cancel(reason); err != nil {
 		return err
 	}
-	o.log(ctx, st).Warn("saga_compensated",
-		"reason", reason,
-		"refund_payment", plan.RefundPayment,
-		"cancel_budget", plan.CancelBudget && !done.budget,
-		"released_parts", len(plan.ReleaseParts),
-		"previous_status", string(from))
+	st.onCommit(func() {
+		o.log(ctx, st).Warn("saga_compensated",
+			"reason", reason,
+			"refund_payment", plan.RefundPayment,
+			"cancel_budget", plan.CancelBudget && !done.budget,
+			"released_parts", len(plan.ReleaseParts),
+			"previous_status", string(from))
+	})
 	return o.changeStatus(ctx, st, from, reason, true)
 }
 

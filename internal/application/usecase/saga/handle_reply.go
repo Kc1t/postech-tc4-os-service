@@ -112,6 +112,7 @@ func (h *HandleReply) Execute(ctx context.Context, env contracts.Envelope) error
 	case dup:
 		l.Info("saga_reply_duplicate")
 	case outcome == "applied":
+		st.committed()
 		l.Info("saga_step", "saga_state", string(st.saga.State), "os_status", string(st.so.Status()))
 		if st.saga.State == entities.SagaCompleted {
 			l.Info("saga_completed", "service_order_code", st.so.Code())
@@ -356,7 +357,7 @@ func (h *HandleReply) onPaymentApproved(ctx context.Context, st *step, env contr
 		if err := st.saga.RefundLatePayment(p.PaymentID); err != nil {
 			return err
 		}
-		h.o.log(ctx, st).Warn("saga_late_payment_refund", "payment_id", p.PaymentID)
+		st.onCommit(func() { h.o.log(ctx, st).Warn("saga_late_payment_refund", "payment_id", p.PaymentID) })
 		return h.o.d.Messenger.Send(ctx, contracts.CmdRefundPayment, st.meta, contracts.RefundPayment{
 			BudgetID: st.saga.BudgetID, Reason: "pagamento recebido após o cancelamento da OS",
 		})
@@ -399,7 +400,7 @@ func (h *HandleReply) onPaymentRefunded(ctx context.Context, st *step, env contr
 	if err := st.saga.ConfirmRefund(); err != nil {
 		return err
 	}
-	h.o.log(ctx, st).Info("saga_refund_confirmed", "payment_id", p.PaymentID, "amount", p.Amount)
+	st.onCommit(func() { h.o.log(ctx, st).Info("saga_refund_confirmed", "payment_id", p.PaymentID, "amount", p.Amount) })
 	return nil
 }
 
