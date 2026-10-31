@@ -3,7 +3,7 @@ package entities
 import (
 	"testing"
 
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
 )
 
 func TestNewDocument_CPFValido(t *testing.T) {

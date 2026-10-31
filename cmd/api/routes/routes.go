@@ -3,11 +3,11 @@ package routes
 import (
 	"net/http"
 
-	_ "github.com/fiap/postech-tc1/docs"
+	_ "github.com/Kc1t/postech-tc4-os-service/docs"
 
-	"github.com/fiap/postech-tc1/cmd/api/bootstrap"
-	"github.com/fiap/postech-tc1/cmd/api/middleware"
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/cmd/api/bootstrap"
+	"github.com/Kc1t/postech-tc4-os-service/cmd/api/middleware"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	pgmodel "github.com/fiap/postech-tc1/internal/adapters/outbound/postgresql/model"
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	pgmodel "github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/postgresql/model"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 )
 
 func TestServiceRepository_Create(t *testing.T) {

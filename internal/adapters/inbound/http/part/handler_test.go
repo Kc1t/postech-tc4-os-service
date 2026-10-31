@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
-	"github.com/fiap/postech-tc1/internal/ports/mocks"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
+	"github.com/Kc1t/postech-tc4-os-service/internal/ports/mocks"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 )

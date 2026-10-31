@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fiap/postech-tc1/internal/ports"
+	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 )
 
 // GetAverageExecutionTime expoe a metrica de tempo medio de execucao dos

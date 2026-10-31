@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	pgmodel "github.com/fiap/postech-tc1/internal/adapters/outbound/postgresql/model"
+	pgmodel "github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/postgresql/model"
 	gormpostgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

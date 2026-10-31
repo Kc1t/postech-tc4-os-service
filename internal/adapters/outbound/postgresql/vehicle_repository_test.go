@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	pgmodel "github.com/fiap/postech-tc1/internal/adapters/outbound/postgresql/model"
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	pgmodel "github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/postgresql/model"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 )
 
 func seedRequester(t *testing.T) *entities.Requester {

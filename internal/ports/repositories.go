@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 )
 
 //go:generate mockgen -source=./repositories.go -destination=./mocks/repositories.go -package=mocks

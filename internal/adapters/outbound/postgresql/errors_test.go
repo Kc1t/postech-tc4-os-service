@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )

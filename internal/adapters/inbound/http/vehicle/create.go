@@ -4,10 +4,10 @@ import (
 	"errors"
 	"net/http"
 
-	httputil "github.com/fiap/postech-tc1/internal/adapters/inbound/http"
-	"github.com/fiap/postech-tc1/internal/adapters/inbound/http/commands"
-	"github.com/fiap/postech-tc1/internal/domain/entities"
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
+	"github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http/commands"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
 	"github.com/gin-gonic/gin"
 )
 

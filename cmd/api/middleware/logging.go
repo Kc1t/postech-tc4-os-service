@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/fiap/postech-tc1/pkg/logger"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/logger"
 	"github.com/gin-gonic/gin"
 )
 

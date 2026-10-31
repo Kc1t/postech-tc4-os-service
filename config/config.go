@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/fiap/postech-tc1/pkg/env"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/env"
 	"github.com/joho/godotenv"
 )
 

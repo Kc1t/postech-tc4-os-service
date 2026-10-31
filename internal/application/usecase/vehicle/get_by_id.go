@@ -3,8 +3,8 @@ package vehicleuc
 import (
 	"context"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
-	"github.com/fiap/postech-tc1/internal/ports"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 )
 
 type GetVehicle struct {

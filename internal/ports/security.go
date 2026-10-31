@@ -3,7 +3,7 @@ package ports
 import (
 	"time"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 )
 
 // TokenService abstrai a geracao e validacao de tokens de autenticacao.

@@ -3,7 +3,7 @@ package serviceuc
 import (
 	"context"
 
-	"github.com/fiap/postech-tc1/internal/ports"
+	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 )
 
 type DeleteService struct {

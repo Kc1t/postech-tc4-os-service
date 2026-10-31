@@ -1,7 +1,7 @@
 package parthandler
 
 import (
-	"github.com/fiap/postech-tc1/internal/ports"
+	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 	"github.com/gin-gonic/gin"
 )
 

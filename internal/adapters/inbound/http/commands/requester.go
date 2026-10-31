@@ -3,7 +3,7 @@ package commands
 import (
 	"time"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 )
 
 type CreateRequesterRequest struct {

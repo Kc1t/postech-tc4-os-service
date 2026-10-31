@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
 )
 
 // DocumentType identifica o tipo de documento brasileiro.

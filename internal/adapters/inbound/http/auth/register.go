@@ -3,11 +3,11 @@ package authhandler
 import (
 	"net/http"
 
-	"github.com/fiap/postech-tc1/internal/adapters/inbound/http/commands"
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http/commands"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 	"github.com/gin-gonic/gin"
 
-	httputil "github.com/fiap/postech-tc1/internal/adapters/inbound/http"
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
 )
 
 // Register godoc

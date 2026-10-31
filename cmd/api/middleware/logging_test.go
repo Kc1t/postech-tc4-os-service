@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/fiap/postech-tc1/cmd/api/middleware"
+	"github.com/Kc1t/postech-tc4-os-service/cmd/api/middleware"
 	"github.com/gin-gonic/gin"
 )
 

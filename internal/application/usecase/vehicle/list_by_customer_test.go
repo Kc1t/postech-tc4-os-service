@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
-	"github.com/fiap/postech-tc1/internal/ports/mocks"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/internal/ports/mocks"
 	"go.uber.org/mock/gomock"
 )
 

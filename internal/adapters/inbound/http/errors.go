@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
 	"github.com/gin-gonic/gin"
 )
 

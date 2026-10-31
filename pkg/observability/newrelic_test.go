@@ -3,7 +3,7 @@ package observability_test
 import (
 	"testing"
 
-	"github.com/fiap/postech-tc1/pkg/observability"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/observability"
 )
 
 func TestNewRelic_DisabledWithoutLicenseKey(t *testing.T) {

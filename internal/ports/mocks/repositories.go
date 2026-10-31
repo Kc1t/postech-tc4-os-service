@@ -14,7 +14,7 @@ import (
 	reflect "reflect"
 	time "time"
 
-	entities "github.com/fiap/postech-tc1/internal/domain/entities"
+	entities "github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 	gomock "go.uber.org/mock/gomock"
 )
 

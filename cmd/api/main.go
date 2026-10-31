@@ -3,12 +3,12 @@ package main
 import (
 	"os"
 
-	"github.com/fiap/postech-tc1/cmd/api/bootstrap"
-	"github.com/fiap/postech-tc1/cmd/api/middleware"
-	"github.com/fiap/postech-tc1/cmd/api/routes"
-	"github.com/fiap/postech-tc1/config"
-	"github.com/fiap/postech-tc1/pkg/logger"
-	"github.com/fiap/postech-tc1/pkg/observability"
+	"github.com/Kc1t/postech-tc4-os-service/cmd/api/bootstrap"
+	"github.com/Kc1t/postech-tc4-os-service/cmd/api/middleware"
+	"github.com/Kc1t/postech-tc4-os-service/cmd/api/routes"
+	"github.com/Kc1t/postech-tc4-os-service/config"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/logger"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/observability"
 	"github.com/gin-gonic/gin"
 	"github.com/newrelic/go-agent/v3/integrations/nrgin"
 )

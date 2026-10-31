@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
-	"github.com/fiap/postech-tc1/internal/ports/mocks"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
+	"github.com/Kc1t/postech-tc4-os-service/internal/ports/mocks"
 	"go.uber.org/mock/gomock"
 )
 

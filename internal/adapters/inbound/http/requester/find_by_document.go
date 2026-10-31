@@ -3,8 +3,8 @@ package requesterhandler
 import (
 	"net/http"
 
-	httputil "github.com/fiap/postech-tc1/internal/adapters/inbound/http"
-	"github.com/fiap/postech-tc1/internal/adapters/inbound/http/commands"
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
+	"github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http/commands"
 	"github.com/gin-gonic/gin"
 )
 

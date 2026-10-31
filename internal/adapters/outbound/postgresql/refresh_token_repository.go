@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	pgmodel "github.com/fiap/postech-tc1/internal/adapters/outbound/postgresql/model"
-	"github.com/fiap/postech-tc1/internal/domain/entities"
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
-	"github.com/fiap/postech-tc1/internal/ports"
+	pgmodel "github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/postgresql/model"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
+	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 	"gorm.io/gorm"
 )
 

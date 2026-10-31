@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
-	"github.com/fiap/postech-tc1/internal/ports/mocks"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
+	"github.com/Kc1t/postech-tc4-os-service/internal/ports/mocks"
 	"go.uber.org/mock/gomock"
 )
 

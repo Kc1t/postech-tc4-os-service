@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/fiap/postech-tc1/pkg/env"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/env"
 )
 
 func TestLoad_Defaults(t *testing.T) {

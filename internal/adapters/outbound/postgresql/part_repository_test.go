@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	pgmodel "github.com/fiap/postech-tc1/internal/adapters/outbound/postgresql/model"
-	"github.com/fiap/postech-tc1/internal/domain/entities"
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
+	pgmodel "github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/postgresql/model"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
 )
 
 func TestPartRepository_Create(t *testing.T) {

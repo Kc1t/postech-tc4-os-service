@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
 )
 
 func TestUpdateStatus_TransicoesValidas(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	domainerrors "github.com/fiap/postech-tc1/internal/domain/errors"
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
 )
 
 // PlateFormat identifica o formato da placa brasileira.

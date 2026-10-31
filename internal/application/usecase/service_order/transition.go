@@ -3,7 +3,7 @@ package serviceorderuc
 import (
 	"time"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 )
 
 // statusTransition guarda de qual status a OS saiu e desde quando estava nele. O updated_at da OS

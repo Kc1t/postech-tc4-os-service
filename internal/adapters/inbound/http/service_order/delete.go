@@ -3,7 +3,7 @@ package serviceorderhandler
 import (
 	"net/http"
 
-	httputil "github.com/fiap/postech-tc1/internal/adapters/inbound/http"
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
 	"github.com/gin-gonic/gin"
 )
 

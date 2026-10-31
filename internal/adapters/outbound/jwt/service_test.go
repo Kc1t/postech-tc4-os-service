@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 	"github.com/golang-jwt/jwt/v5"
 )
 

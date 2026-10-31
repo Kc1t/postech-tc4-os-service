@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"github.com/fiap/postech-tc1/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 )
 
 //go:generate mockgen -source=./notifiers.go -destination=./mocks/notifiers.go -package=mocks
