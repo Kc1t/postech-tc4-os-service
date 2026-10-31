@@ -16,6 +16,7 @@ require (
 	github.com/newrelic/go-agent/v3 v3.44.2
 	github.com/newrelic/go-agent/v3/integrations/nrawssdk-v2 v1.2.7
 	github.com/newrelic/go-agent/v3/integrations/nrgin v1.4.2
+	github.com/newrelic/go-agent/v3/integrations/nrpgx5 v1.3.4
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/sony/gobreaker/v2 v2.4.0
 	github.com/swaggo/files v1.0.1

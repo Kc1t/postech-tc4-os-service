@@ -175,6 +175,8 @@ github.com/newrelic/go-agent/v3/integrations/nrawssdk-v2 v1.2.7 h1:nnVGx+IG6wUtt
 github.com/newrelic/go-agent/v3/integrations/nrawssdk-v2 v1.2.7/go.mod h1:3bRvsoxV6aKLP+IU/xC+FeDJQKTNKV944JYH+2LnNm0=
 github.com/newrelic/go-agent/v3/integrations/nrgin v1.4.2 h1:AdWN/9G5fkIgAUfnMnChr2ZL1jKbicZxNSsn99s4wgc=
 github.com/newrelic/go-agent/v3/integrations/nrgin v1.4.2/go.mod h1:8mDVuKhV1U/NhuL8HLB0YxheDHCuo/dRqW4OgFiTMwI=
+github.com/newrelic/go-agent/v3/integrations/nrpgx5 v1.3.4 h1:7sEMnE9h0al593pQtNBBI3RxTFyLOo6bFfRDzQ3nsew=
+github.com/newrelic/go-agent/v3/integrations/nrpgx5 v1.3.4/go.mod h1:DKI/Zim0CJVASzMCj3FnNPS850ERsDzi1nxYDJsXWbU=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/pelletier/go-toml/v2 v2.2.2 h1:aYUidT7k73Pcl9nb2gScu7NSrKCSHIDE89b3+6Wq+LM=
 github.com/pelletier/go-toml/v2 v2.2.2/go.mod h1:1t835xjRzz80PqgE6HHgN2JOsmgYu/h4qDAS4n929Rs=
