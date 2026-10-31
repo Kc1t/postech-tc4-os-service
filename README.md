@@ -187,7 +187,7 @@ PostgreSQL próprio, criado pelo Terraform em [`infra/`](infra/) (RDS, banco `wo
 | Contrato | mensagens produzidas e consumidas validadas contra os JSON Schemas de `pkg/contracts` | `make test` |
 | Ponta a ponta | os três serviços, as Lambdas no LocalStack e o Mailpit: caminho feliz e três compensações | `make all` em [`postech-tc4-infra-k8s/local`](https://github.com/Kc1t/postech-tc4-infra-k8s/tree/main/local) |
 
-**Cobertura:** 86,3% no `go test -coverprofile` (exclui `cmd/`, `docs/`, mocks e scripts) e 83,5% no SonarQube, com quality gate aprovado: 0 bugs, 0 vulnerabilidades, 0 code smells e 0% de duplicação. O CI publica os números no resumo de cada execução e reprova abaixo de 80%.
+**Cobertura:** 86,3% no `go test -coverprofile` (exclui `cmd/`, `docs/`, mocks e scripts) e 83,6% no SonarQube, com quality gate aprovado: 0 bugs, 0 vulnerabilidades, 0 code smells e 0% de duplicação. O CI publica os números no resumo de cada execução e reprova abaixo de 80%.
 
 ## CI/CD
 

@@ -109,11 +109,11 @@ A divisão segue as **capacidades de negócio** do enunciado (atendimento, cobra
 
 | Repositório | Cobertura (`go test`) | SonarQube |
 |---|---|---|
-| os-service | 86,3% | 83,5%, gate aprovado |
+| os-service | 86,3% | 83,6%, gate aprovado |
 | billing-service | 95,7% | 94,7%, gate aprovado |
 | execution-service | 95,6% | 95,3%, gate aprovado |
-| lambda-auth | 91,4% | 90,5%, gate aprovado |
-| notification-lambda | 92,1% | 89,2%, gate aprovado |
+| lambda-auth | 91,4% | 90,6%, gate aprovado |
+| notification-lambda | 92,0% | 89,0%, gate aprovado |
 
 Quality gate próprio em todos: cobertura ≥ 80%, duplicação ≤ 3% e nota A em confiabilidade, segurança e manutenibilidade. Além dele, cada pipeline roda golangci-lint, gosec, govulncheck, tfsec e Trivy.
 
