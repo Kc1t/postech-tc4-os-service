@@ -1,16 +1,16 @@
+# Só a porta HTTP do pod aceita tráfego: dos pods do namespace (billing/execution na API
+# composition não precisam, mas o inverso sim) e do NLB (tráfego vindo de fora do cluster).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: workshop-api
+  name: os-service
 spec:
   podSelector:
     matchLabels:
-      app: workshop-api
+      app: os-service
   policyTypes:
     - Ingress
   ingress:
-    - from:
-        - podSelector: {}
     - ports:
         - port: 8080
           protocol: TCP

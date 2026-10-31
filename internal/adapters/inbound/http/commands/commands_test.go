@@ -139,8 +139,8 @@ func TestToServiceListResponse(t *testing.T) {
 
 func TestToServiceOrderResponse(t *testing.T) {
 	so := entities.NewServiceOrder("cust-1", "veh-1")
-	so.AddService(entities.ServiceItem{ServiceID: "s1", Description: "Desc", Price: 100.0})
-	so.AddPart(entities.PartItem{PartID: "p1", Description: "Peca", Quantity: 2, UnitPrice: 50.0})
+	so.SetServices([]entities.ServiceItem{{ServiceID: "s1", Code: 1, Description: "Desc", Price: 100.0}})
+	so.SetParts([]entities.PartItem{{PartID: "p1", ManufacturerCode: "F-1", Description: "Peca", Quantity: 2, UnitPrice: 50.0}})
 
 	resp := ToServiceOrderResponse(so)
 	if resp.RequesterID != "cust-1" || resp.VehicleID != "veh-1" {

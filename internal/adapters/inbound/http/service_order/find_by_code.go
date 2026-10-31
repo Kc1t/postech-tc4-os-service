@@ -43,7 +43,7 @@ func (h *ServiceOrderHandler) FindByCode(c *gin.Context) {
 		return
 	}
 
-	so, err := h.getByCode.Execute(c.Request.Context(), code, doc.Value())
+	so, err := h.d.GetByCode.Execute(c.Request.Context(), code, doc.Value())
 	if err != nil {
 		httputil.HandleError(c, err, msgNotFound)
 		return

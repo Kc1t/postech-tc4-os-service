@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Kc1t/postech-tc4-os-service/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -121,26 +122,31 @@ func TestAuth_WrongSecret(t *testing.T) {
 
 // --- CORS middleware ---
 
-func TestCORS_SetsHeaders(t *testing.T) {
+func TestCORS_Allowlist(t *testing.T) {
 	r := gin.New()
-	r.Use(CORS())
+	r.Use(CORS([]string{"https://painel.oficina.com/"}))
 	r.GET("/", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Origin", "https://painel.oficina.com")
 	r.ServeHTTP(w, req)
-
-	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("expected CORS origin header, got %q", w.Header().Get("Access-Control-Allow-Origin"))
+	if w.Header().Get("Access-Control-Allow-Origin") != "https://painel.oficina.com" || w.Code != http.StatusOK {
+		t.Fatalf("origem permitida: %q %d", w.Header().Get("Access-Control-Allow-Origin"), w.Code)
 	}
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
+
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Origin", "https://malicioso.com")
+	r.ServeHTTP(w, req)
+	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("origem fora da lista não pode receber CORS, veio %q", got)
 	}
 }
 
 func TestCORS_OptionsAborts(t *testing.T) {
 	r := gin.New()
-	r.Use(CORS())
+	r.Use(CORS(nil))
 	r.OPTIONS("/", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	w := httptest.NewRecorder()
@@ -149,5 +155,30 @@ func TestCORS_OptionsAborts(t *testing.T) {
 
 	if w.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", w.Code)
+	}
+}
+
+func TestNewRelicContext_SemAgente(t *testing.T) {
+	r := gin.New()
+	r.Use(NewRelicContext())
+	r.GET("/", func(c *gin.Context) { c.Status(http.StatusOK) })
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("got %d", w.Code)
+	}
+}
+
+func TestCorrelationID_VaiParaOContexto(t *testing.T) {
+	r := gin.New()
+	r.Use(CorrelationID())
+	var got string
+	r.GET("/", func(c *gin.Context) { got = logger.CorrelationID(c.Request.Context()) })
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set(CorrelationHeader, "abc-123")
+	r.ServeHTTP(w, req)
+	if got != "abc-123" || w.Header().Get(CorrelationHeader) != "abc-123" {
+		t.Fatalf("correlation id = %q", got)
 	}
 }

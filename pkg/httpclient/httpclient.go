@@ -84,7 +84,7 @@ func New(cfg Config, log *slog.Logger) *Client {
 	return &Client{
 		cfg:     cfg,
 		http:    &http.Client{Transport: newrelic.NewRoundTripper(http.DefaultTransport)},
-		breaker: gobreaker.NewCircuitBreaker[*http.Response](st),
+		breaker: gobreaker.NewCircuitBreaker[*http.Response](st), //nolint:bodyclose // tipo genérico, não é uma resposta
 		log:     log,
 		sleep:   sleepCtx,
 	}
@@ -165,7 +165,7 @@ func (c *Client) once(ctx context.Context, newReq func(ctx context.Context) (*ht
 
 func (c *Client) backoff(attempt int) time.Duration {
 	d := c.cfg.BaseBackoff << (attempt - 1)
-	jitter := time.Duration(rand.Int64N(int64(d)/2 + 1))
+	jitter := time.Duration(rand.Int64N(int64(d)/2 + 1)) // #nosec G404 -- jitter de backoff, não é segurança
 	return d + jitter
 }
 

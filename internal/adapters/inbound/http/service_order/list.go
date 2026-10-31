@@ -16,7 +16,7 @@ import (
 // @Security    BearerAuth
 // @Router      /service-orders [get]
 func (h *ServiceOrderHandler) FindAll(c *gin.Context) {
-	orders, err := h.listAll.Execute(c.Request.Context())
+	orders, err := h.d.ListAll.Execute(c.Request.Context())
 	if err != nil {
 		httputil.HandleError(c, err)
 		return

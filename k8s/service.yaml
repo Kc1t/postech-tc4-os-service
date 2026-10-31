@@ -1,15 +1,33 @@
+# Interno: usado pelos outros serviços do namespace (API composition não passa pelo gateway).
 apiVersion: v1
 kind: Service
 metadata:
-  name: workshop-api
+  name: os-service
+  labels:
+    app: os-service
+spec:
+  type: ClusterIP
+  selector:
+    app: os-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# Externo: NLB que o API Gateway (HTTP_PROXY) e a Lambda de autenticação usam.
+apiVersion: v1
+kind: Service
+metadata:
+  name: os-service-public
+  labels:
+    app: os-service
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
 spec:
   type: LoadBalancer
   selector:
-    app: workshop-api
+    app: os-service
   ports:
     - name: http
       port: 80
-      targetPort: 8080
-      protocol: TCP
+      targetPort: http

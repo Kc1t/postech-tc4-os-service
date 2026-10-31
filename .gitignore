@@ -7,3 +7,5 @@ _bmad-output
 .claude
 .vscode
 coverage_filtered.out
+coverage.out
+os-service

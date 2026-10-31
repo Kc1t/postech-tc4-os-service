@@ -150,7 +150,7 @@ func TestAWSPublisher_Erros(t *testing.T) {
 
 func TestDestinationShortName(t *testing.T) {
 	cases := map[string]string{
-		"arn:aws:sns:us-east-1:123:os-events":                    "os-events",
+		"arn:aws:sns:us-east-1:123:os-events":                      "os-events",
 		"https://sqs.us-east-1.amazonaws.com/123/billing-commands": "billing-commands",
 		"plain": "plain",
 	}

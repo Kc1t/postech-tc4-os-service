@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	pgmodel "github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/postgresql/model"
 	gormpostgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -33,15 +32,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to connect to test database: %v", err)
 	}
 
-	if err := db.AutoMigrate(
-		&pgmodel.Requester{},
-		&pgmodel.Vehicle{},
-		&pgmodel.Part{},
-		&pgmodel.Service{},
-		&pgmodel.ServiceOrder{},
-		&pgmodel.User{},
-		&pgmodel.RefreshToken{},
-	); err != nil {
+	if err := Migrate(db); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 

@@ -30,7 +30,7 @@ func TestMapError_OtherPgError(t *testing.T) {
 	if errors.Is(err, domainerrors.ErrNotFound) || errors.Is(err, domainerrors.ErrAlreadyExists) {
 		t.Fatalf("expected original error to pass through, got domain error")
 	}
-	if err != pgErr {
+	if !errors.Is(err, pgErr) {
 		t.Fatalf("expected original error, got %v", err)
 	}
 }
@@ -38,7 +38,7 @@ func TestMapError_OtherPgError(t *testing.T) {
 func TestMapError_OtherError(t *testing.T) {
 	original := errors.New("some other error")
 	err := mapError(original)
-	if err != original {
+	if !errors.Is(err, original) {
 		t.Fatalf("expected original error, got %v", err)
 	}
 }

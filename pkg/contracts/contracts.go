@@ -61,15 +61,15 @@ const (
 // Envelope é o formato de toda mensagem. O corpo SNS/SQS é o JSON do envelope; os campos de
 // roteamento e o contexto de trace também vão como MessageAttributes.
 type Envelope struct {
-	MessageID     string    `json:"message_id"`
-	Type          string    `json:"type"`
-	Version       int       `json:"version"`
-	SagaID        string    `json:"saga_id"`
-	OSID          string    `json:"os_id"`
-	CorrelationID string    `json:"correlation_id,omitempty"`
-	CausationID   string    `json:"causation_id,omitempty"`
-	Producer      string    `json:"producer"`
-	OccurredAt    time.Time `json:"occurred_at"`
+	MessageID     string          `json:"message_id"`
+	Type          string          `json:"type"`
+	Version       int             `json:"version"`
+	SagaID        string          `json:"saga_id"`
+	OSID          string          `json:"os_id"`
+	CorrelationID string          `json:"correlation_id,omitempty"`
+	CausationID   string          `json:"causation_id,omitempty"`
+	Producer      string          `json:"producer"`
+	OccurredAt    time.Time       `json:"occurred_at"`
 	Payload       json.RawMessage `json:"payload"`
 }
 

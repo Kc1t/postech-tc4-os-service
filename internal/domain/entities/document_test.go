@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"errors"
 	"testing"
 
 	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
@@ -80,7 +81,7 @@ func TestNewDocument_CPFInvalido(t *testing.T) {
 			if err == nil {
 				t.Fatal("esperava erro, obteve sucesso")
 			}
-			if err != domainerrors.ErrInvalidDocument {
+			if !errors.Is(err, domainerrors.ErrInvalidDocument) {
 				t.Errorf("erro = %v, esperava ErrInvalidDocument", err)
 			}
 		})
@@ -103,7 +104,7 @@ func TestNewDocument_CNPJInvalido(t *testing.T) {
 			if err == nil {
 				t.Fatal("esperava erro, obteve sucesso")
 			}
-			if err != domainerrors.ErrInvalidDocument {
+			if !errors.Is(err, domainerrors.ErrInvalidDocument) {
 				t.Errorf("erro = %v, esperava ErrInvalidDocument", err)
 			}
 		})

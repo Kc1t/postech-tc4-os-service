@@ -17,7 +17,7 @@ import (
 // @Security    BearerAuth
 // @Router      /service-orders/{id} [get]
 func (h *ServiceOrderHandler) FindByID(c *gin.Context) {
-	so, err := h.getByID.Execute(c.Request.Context(), c.Param("id"))
+	so, err := h.d.GetByID.Execute(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		httputil.HandleError(c, err, msgNotFound)
 		return

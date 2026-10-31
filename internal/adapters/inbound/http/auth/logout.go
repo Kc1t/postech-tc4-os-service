@@ -18,13 +18,13 @@ import (
 func (h *AuthHandler) Logout(c *gin.Context) {
 	userIDVal, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, httputil.ErrorResponse{Status: "Unauthorized", Message: "user not identified"})
+		httputil.Abort(c, http.StatusUnauthorized, httputil.CodeUnauthorized, "user not identified")
 		return
 	}
 
 	userID, ok := userIDVal.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, httputil.ErrorResponse{Status: "Internal Server Error", Message: "internal server error"})
+		httputil.Abort(c, http.StatusInternalServerError, httputil.CodeInternal, "internal server error")
 		return
 	}
 

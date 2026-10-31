@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/contracts"
 )
 
 //go:generate mockgen -source=./usecases.go -destination=./mocks/usecases.go -package=mocks
@@ -79,10 +80,6 @@ type ListServiceOrdersByRequesterUseCase interface {
 	Execute(ctx context.Context, requesterID string) ([]*entities.ServiceOrder, error)
 }
 
-type UpdateServiceOrderStatusUseCase interface {
-	Execute(ctx context.Context, input entities.StatusUpdate) error
-}
-
 type GetServiceOrderByCodeUseCase interface {
 	Execute(ctx context.Context, code int, requesterDocument string) (*entities.ServiceOrder, error)
 }
@@ -91,16 +88,35 @@ type ListServiceOrdersByDocumentUseCase interface {
 	Execute(ctx context.Context, document string) ([]*entities.ServiceOrder, error)
 }
 
-type UpdateServiceOrderStatusByCodeUseCase interface {
-	Execute(ctx context.Context, code int, requesterDocument string, newStatus entities.OrderStatus) error
+// CancelServiceOrderUseCase cancela a OS pela oficina, compensando as etapas da saga.
+type CancelServiceOrderUseCase interface {
+	Execute(ctx context.Context, id, reason string) error
 }
 
-type UpdateServiceOrderUseCase interface {
-	Execute(ctx context.Context, so *entities.ServiceOrder) error
-}
-
-type DeleteServiceOrderUseCase interface {
+// DeliverServiceOrderUseCase registra a entrega do veiculo (finished -> delivered).
+type DeliverServiceOrderUseCase interface {
 	Execute(ctx context.Context, id string) error
+}
+
+// GetServiceOrderHistoryUseCase devolve as mudancas de status da OS, em ordem cronologica.
+type GetServiceOrderHistoryUseCase interface {
+	Execute(ctx context.Context, id string) ([]*entities.StatusHistoryEntry, error)
+}
+
+// GetServiceOrderDetailsUseCase compoe a OS com o orcamento (billing) e a execucao (execution).
+type GetServiceOrderDetailsUseCase interface {
+	Execute(ctx context.Context, id string) (*ServiceOrderDetails, error)
+}
+
+// HandleSagaReplyUseCase processa uma resposta da fila os-saga-replies.
+type HandleSagaReplyUseCase interface {
+	Execute(ctx context.Context, env contracts.Envelope) error
+	Types() []string
+}
+
+// ExpireSagasUseCase compensa as sagas com prazo vencido; devolve quantas expiraram.
+type ExpireSagasUseCase interface {
+	Execute(ctx context.Context, now time.Time) (int, error)
 }
 
 type GetAverageExecutionTimeUseCase interface {

@@ -196,21 +196,6 @@ func (mr *MockVehicleRepositoryMockRecorder) FindAll(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAll", reflect.TypeOf((*MockVehicleRepository)(nil).FindAll), ctx)
 }
 
-// FindByRequesterID mocks base method.
-func (m *MockVehicleRepository) FindByRequesterID(ctx context.Context, requesterID string) ([]*entities.Vehicle, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindByRequesterID", ctx, requesterID)
-	ret0, _ := ret[0].([]*entities.Vehicle)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindByRequesterID indicates an expected call of FindByRequesterID.
-func (mr *MockVehicleRepositoryMockRecorder) FindByRequesterID(ctx, requesterID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByRequesterID", reflect.TypeOf((*MockVehicleRepository)(nil).FindByRequesterID), ctx, requesterID)
-}
-
 // FindByID mocks base method.
 func (m *MockVehicleRepository) FindByID(ctx context.Context, id string) (*entities.Vehicle, error) {
 	m.ctrl.T.Helper()
@@ -239,6 +224,21 @@ func (m *MockVehicleRepository) FindByPlate(ctx context.Context, plate string) (
 func (mr *MockVehicleRepositoryMockRecorder) FindByPlate(ctx, plate any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByPlate", reflect.TypeOf((*MockVehicleRepository)(nil).FindByPlate), ctx, plate)
+}
+
+// FindByRequesterID mocks base method.
+func (m *MockVehicleRepository) FindByRequesterID(ctx context.Context, requesterID string) ([]*entities.Vehicle, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByRequesterID", ctx, requesterID)
+	ret0, _ := ret[0].([]*entities.Vehicle)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByRequesterID indicates an expected call of FindByRequesterID.
+func (mr *MockVehicleRepositoryMockRecorder) FindByRequesterID(ctx, requesterID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByRequesterID", reflect.TypeOf((*MockVehicleRepository)(nil).FindByRequesterID), ctx, requesterID)
 }
 
 // Update mocks base method.
@@ -277,6 +277,21 @@ func NewMockServiceOrderRepository(ctrl *gomock.Controller) *MockServiceOrderRep
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockServiceOrderRepository) EXPECT() *MockServiceOrderRepositoryMockRecorder {
 	return m.recorder
+}
+
+// AverageExecutionTime mocks base method.
+func (m *MockServiceOrderRepository) AverageExecutionTime(ctx context.Context) (time.Duration, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AverageExecutionTime", ctx)
+	ret0, _ := ret[0].(time.Duration)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AverageExecutionTime indicates an expected call of AverageExecutionTime.
+func (mr *MockServiceOrderRepositoryMockRecorder) AverageExecutionTime(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AverageExecutionTime", reflect.TypeOf((*MockServiceOrderRepository)(nil).AverageExecutionTime), ctx)
 }
 
 // Create mocks base method.
@@ -337,21 +352,6 @@ func (mr *MockServiceOrderRepositoryMockRecorder) FindByCode(ctx, code any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByCode", reflect.TypeOf((*MockServiceOrderRepository)(nil).FindByCode), ctx, code)
 }
 
-// FindByRequesterID mocks base method.
-func (m *MockServiceOrderRepository) FindByRequesterID(ctx context.Context, requesterID string) ([]*entities.ServiceOrder, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindByRequesterID", ctx, requesterID)
-	ret0, _ := ret[0].([]*entities.ServiceOrder)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindByRequesterID indicates an expected call of FindByRequesterID.
-func (mr *MockServiceOrderRepositoryMockRecorder) FindByRequesterID(ctx, requesterID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByRequesterID", reflect.TypeOf((*MockServiceOrderRepository)(nil).FindByRequesterID), ctx, requesterID)
-}
-
 // FindByID mocks base method.
 func (m *MockServiceOrderRepository) FindByID(ctx context.Context, id string) (*entities.ServiceOrder, error) {
 	m.ctrl.T.Helper()
@@ -367,18 +367,19 @@ func (mr *MockServiceOrderRepositoryMockRecorder) FindByID(ctx, id any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByID", reflect.TypeOf((*MockServiceOrderRepository)(nil).FindByID), ctx, id)
 }
 
-// ApplyApprovalTransition mocks base method.
-func (m *MockServiceOrderRepository) ApplyApprovalTransition(ctx context.Context, so *entities.ServiceOrder) error {
+// FindByRequesterID mocks base method.
+func (m *MockServiceOrderRepository) FindByRequesterID(ctx context.Context, requesterID string) ([]*entities.ServiceOrder, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ApplyApprovalTransition", ctx, so)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "FindByRequesterID", ctx, requesterID)
+	ret0, _ := ret[0].([]*entities.ServiceOrder)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// ApplyApprovalTransition indicates an expected call of ApplyApprovalTransition.
-func (mr *MockServiceOrderRepositoryMockRecorder) ApplyApprovalTransition(ctx, so any) *gomock.Call {
+// FindByRequesterID indicates an expected call of FindByRequesterID.
+func (mr *MockServiceOrderRepositoryMockRecorder) FindByRequesterID(ctx, requesterID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplyApprovalTransition", reflect.TypeOf((*MockServiceOrderRepository)(nil).ApplyApprovalTransition), ctx, so)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByRequesterID", reflect.TypeOf((*MockServiceOrderRepository)(nil).FindByRequesterID), ctx, requesterID)
 }
 
 // Update mocks base method.
@@ -395,33 +396,154 @@ func (mr *MockServiceOrderRepositoryMockRecorder) Update(ctx, so any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockServiceOrderRepository)(nil).Update), ctx, so)
 }
 
-// UpdateStatus mocks base method.
-func (m *MockServiceOrderRepository) UpdateStatus(ctx context.Context, id string, status entities.OrderStatus) error {
+// MockSagaRepository is a mock of SagaRepository interface.
+type MockSagaRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockSagaRepositoryMockRecorder
+	isgomock struct{}
+}
+
+// MockSagaRepositoryMockRecorder is the mock recorder for MockSagaRepository.
+type MockSagaRepositoryMockRecorder struct {
+	mock *MockSagaRepository
+}
+
+// NewMockSagaRepository creates a new mock instance.
+func NewMockSagaRepository(ctrl *gomock.Controller) *MockSagaRepository {
+	mock := &MockSagaRepository{ctrl: ctrl}
+	mock.recorder = &MockSagaRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSagaRepository) EXPECT() *MockSagaRepositoryMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockSagaRepository) Create(ctx context.Context, s *entities.Saga) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateStatus", ctx, id, status)
+	ret := m.ctrl.Call(m, "Create", ctx, s)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateStatus indicates an expected call of UpdateStatus.
-func (mr *MockServiceOrderRepositoryMockRecorder) UpdateStatus(ctx, id, status any) *gomock.Call {
+// Create indicates an expected call of Create.
+func (mr *MockSagaRepositoryMockRecorder) Create(ctx, s any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStatus", reflect.TypeOf((*MockServiceOrderRepository)(nil).UpdateStatus), ctx, id, status)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockSagaRepository)(nil).Create), ctx, s)
 }
 
-// AverageExecutionTime mocks base method.
-func (m *MockServiceOrderRepository) AverageExecutionTime(ctx context.Context) (time.Duration, error) {
+// FindByOSID mocks base method.
+func (m *MockSagaRepository) FindByOSID(ctx context.Context, osID string) (*entities.Saga, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AverageExecutionTime", ctx)
-	ret0, _ := ret[0].(time.Duration)
+	ret := m.ctrl.Call(m, "FindByOSID", ctx, osID)
+	ret0, _ := ret[0].(*entities.Saga)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// AverageExecutionTime indicates an expected call of AverageExecutionTime.
-func (mr *MockServiceOrderRepositoryMockRecorder) AverageExecutionTime(ctx any) *gomock.Call {
+// FindByOSID indicates an expected call of FindByOSID.
+func (mr *MockSagaRepositoryMockRecorder) FindByOSID(ctx, osID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AverageExecutionTime", reflect.TypeOf((*MockServiceOrderRepository)(nil).AverageExecutionTime), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByOSID", reflect.TypeOf((*MockSagaRepository)(nil).FindByOSID), ctx, osID)
+}
+
+// FindByOSIDForUpdate mocks base method.
+func (m *MockSagaRepository) FindByOSIDForUpdate(ctx context.Context, osID string) (*entities.Saga, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByOSIDForUpdate", ctx, osID)
+	ret0, _ := ret[0].(*entities.Saga)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByOSIDForUpdate indicates an expected call of FindByOSIDForUpdate.
+func (mr *MockSagaRepositoryMockRecorder) FindByOSIDForUpdate(ctx, osID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByOSIDForUpdate", reflect.TypeOf((*MockSagaRepository)(nil).FindByOSIDForUpdate), ctx, osID)
+}
+
+// ListExpired mocks base method.
+func (m *MockSagaRepository) ListExpired(ctx context.Context, now time.Time, limit int) ([]*entities.Saga, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListExpired", ctx, now, limit)
+	ret0, _ := ret[0].([]*entities.Saga)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListExpired indicates an expected call of ListExpired.
+func (mr *MockSagaRepositoryMockRecorder) ListExpired(ctx, now, limit any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListExpired", reflect.TypeOf((*MockSagaRepository)(nil).ListExpired), ctx, now, limit)
+}
+
+// Update mocks base method.
+func (m *MockSagaRepository) Update(ctx context.Context, s *entities.Saga) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, s)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockSagaRepositoryMockRecorder) Update(ctx, s any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockSagaRepository)(nil).Update), ctx, s)
+}
+
+// MockStatusHistoryRepository is a mock of StatusHistoryRepository interface.
+type MockStatusHistoryRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockStatusHistoryRepositoryMockRecorder
+	isgomock struct{}
+}
+
+// MockStatusHistoryRepositoryMockRecorder is the mock recorder for MockStatusHistoryRepository.
+type MockStatusHistoryRepositoryMockRecorder struct {
+	mock *MockStatusHistoryRepository
+}
+
+// NewMockStatusHistoryRepository creates a new mock instance.
+func NewMockStatusHistoryRepository(ctrl *gomock.Controller) *MockStatusHistoryRepository {
+	mock := &MockStatusHistoryRepository{ctrl: ctrl}
+	mock.recorder = &MockStatusHistoryRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockStatusHistoryRepository) EXPECT() *MockStatusHistoryRepositoryMockRecorder {
+	return m.recorder
+}
+
+// Add mocks base method.
+func (m *MockStatusHistoryRepository) Add(ctx context.Context, e *entities.StatusHistoryEntry) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Add", ctx, e)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Add indicates an expected call of Add.
+func (mr *MockStatusHistoryRepositoryMockRecorder) Add(ctx, e any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockStatusHistoryRepository)(nil).Add), ctx, e)
+}
+
+// ListByOS mocks base method.
+func (m *MockStatusHistoryRepository) ListByOS(ctx context.Context, osID string) ([]*entities.StatusHistoryEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByOS", ctx, osID)
+	ret0, _ := ret[0].([]*entities.StatusHistoryEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByOS indicates an expected call of ListByOS.
+func (mr *MockStatusHistoryRepositoryMockRecorder) ListByOS(ctx, osID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByOS", reflect.TypeOf((*MockStatusHistoryRepository)(nil).ListByOS), ctx, osID)
 }
 
 // MockServiceRepository is a mock of ServiceRepository interface.
@@ -662,6 +784,20 @@ func (mr *MockPartRepositoryMockRecorder) FindByManufacturerCodes(ctx, codes any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByManufacturerCodes", reflect.TypeOf((*MockPartRepository)(nil).FindByManufacturerCodes), ctx, codes)
 }
 
+// ReserveStock mocks base method.
+func (m *MockPartRepository) ReserveStock(ctx context.Context, id string, quantity int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReserveStock", ctx, id, quantity)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReserveStock indicates an expected call of ReserveStock.
+func (mr *MockPartRepositoryMockRecorder) ReserveStock(ctx, id, quantity any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReserveStock", reflect.TypeOf((*MockPartRepository)(nil).ReserveStock), ctx, id, quantity)
+}
+
 // Update mocks base method.
 func (m *MockPartRepository) Update(ctx context.Context, p *entities.Part) error {
 	m.ctrl.T.Helper()
@@ -688,4 +824,181 @@ func (m *MockPartRepository) UpdateStock(ctx context.Context, id string, delta i
 func (mr *MockPartRepositoryMockRecorder) UpdateStock(ctx, id, delta any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStock", reflect.TypeOf((*MockPartRepository)(nil).UpdateStock), ctx, id, delta)
+}
+
+// MockUserRepository is a mock of UserRepository interface.
+type MockUserRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockUserRepositoryMockRecorder
+	isgomock struct{}
+}
+
+// MockUserRepositoryMockRecorder is the mock recorder for MockUserRepository.
+type MockUserRepositoryMockRecorder struct {
+	mock *MockUserRepository
+}
+
+// NewMockUserRepository creates a new mock instance.
+func NewMockUserRepository(ctrl *gomock.Controller) *MockUserRepository {
+	mock := &MockUserRepository{ctrl: ctrl}
+	mock.recorder = &MockUserRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUserRepository) EXPECT() *MockUserRepositoryMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockUserRepository) Create(ctx context.Context, u *entities.User) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, u)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockUserRepositoryMockRecorder) Create(ctx, u any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockUserRepository)(nil).Create), ctx, u)
+}
+
+// FindByEmail mocks base method.
+func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*entities.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByEmail", ctx, email)
+	ret0, _ := ret[0].(*entities.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByEmail indicates an expected call of FindByEmail.
+func (mr *MockUserRepositoryMockRecorder) FindByEmail(ctx, email any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByEmail", reflect.TypeOf((*MockUserRepository)(nil).FindByEmail), ctx, email)
+}
+
+// FindByID mocks base method.
+func (m *MockUserRepository) FindByID(ctx context.Context, id string) (*entities.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByID", ctx, id)
+	ret0, _ := ret[0].(*entities.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByID indicates an expected call of FindByID.
+func (mr *MockUserRepositoryMockRecorder) FindByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByID", reflect.TypeOf((*MockUserRepository)(nil).FindByID), ctx, id)
+}
+
+// Update mocks base method.
+func (m *MockUserRepository) Update(ctx context.Context, u *entities.User) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, u)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockUserRepositoryMockRecorder) Update(ctx, u any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockUserRepository)(nil).Update), ctx, u)
+}
+
+// MockRefreshTokenRepository is a mock of RefreshTokenRepository interface.
+type MockRefreshTokenRepository struct {
+	ctrl     *gomock.Controller
+	recorder *MockRefreshTokenRepositoryMockRecorder
+	isgomock struct{}
+}
+
+// MockRefreshTokenRepositoryMockRecorder is the mock recorder for MockRefreshTokenRepository.
+type MockRefreshTokenRepositoryMockRecorder struct {
+	mock *MockRefreshTokenRepository
+}
+
+// NewMockRefreshTokenRepository creates a new mock instance.
+func NewMockRefreshTokenRepository(ctrl *gomock.Controller) *MockRefreshTokenRepository {
+	mock := &MockRefreshTokenRepository{ctrl: ctrl}
+	mock.recorder = &MockRefreshTokenRepositoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRefreshTokenRepository) EXPECT() *MockRefreshTokenRepositoryMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockRefreshTokenRepository) Create(ctx context.Context, rt *entities.RefreshToken) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, rt)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockRefreshTokenRepositoryMockRecorder) Create(ctx, rt any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRefreshTokenRepository)(nil).Create), ctx, rt)
+}
+
+// FindByTokenHash mocks base method.
+func (m *MockRefreshTokenRepository) FindByTokenHash(ctx context.Context, hash string) (*entities.RefreshToken, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByTokenHash", ctx, hash)
+	ret0, _ := ret[0].(*entities.RefreshToken)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByTokenHash indicates an expected call of FindByTokenHash.
+func (mr *MockRefreshTokenRepositoryMockRecorder) FindByTokenHash(ctx, hash any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByTokenHash", reflect.TypeOf((*MockRefreshTokenRepository)(nil).FindByTokenHash), ctx, hash)
+}
+
+// Revoke mocks base method.
+func (m *MockRefreshTokenRepository) Revoke(ctx context.Context, id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Revoke", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Revoke indicates an expected call of Revoke.
+func (mr *MockRefreshTokenRepositoryMockRecorder) Revoke(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockRefreshTokenRepository)(nil).Revoke), ctx, id)
+}
+
+// RevokeByUserID mocks base method.
+func (m *MockRefreshTokenRepository) RevokeByUserID(ctx context.Context, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeByUserID", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokeByUserID indicates an expected call of RevokeByUserID.
+func (mr *MockRefreshTokenRepositoryMockRecorder) RevokeByUserID(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeByUserID", reflect.TypeOf((*MockRefreshTokenRepository)(nil).RevokeByUserID), ctx, userID)
+}
+
+// RotateToken mocks base method.
+func (m *MockRefreshTokenRepository) RotateToken(ctx context.Context, oldID string, newRT *entities.RefreshToken) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RotateToken", ctx, oldID, newRT)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RotateToken indicates an expected call of RotateToken.
+func (mr *MockRefreshTokenRepositoryMockRecorder) RotateToken(ctx, oldID, newRT any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RotateToken", reflect.TypeOf((*MockRefreshTokenRepository)(nil).RotateToken), ctx, oldID, newRT)
 }

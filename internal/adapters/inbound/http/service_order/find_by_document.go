@@ -35,7 +35,7 @@ func (h *ServiceOrderHandler) FindByDocument(c *gin.Context) {
 		return
 	}
 
-	orders, err := h.listByDocument.Execute(c.Request.Context(), doc.Value())
+	orders, err := h.d.ListByDocument.Execute(c.Request.Context(), doc.Value())
 	if err != nil {
 		httputil.HandleError(c, err)
 		return

@@ -138,6 +138,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/internal/requesters/{document}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "internal"
+                ],
+                "summary": "Cliente por CPF/CNPJ (uso interno da Lambda de autenticação)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF ou CNPJ (só dígitos)",
+                        "name": "document",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Token interno",
+                        "name": "X-Internal-Token",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internalapi.RequesterResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/parts": {
             "get": {
                 "security": [
@@ -602,42 +649,6 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service-orders"
-                ],
-                "summary": "Criar ordem de servico",
-                "parameters": [
-                    {
-                        "description": "Dados da OS",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/commands.CreateServiceOrderRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/commands.ServiceOrderResponse"
-                        }
-                    }
-                }
             }
         },
         "/service-orders/code/{code}": {
@@ -676,48 +687,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.ServiceOrderResponse"
                         }
-                    }
-                }
-            }
-        },
-        "/service-orders/code/{code}/status": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service-orders-requester"
-                ],
-                "summary": "Alterar status da OS pelo codigo (cliente autenticado por CPF)",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Codigo da OS",
-                        "name": "code",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Novo status e documento do cliente",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/commands.UpdateStatusByCodeRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
                     }
                 }
             }
@@ -820,13 +789,16 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "put": {
+            }
+        },
+        "/service-orders/{id}/cancel": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
+                "description": "Compensa as etapas já concluídas da saga (estorno, orçamento, peças, execução) e\nencerra a OS como cancelled. OS finalizada ou entregue não pode ser cancelada.",
                 "consumes": [
                     "application/json"
                 ],
@@ -836,7 +808,7 @@ const docTemplate = `{
                 "tags": [
                     "service-orders"
                 ],
-                "summary": "Atualizar ordem de servico",
+                "summary": "Cancelar OS (oficina)",
                 "parameters": [
                     {
                         "type": "string",
@@ -846,62 +818,119 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Dados para atualizar",
+                        "description": "Motivo",
                         "name": "body",
                         "in": "body",
-                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/commands.UpdateServiceOrderRequest"
+                            "$ref": "#/definitions/commands.CancelServiceOrderRequest"
                         }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/service-orders/{id}/deliver": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "finished → delivered.",
+                "tags": [
+                    "service-orders"
+                ],
+                "summary": "Registrar entrega do veículo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ServiceOrder ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/service-orders/{id}/details": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Junta a OS e a saga (os-service), o orçamento e o pagamento (billing-service) e a\nexecução (execution-service). Se um serviço não responder, a resposta é parcial:\no campo dele vem nulo e o nome aparece em \"unavailable\".",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service-orders"
+                ],
+                "summary": "Visão completa da OS (API composition)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ServiceOrder ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/commands.ServiceOrderResponse"
+                            "$ref": "#/definitions/commands.ServiceOrderDetailsResponse"
                         }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service-orders"
-                ],
-                "summary": "Deletar ordem de servico",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "ServiceOrder ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
         },
-        "/service-orders/{id}/status": {
-            "put": {
+        "/service-orders/{id}/history": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
-                "consumes": [
-                    "application/json"
                 ],
                 "produces": [
                     "application/json"
@@ -909,7 +938,7 @@ const docTemplate = `{
                 "tags": [
                     "service-orders"
                 ],
-                "summary": "Atualizar status da ordem de servico",
+                "summary": "Histórico de status da OS",
                 "parameters": [
                     {
                         "type": "string",
@@ -917,20 +946,23 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Novo status (services e parts obrigatorios para awaiting_approval)",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/commands.UpdateStatusRequest"
-                        }
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/commands.StatusHistoryResponse"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -1302,6 +1334,15 @@ const docTemplate = `{
                 }
             }
         },
+        "commands.CancelServiceOrderRequest": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "example": "cliente desistiu do serviço"
+                }
+            }
+        },
         "commands.CreatePartRequest": {
             "type": "object",
             "required": [
@@ -1350,24 +1391,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone": {
-                    "type": "string"
-                }
-            }
-        },
-        "commands.CreateServiceOrderRequest": {
-            "type": "object",
-            "required": [
-                "requester_document",
-                "vehicle_plate"
-            ],
-            "properties": {
-                "notes": {
-                    "type": "string"
-                },
-                "requester_document": {
-                    "type": "string"
-                },
-                "vehicle_plate": {
                     "type": "string"
                 }
             }
@@ -1450,25 +1473,13 @@ const docTemplate = `{
                 }
             }
         },
-        "commands.PartItemRequest": {
-            "type": "object",
-            "required": [
-                "manufacturer_code",
-                "quantity"
-            ],
-            "properties": {
-                "manufacturer_code": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                }
-            }
-        },
         "commands.PartItemResponse": {
             "type": "object",
             "properties": {
                 "description": {
+                    "type": "string"
+                },
+                "manufacturer_code": {
                     "type": "string"
                 },
                 "part_id": {
@@ -1575,20 +1586,43 @@ const docTemplate = `{
                 }
             }
         },
-        "commands.ServiceItemRequest": {
+        "commands.SagaResponse": {
             "type": "object",
-            "required": [
-                "code"
-            ],
             "properties": {
-                "code": {
-                    "type": "integer"
+                "budget_id": {
+                    "type": "string"
+                },
+                "checkout_url": {
+                    "type": "string"
+                },
+                "deadline_at": {
+                    "type": "string"
+                },
+                "failure_reason": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "type": "string"
+                },
+                "state": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/entities.SagaState"
+                        }
+                    ],
+                    "example": "awaiting_approval"
                 }
             }
         },
         "commands.ServiceItemResponse": {
             "type": "object",
             "properties": {
+                "code": {
+                    "type": "integer"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -1600,9 +1634,44 @@ const docTemplate = `{
                 }
             }
         },
+        "commands.ServiceOrderDetailsResponse": {
+            "type": "object",
+            "properties": {
+                "budget": {
+                    "type": "object"
+                },
+                "execution": {
+                    "type": "object"
+                },
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/commands.StatusHistoryResponse"
+                    }
+                },
+                "partial": {
+                    "type": "boolean"
+                },
+                "saga": {
+                    "$ref": "#/definitions/commands.SagaResponse"
+                },
+                "service_order": {
+                    "$ref": "#/definitions/commands.ServiceOrderResponse"
+                },
+                "unavailable": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "commands.ServiceOrderResponse": {
             "type": "object",
             "properties": {
+                "cancel_reason": {
+                    "type": "string"
+                },
                 "code": {
                     "type": "integer"
                 },
@@ -1647,6 +1716,9 @@ const docTemplate = `{
                 },
                 "vehicle_id": {
                     "type": "string"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },
@@ -1676,6 +1748,30 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "commands.StatusHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "actor": {
+                    "type": "string",
+                    "example": "saga"
+                },
+                "at": {
+                    "type": "string"
+                },
+                "from": {
+                    "$ref": "#/definitions/entities.OrderStatus"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "to": {
+                    "$ref": "#/definitions/entities.OrderStatus"
                 }
             }
         },
@@ -1717,14 +1813,6 @@ const docTemplate = `{
                 }
             }
         },
-        "commands.UpdateServiceOrderRequest": {
-            "type": "object",
-            "properties": {
-                "notes": {
-                    "type": "string"
-                }
-            }
-        },
         "commands.UpdateServiceRequest": {
             "type": "object",
             "properties": {
@@ -1742,44 +1830,6 @@ const docTemplate = `{
                 },
                 "price": {
                     "type": "number"
-                }
-            }
-        },
-        "commands.UpdateStatusByCodeRequest": {
-            "type": "object",
-            "required": [
-                "requester_document",
-                "status"
-            ],
-            "properties": {
-                "requester_document": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/entities.OrderStatus"
-                }
-            }
-        },
-        "commands.UpdateStatusRequest": {
-            "type": "object",
-            "required": [
-                "status"
-            ],
-            "properties": {
-                "parts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/commands.PartItemRequest"
-                    }
-                },
-                "services": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/commands.ServiceItemRequest"
-                    }
-                },
-                "status": {
-                    "$ref": "#/definitions/entities.OrderStatus"
                 }
             }
         },
@@ -1834,28 +1884,109 @@ const docTemplate = `{
             "enum": [
                 "received",
                 "in_diagnosis",
+                "awaiting_budget",
                 "awaiting_approval",
+                "awaiting_payment",
                 "in_execution",
                 "finished",
-                "delivered"
+                "delivered",
+                "cancelled"
             ],
+            "x-enum-comments": {
+                "StatusAwaitingApproval": "Aguardando aprovação do cliente",
+                "StatusAwaitingBudget": "Diagnosticada, orçamento em geração",
+                "StatusAwaitingPayment": "Aprovada, aguardando pagamento",
+                "StatusCancelled": "Cancelada (compensação da saga ou oficina)",
+                "StatusDelivered": "Entregue",
+                "StatusFinished": "Finalizada",
+                "StatusInDiagnosis": "Em diagnóstico",
+                "StatusInExecution": "Paga, em execução",
+                "StatusReceived": "Recebida"
+            },
             "x-enum-varnames": [
                 "StatusReceived",
                 "StatusInDiagnosis",
+                "StatusAwaitingBudget",
                 "StatusAwaitingApproval",
+                "StatusAwaitingPayment",
                 "StatusInExecution",
                 "StatusFinished",
-                "StatusDelivered"
+                "StatusDelivered",
+                "StatusCancelled"
             ]
+        },
+        "entities.SagaState": {
+            "type": "string",
+            "enum": [
+                "awaiting_diagnosis",
+                "awaiting_budget",
+                "awaiting_approval",
+                "awaiting_payment",
+                "executing",
+                "completed",
+                "compensating",
+                "cancelled"
+            ],
+            "x-enum-comments": {
+                "SagaAwaitingApproval": "orçamento criado, cliente decide",
+                "SagaAwaitingBudget": "peças reservadas, CreateBudget enviado",
+                "SagaAwaitingDiagnosis": "StartDiagnosis enviado",
+                "SagaAwaitingPayment": "RequestPayment enviado",
+                "SagaCancelled": "compensações concluídas",
+                "SagaCompensating": "aguardando confirmação do estorno",
+                "SagaCompleted": "reparo concluído",
+                "SagaExecuting": "pago, StartRepair enviado"
+            },
+            "x-enum-varnames": [
+                "SagaAwaitingDiagnosis",
+                "SagaAwaitingBudget",
+                "SagaAwaitingApproval",
+                "SagaAwaitingPayment",
+                "SagaExecuting",
+                "SagaCompleted",
+                "SagaCompensating",
+                "SagaCancelled"
+            ]
+        },
+        "httputil.ErrorBody": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "NOT_FOUND"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "service order not found"
+                }
+            }
         },
         "httputil.ErrorResponse": {
             "type": "object",
             "properties": {
-                "message": {
+                "error": {
+                    "$ref": "#/definitions/httputil.ErrorBody"
+                }
+            }
+        },
+        "internalapi.RequesterResponse": {
+            "type": "object",
+            "properties": {
+                "document": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "active"
                 }
             }
         }
@@ -1871,12 +2002,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "2.0",
 	Host:             "",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
-	Title:            "Workshop API",
-	Description:      "Sistema Integrado de Atendimento e Execucao de Servicos — Oficina Mecanica",
+	Title:            "OS Service — Oficina Mecânica",
+	Description:      "Ordens de serviço, clientes, veículos, catálogo e estoque. Orquestra a saga da OS\n(execution-service e billing-service) via SNS/SQS com outbox e consumidor idempotente.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

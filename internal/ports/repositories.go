@@ -31,17 +31,34 @@ type VehicleRepository interface {
 }
 
 // ServiceOrderRepository define as operacoes de persistencia para ordens de servico.
+// Update aplica optimistic locking: falha com ErrConcurrentUpdate se a versao mudou.
 type ServiceOrderRepository interface {
 	Create(ctx context.Context, so *entities.ServiceOrder) error
 	FindByID(ctx context.Context, id string) (*entities.ServiceOrder, error)
 	FindByCode(ctx context.Context, code int) (*entities.ServiceOrder, error)
 	FindAll(ctx context.Context) ([]*entities.ServiceOrder, error)
 	FindByRequesterID(ctx context.Context, requesterID string) ([]*entities.ServiceOrder, error)
-	UpdateStatus(ctx context.Context, id string, status entities.OrderStatus) error
 	Update(ctx context.Context, so *entities.ServiceOrder) error
-	ApplyApprovalTransition(ctx context.Context, so *entities.ServiceOrder) error
 	Delete(ctx context.Context, id string) error
 	AverageExecutionTime(ctx context.Context) (time.Duration, error)
+}
+
+// SagaRepository persiste o estado do orquestrador (uma saga por OS).
+type SagaRepository interface {
+	Create(ctx context.Context, s *entities.Saga) error
+	// FindByOSIDForUpdate trava a linha da saga ate o fim da transacao corrente,
+	// serializando o processamento de respostas concorrentes da mesma OS.
+	FindByOSIDForUpdate(ctx context.Context, osID string) (*entities.Saga, error)
+	FindByOSID(ctx context.Context, osID string) (*entities.Saga, error)
+	Update(ctx context.Context, s *entities.Saga) error
+	// ListExpired devolve sagas ativas com prazo vencido.
+	ListExpired(ctx context.Context, now time.Time, limit int) ([]*entities.Saga, error)
+}
+
+// StatusHistoryRepository guarda o historico de status das OS.
+type StatusHistoryRepository interface {
+	Add(ctx context.Context, e *entities.StatusHistoryEntry) error
+	ListByOS(ctx context.Context, osID string) ([]*entities.StatusHistoryEntry, error)
 }
 
 // ServiceRepository define as operacoes de persistencia para servicos.
@@ -65,6 +82,8 @@ type PartRepository interface {
 	Update(ctx context.Context, p *entities.Part) error
 	Delete(ctx context.Context, id string) error
 	UpdateStock(ctx context.Context, id string, delta int) error
+	// ReserveStock baixa a quantidade do estoque se houver saldo (ErrInsufficientStock caso contrario).
+	ReserveStock(ctx context.Context, id string, quantity int) error
 }
 
 // UserRepository define as operacoes de persistencia para usuarios.

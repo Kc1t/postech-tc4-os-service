@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/Kc1t/postech-tc4-os-service/pkg/env"
 )
@@ -23,8 +24,11 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.AppEnv != "development" {
 		t.Errorf("expected AppEnv %q, got %q", "development", cfg.AppEnv)
 	}
-	if cfg.JWTExpirationHours != 24 {
-		t.Errorf("expected JWTExpirationHours 24, got %d", cfg.JWTExpirationHours)
+	if cfg.SagaApprovalTimeout != 72*time.Hour || cfg.SagaPaymentTimeout != 24*time.Hour || cfg.FaultInjectionEnabled {
+		t.Errorf("padrões da saga: %v %v %v", cfg.SagaApprovalTimeout, cfg.SagaPaymentTimeout, cfg.FaultInjectionEnabled)
+	}
+	if cfg.MessagingEnabled() {
+		t.Error("sem filas configuradas a mensageria fica desligada")
 	}
 	if cfg.PostgresDSN == "" {
 		t.Error("expected non-empty PostgresDSN")
@@ -80,5 +84,18 @@ func TestGetEnv_WithFallback(t *testing.T) {
 	result := env.GetOrDefault("TEST_KEY_MISSING", "fallback")
 	if result != "fallback" {
 		t.Errorf("expected %q, got %q", "fallback", result)
+	}
+}
+
+func TestMessagingEnabled(t *testing.T) {
+	t.Setenv("SQS_SAGA_REPLIES_URL", "http://q/os-saga-replies")
+	t.Setenv("SQS_BILLING_COMMANDS_URL", "http://q/billing-commands")
+	t.Setenv("SQS_EXECUTION_COMMANDS_URL", "http://q/execution-commands")
+	t.Setenv("SNS_OS_EVENTS_ARN", "arn:aws:sns:us-east-1:000000000000:os-events")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://a.com,https://b.com")
+	t.Setenv("SAGA_APPROVAL_TIMEOUT", "2m")
+	cfg := Load()
+	if !cfg.MessagingEnabled() || len(cfg.CORSAllowedOrigins) != 2 || cfg.SagaApprovalTimeout != 2*time.Minute {
+		t.Fatalf("config: %+v", cfg)
 	}
 }

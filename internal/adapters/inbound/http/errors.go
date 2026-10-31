@@ -8,55 +8,88 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ErrorBody é o formato de erro comum a todos os microsserviços da oficina:
+//
+//	{"error": {"code": "SERVICE_ORDER_NOT_FOUND", "message": "..."}}
+type ErrorBody struct {
+	Code    string `json:"code"    example:"NOT_FOUND"`
+	Message string `json:"message" example:"service order not found"`
+}
+
 type ErrorResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Error ErrorBody `json:"error"`
 }
 
+// Códigos de erro expostos pela API (tabela no README).
+const (
+	CodeValidation         = "VALIDATION_ERROR"
+	CodeNotFound           = "NOT_FOUND"
+	CodeAlreadyExists      = "ALREADY_EXISTS"
+	CodeUnauthorized       = "UNAUTHORIZED"
+	CodeForbidden          = "FORBIDDEN"
+	CodeInvalidTransition  = "INVALID_STATUS_TRANSITION"
+	CodeNotCancellable     = "ORDER_NOT_CANCELLABLE"
+	CodeInsufficientStock  = "INSUFFICIENT_STOCK"
+	CodeVehicleNotOwned    = "VEHICLE_NOT_FROM_REQUESTER"
+	CodeConcurrentUpdate   = "CONCURRENT_UPDATE"
+	CodeAccountLocked      = "ACCOUNT_LOCKED"
+	CodeInternal           = "INTERNAL_ERROR"
+	CodeUnprocessable      = "UNPROCESSABLE_ENTITY"
+	CodeInvalidSimulateArg = "INVALID_SIMULATE_FAILURE"
+)
+
+type mapping struct {
+	err    error
+	status int
+	code   string
+}
+
+var mappings = []mapping{
+	{domainerrors.ErrNotFound, http.StatusNotFound, CodeNotFound},
+	{domainerrors.ErrAlreadyExists, http.StatusConflict, CodeAlreadyExists},
+	{domainerrors.ErrConcurrentUpdate, http.StatusConflict, CodeConcurrentUpdate},
+	{domainerrors.ErrInvalidCredentials, http.StatusUnauthorized, CodeUnauthorized},
+	{domainerrors.ErrInvalidRefreshToken, http.StatusUnauthorized, CodeUnauthorized},
+	{domainerrors.ErrAccountLocked, http.StatusTooManyRequests, CodeAccountLocked},
+	{domainerrors.ErrStatusNotAllowedForRequester, http.StatusForbidden, CodeForbidden},
+	{domainerrors.ErrDocumentMismatch, http.StatusForbidden, CodeForbidden},
+	{domainerrors.ErrInvalidDocument, http.StatusUnprocessableEntity, CodeValidation},
+	{domainerrors.ErrInvalidPlate, http.StatusUnprocessableEntity, CodeValidation},
+	{domainerrors.ErrInvalidSimulatedFailure, http.StatusBadRequest, CodeInvalidSimulateArg},
+	{domainerrors.ErrInvalidStatus, http.StatusConflict, CodeInvalidTransition},
+	{domainerrors.ErrInvalidStatusValue, http.StatusUnprocessableEntity, CodeValidation},
+	{domainerrors.ErrInsufficientStock, http.StatusUnprocessableEntity, CodeInsufficientStock},
+	{domainerrors.ErrOrderNotCancellable, http.StatusConflict, CodeNotCancellable},
+	{domainerrors.ErrVehicleNotFromRequester, http.StatusUnprocessableEntity, CodeVehicleNotOwned},
+}
+
+// HandleError traduz um erro de domínio para status HTTP e código. msg substitui a mensagem
+// padrão (o texto do erro). Erros desconhecidos viram 500 sem expor detalhes.
 func HandleError(c *gin.Context, err error, msg ...string) {
-	code := statusFor(err)
-	var message string
-	if code == http.StatusInternalServerError {
-		message = "internal server error"
-	} else if len(msg) > 0 {
-		message = msg[0]
-	} else {
-		message = err.Error()
+	status, code := http.StatusInternalServerError, CodeInternal
+	for _, m := range mappings {
+		if errors.Is(err, m.err) {
+			status, code = m.status, m.code
+			break
+		}
 	}
-	c.JSON(code, ErrorResponse{
-		Status:  http.StatusText(code),
-		Message: message,
-	})
-}
-
-func HandleBadRequest(c *gin.Context, err error) {
-	c.JSON(http.StatusBadRequest, ErrorResponse{
-		Status:  http.StatusText(http.StatusBadRequest),
-		Message: err.Error(),
-	})
-}
-
-func statusFor(err error) int {
+	message := err.Error()
 	switch {
-	case errors.Is(err, domainerrors.ErrNotFound):
-		return http.StatusNotFound
-	case errors.Is(err, domainerrors.ErrAlreadyExists):
-		return http.StatusConflict
-	case errors.Is(err, domainerrors.ErrInvalidCredentials),
-		errors.Is(err, domainerrors.ErrInvalidRefreshToken):
-		return http.StatusUnauthorized
-	case errors.Is(err, domainerrors.ErrStatusNotAllowedForRequester),
-		errors.Is(err, domainerrors.ErrDocumentMismatch):
-		return http.StatusForbidden
-	case errors.Is(err, domainerrors.ErrInvalidDocument),
-		errors.Is(err, domainerrors.ErrInvalidPlate),
-		errors.Is(err, domainerrors.ErrInvalidStatus),
-		errors.Is(err, domainerrors.ErrInvalidStatusValue),
-		errors.Is(err, domainerrors.ErrInsufficientStock),
-		errors.Is(err, domainerrors.ErrOrderNotCancellable),
-		errors.Is(err, domainerrors.ErrVehicleNotFromRequester):
-		return http.StatusUnprocessableEntity
-	default:
-		return http.StatusInternalServerError
+	case status == http.StatusInternalServerError:
+		message = "internal server error"
+		_ = c.Error(err)
+	case len(msg) > 0:
+		message = msg[0]
 	}
+	Abort(c, status, code, message)
+}
+
+// HandleBadRequest responde 400 para corpo, parâmetro ou query inválidos.
+func HandleBadRequest(c *gin.Context, err error) {
+	Abort(c, http.StatusBadRequest, CodeValidation, err.Error())
+}
+
+// Abort escreve a resposta de erro no formato padrão e interrompe a cadeia de handlers.
+func Abort(c *gin.Context, status int, code, message string) {
+	c.AbortWithStatusJSON(status, ErrorResponse{Error: ErrorBody{Code: code, Message: message}})
 }

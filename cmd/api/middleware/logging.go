@@ -28,6 +28,7 @@ func CorrelationID() gin.HandlerFunc {
 		}
 
 		c.Set(correlationCtxKey, id)
+		c.Request = c.Request.WithContext(logger.WithCorrelationID(c.Request.Context(), id))
 		c.Writer.Header().Set(CorrelationHeader, id)
 		c.Next()
 	}

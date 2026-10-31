@@ -30,6 +30,12 @@ definitions:
         example: 5400
         type: number
     type: object
+  commands.CancelServiceOrderRequest:
+    properties:
+      reason:
+        example: cliente desistiu do serviço
+        type: string
+    type: object
   commands.CreatePartRequest:
     properties:
       description:
@@ -65,18 +71,6 @@ definitions:
     - document
     - email
     - name
-    type: object
-  commands.CreateServiceOrderRequest:
-    properties:
-      notes:
-        type: string
-      requester_document:
-        type: string
-      vehicle_plate:
-        type: string
-    required:
-    - requester_document
-    - vehicle_plate
     type: object
   commands.CreateServiceRequest:
     properties:
@@ -132,19 +126,11 @@ definitions:
       message:
         type: string
     type: object
-  commands.PartItemRequest:
-    properties:
-      manufacturer_code:
-        type: string
-      quantity:
-        type: integer
-    required:
-    - manufacturer_code
-    - quantity
-    type: object
   commands.PartItemResponse:
     properties:
       description:
+        type: string
+      manufacturer_code:
         type: string
       part_id:
         type: string
@@ -216,15 +202,29 @@ definitions:
       updated_at:
         type: string
     type: object
-  commands.ServiceItemRequest:
+  commands.SagaResponse:
     properties:
-      code:
-        type: integer
-    required:
-    - code
+      budget_id:
+        type: string
+      checkout_url:
+        type: string
+      deadline_at:
+        type: string
+      failure_reason:
+        type: string
+      id:
+        type: string
+      payment_id:
+        type: string
+      state:
+        allOf:
+        - $ref: '#/definitions/entities.SagaState'
+        example: awaiting_approval
     type: object
   commands.ServiceItemResponse:
     properties:
+      code:
+        type: integer
       description:
         type: string
       price:
@@ -232,8 +232,31 @@ definitions:
       service_id:
         type: string
     type: object
+  commands.ServiceOrderDetailsResponse:
+    properties:
+      budget:
+        type: object
+      execution:
+        type: object
+      history:
+        items:
+          $ref: '#/definitions/commands.StatusHistoryResponse'
+        type: array
+      partial:
+        type: boolean
+      saga:
+        $ref: '#/definitions/commands.SagaResponse'
+      service_order:
+        $ref: '#/definitions/commands.ServiceOrderResponse'
+      unavailable:
+        items:
+          type: string
+        type: array
+    type: object
   commands.ServiceOrderResponse:
     properties:
+      cancel_reason:
+        type: string
       code:
         type: integer
       created_at:
@@ -264,6 +287,8 @@ definitions:
         type: string
       vehicle_id:
         type: string
+      version:
+        type: integer
     type: object
   commands.ServiceResponse:
     properties:
@@ -283,6 +308,22 @@ definitions:
         type: number
       updated_at:
         type: string
+    type: object
+  commands.StatusHistoryResponse:
+    properties:
+      actor:
+        example: saga
+        type: string
+      at:
+        type: string
+      from:
+        $ref: '#/definitions/entities.OrderStatus'
+      message_id:
+        type: string
+      reason:
+        type: string
+      to:
+        $ref: '#/definitions/entities.OrderStatus'
     type: object
   commands.UpdatePartRequest:
     properties:
@@ -309,11 +350,6 @@ definitions:
       phone:
         type: string
     type: object
-  commands.UpdateServiceOrderRequest:
-    properties:
-      notes:
-        type: string
-    type: object
   commands.UpdateServiceRequest:
     properties:
       code:
@@ -326,31 +362,6 @@ definitions:
         type: string
       price:
         type: number
-    type: object
-  commands.UpdateStatusByCodeRequest:
-    properties:
-      requester_document:
-        type: string
-      status:
-        $ref: '#/definitions/entities.OrderStatus'
-    required:
-    - requester_document
-    - status
-    type: object
-  commands.UpdateStatusRequest:
-    properties:
-      parts:
-        items:
-          $ref: '#/definitions/commands.PartItemRequest'
-        type: array
-      services:
-        items:
-          $ref: '#/definitions/commands.ServiceItemRequest'
-        type: array
-      status:
-        $ref: '#/definitions/entities.OrderStatus'
-    required:
-    - status
     type: object
   commands.UpdateVehicleRequest:
     properties:
@@ -386,30 +397,98 @@ definitions:
     enum:
     - received
     - in_diagnosis
+    - awaiting_budget
     - awaiting_approval
+    - awaiting_payment
     - in_execution
     - finished
     - delivered
+    - cancelled
     type: string
+    x-enum-comments:
+      StatusAwaitingApproval: Aguardando aprovação do cliente
+      StatusAwaitingBudget: Diagnosticada, orçamento em geração
+      StatusAwaitingPayment: Aprovada, aguardando pagamento
+      StatusCancelled: Cancelada (compensação da saga ou oficina)
+      StatusDelivered: Entregue
+      StatusFinished: Finalizada
+      StatusInDiagnosis: Em diagnóstico
+      StatusInExecution: Paga, em execução
+      StatusReceived: Recebida
     x-enum-varnames:
     - StatusReceived
     - StatusInDiagnosis
+    - StatusAwaitingBudget
     - StatusAwaitingApproval
+    - StatusAwaitingPayment
     - StatusInExecution
     - StatusFinished
     - StatusDelivered
+    - StatusCancelled
+  entities.SagaState:
+    enum:
+    - awaiting_diagnosis
+    - awaiting_budget
+    - awaiting_approval
+    - awaiting_payment
+    - executing
+    - completed
+    - compensating
+    - cancelled
+    type: string
+    x-enum-comments:
+      SagaAwaitingApproval: orçamento criado, cliente decide
+      SagaAwaitingBudget: peças reservadas, CreateBudget enviado
+      SagaAwaitingDiagnosis: StartDiagnosis enviado
+      SagaAwaitingPayment: RequestPayment enviado
+      SagaCancelled: compensações concluídas
+      SagaCompensating: aguardando confirmação do estorno
+      SagaCompleted: reparo concluído
+      SagaExecuting: pago, StartRepair enviado
+    x-enum-varnames:
+    - SagaAwaitingDiagnosis
+    - SagaAwaitingBudget
+    - SagaAwaitingApproval
+    - SagaAwaitingPayment
+    - SagaExecuting
+    - SagaCompleted
+    - SagaCompensating
+    - SagaCancelled
+  httputil.ErrorBody:
+    properties:
+      code:
+        example: NOT_FOUND
+        type: string
+      message:
+        example: service order not found
+        type: string
+    type: object
   httputil.ErrorResponse:
     properties:
-      message:
+      error:
+        $ref: '#/definitions/httputil.ErrorBody'
+    type: object
+  internalapi.RequesterResponse:
+    properties:
+      document:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
         type: string
       status:
+        example: active
         type: string
     type: object
 info:
   contact: {}
-  description: Sistema Integrado de Atendimento e Execucao de Servicos — Oficina Mecanica
-  title: Workshop API
-  version: "1.0"
+  description: |-
+    Ordens de serviço, clientes, veículos, catálogo e estoque. Orquestra a saga da OS
+    (execution-service e billing-service) via SNS/SQS com outbox e consumidor idempotente.
+  title: OS Service — Oficina Mecânica
+  version: "2.0"
 paths:
   /auth/login:
     post:
@@ -488,6 +567,37 @@ paths:
       summary: Registrar usuario
       tags:
       - auth
+  /internal/requesters/{document}:
+    get:
+      parameters:
+      - description: CPF ou CNPJ (só dígitos)
+        in: path
+        name: document
+        required: true
+        type: string
+      - description: Token interno
+        in: header
+        name: X-Internal-Token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internalapi.RequesterResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      summary: Cliente por CPF/CNPJ (uso interno da Lambda de autenticação)
+      tags:
+      - internal
   /parts:
     get:
       produces:
@@ -774,46 +884,7 @@ paths:
       summary: Listar ordens de servico
       tags:
       - service-orders
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Dados da OS
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/commands.CreateServiceOrderRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/commands.ServiceOrderResponse'
-      security:
-      - BearerAuth: []
-      summary: Criar ordem de servico
-      tags:
-      - service-orders
   /service-orders/{id}:
-    delete:
-      parameters:
-      - description: ServiceOrder ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-      security:
-      - BearerAuth: []
-      summary: Deletar ordem de servico
-      tags:
-      - service-orders
     get:
       parameters:
       - description: ServiceOrder ID
@@ -833,57 +904,119 @@ paths:
       summary: Buscar ordem de servico por ID
       tags:
       - service-orders
-    put:
+  /service-orders/{id}/cancel:
+    post:
       consumes:
       - application/json
+      description: |-
+        Compensa as etapas já concluídas da saga (estorno, orçamento, peças, execução) e
+        encerra a OS como cancelled. OS finalizada ou entregue não pode ser cancelada.
       parameters:
       - description: ServiceOrder ID
         in: path
         name: id
         required: true
         type: string
-      - description: Dados para atualizar
+      - description: Motivo
         in: body
         name: body
-        required: true
         schema:
-          $ref: '#/definitions/commands.UpdateServiceOrderRequest'
+          $ref: '#/definitions/commands.CancelServiceOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancelar OS (oficina)
+      tags:
+      - service-orders
+  /service-orders/{id}/deliver:
+    post:
+      description: finished → delivered.
+      parameters:
+      - description: ServiceOrder ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Registrar entrega do veículo
+      tags:
+      - service-orders
+  /service-orders/{id}/details:
+    get:
+      description: |-
+        Junta a OS e a saga (os-service), o orçamento e o pagamento (billing-service) e a
+        execução (execution-service). Se um serviço não responder, a resposta é parcial:
+        o campo dele vem nulo e o nome aparece em "unavailable".
+      parameters:
+      - description: ServiceOrder ID
+        in: path
+        name: id
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/commands.ServiceOrderResponse'
+            $ref: '#/definitions/commands.ServiceOrderDetailsResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Atualizar ordem de servico
+      summary: Visão completa da OS (API composition)
       tags:
       - service-orders
-  /service-orders/{id}/status:
-    put:
-      consumes:
-      - application/json
+  /service-orders/{id}/history:
+    get:
       parameters:
       - description: ServiceOrder ID
         in: path
         name: id
         required: true
         type: string
-      - description: Novo status (services e parts obrigatorios para awaiting_approval)
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/commands.UpdateStatusRequest'
       produces:
       - application/json
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/commands.StatusHistoryResponse'
+            type: array
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Atualizar status da ordem de servico
+      summary: Histórico de status da OS
       tags:
       - service-orders
   /service-orders/code/{code}:
@@ -909,32 +1042,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Consultar OS pelo codigo (cliente autenticado por CPF)
-      tags:
-      - service-orders-requester
-  /service-orders/code/{code}/status:
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Codigo da OS
-        in: path
-        name: code
-        required: true
-        type: integer
-      - description: Novo status e documento do cliente
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/commands.UpdateStatusByCodeRequest'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-      security:
-      - BearerAuth: []
-      summary: Alterar status da OS pelo codigo (cliente autenticado por CPF)
       tags:
       - service-orders-requester
   /service-orders/metrics/execution-time:

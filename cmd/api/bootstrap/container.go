@@ -3,21 +3,34 @@ package bootstrap
 import (
 	"context"
 	"log"
+	"log/slog"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/Kc1t/postech-tc4-os-service/config"
+	inboundmsg "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/messaging"
+	"github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/scheduler"
 	"github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/jwt"
 	"github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/postgresql"
-	pgmodel "github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/postgresql/model"
-	smtpadapter "github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/smtp"
+	"github.com/Kc1t/postech-tc4-os-service/internal/adapters/outbound/services"
 	"github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
 	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/awsx"
 	"github.com/Kc1t/postech-tc4-os-service/pkg/hasher"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/httpclient"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/logger"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/messaging"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/observability"
+	"github.com/Kc1t/postech-tc4-os-service/pkg/outbox"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	authhandler "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http/auth"
+	"github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http/internalapi"
 	parthandler "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http/part"
 	requesterhandler "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http/requester"
 	servicehandler "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http/service"
@@ -27,6 +40,7 @@ import (
 	authuc "github.com/Kc1t/postech-tc4-os-service/internal/application/usecase/auth"
 	partuc "github.com/Kc1t/postech-tc4-os-service/internal/application/usecase/part"
 	requesteruc "github.com/Kc1t/postech-tc4-os-service/internal/application/usecase/requester"
+	sagauc "github.com/Kc1t/postech-tc4-os-service/internal/application/usecase/saga"
 	serviceuc "github.com/Kc1t/postech-tc4-os-service/internal/application/usecase/service"
 	serviceorderuc "github.com/Kc1t/postech-tc4-os-service/internal/application/usecase/service_order"
 	vehicleuc "github.com/Kc1t/postech-tc4-os-service/internal/application/usecase/vehicle"
@@ -34,19 +48,29 @@ import (
 
 type Container struct {
 	Config *config.Config
+	Logger *slog.Logger
+	NR     *newrelic.Application
 	db     *gorm.DB
 
-	// Notifiers
-	EmailNotifier ports.EmailNotifier `container:"notifier"`
+	// Workers de mensageria (nil quando a mensageria está desligada)
+	OutboxRelay  *outbox.Relay
+	SagaConsumer *messaging.Consumer
+	SagaTimeouts *scheduler.SagaTimeouts
+	sqsClient    *sqs.Client
+	snsClient    *sns.Client
 
 	// Repositories
-	UserRepo         ports.UserRepository         `container:"repository"`
-	RefreshTokenRepo ports.RefreshTokenRepository `container:"repository"`
-	RequesterRepo    ports.RequesterRepository    `container:"repository"`
-	VehicleRepo      ports.VehicleRepository      `container:"repository"`
-	ServiceOrderRepo ports.ServiceOrderRepository `container:"repository"`
-	ServiceRepo      ports.ServiceRepository      `container:"repository"`
-	PartRepo         ports.PartRepository         `container:"repository"`
+	UserRepo         ports.UserRepository          `container:"repository"`
+	RefreshTokenRepo ports.RefreshTokenRepository  `container:"repository"`
+	RequesterRepo    ports.RequesterRepository     `container:"repository"`
+	VehicleRepo      ports.VehicleRepository       `container:"repository"`
+	ServiceOrderRepo ports.ServiceOrderRepository  `container:"repository"`
+	ServiceRepo      ports.ServiceRepository       `container:"repository"`
+	PartRepo         ports.PartRepository          `container:"repository"`
+	SagaRepo         ports.SagaRepository          `container:"repository"`
+	HistoryRepo      ports.StatusHistoryRepository `container:"repository"`
+	TxManager        ports.TxManager
+	Messenger        ports.SagaMessenger
 
 	// Use Cases — auth
 	RegisterUseCase     ports.RegisterUseCase     `container:"usecase"`
@@ -70,18 +94,20 @@ type Container struct {
 	UpdateVehicle           ports.UpdateVehicleUseCase           `container:"usecase"`
 	DeleteVehicle           ports.DeleteVehicleUseCase           `container:"usecase"`
 
-	// Use Cases — service order
-	CreateServiceOrder             ports.CreateServiceOrderUseCase             `container:"usecase"`
-	GetServiceOrder                ports.GetServiceOrderUseCase                `container:"usecase"`
-	GetServiceOrderByCode          ports.GetServiceOrderByCodeUseCase          `container:"usecase"`
-	ListServiceOrders              ports.ListServiceOrdersUseCase              `container:"usecase"`
-	ListServiceOrdersByRequester   ports.ListServiceOrdersByRequesterUseCase   `container:"usecase"`
-	ListServiceOrdersByDocument    ports.ListServiceOrdersByDocumentUseCase    `container:"usecase"`
-	UpdateServiceOrderStatus       ports.UpdateServiceOrderStatusUseCase       `container:"usecase"`
-	UpdateServiceOrder             ports.UpdateServiceOrderUseCase             `container:"usecase"`
-	DeleteServiceOrder             ports.DeleteServiceOrderUseCase             `container:"usecase"`
-	UpdateServiceOrderStatusByCode ports.UpdateServiceOrderStatusByCodeUseCase `container:"usecase"`
-	GetAverageExecutionTime        ports.GetAverageExecutionTimeUseCase        `container:"usecase"`
+	// Use Cases — service order (saga)
+	CreateServiceOrder           ports.CreateServiceOrderUseCase           `container:"usecase"`
+	GetServiceOrder              ports.GetServiceOrderUseCase              `container:"usecase"`
+	GetServiceOrderByCode        ports.GetServiceOrderByCodeUseCase        `container:"usecase"`
+	ListServiceOrders            ports.ListServiceOrdersUseCase            `container:"usecase"`
+	ListServiceOrdersByRequester ports.ListServiceOrdersByRequesterUseCase `container:"usecase"`
+	ListServiceOrdersByDocument  ports.ListServiceOrdersByDocumentUseCase  `container:"usecase"`
+	CancelServiceOrder           ports.CancelServiceOrderUseCase           `container:"usecase"`
+	DeliverServiceOrder          ports.DeliverServiceOrderUseCase          `container:"usecase"`
+	GetServiceOrderHistory       ports.GetServiceOrderHistoryUseCase       `container:"usecase"`
+	GetServiceOrderDetails       ports.GetServiceOrderDetailsUseCase       `container:"usecase"`
+	GetAverageExecutionTime      ports.GetAverageExecutionTimeUseCase      `container:"usecase"`
+	HandleSagaReply              ports.HandleSagaReplyUseCase              `container:"usecase"`
+	ExpireSagas                  ports.ExpireSagasUseCase                  `container:"usecase"`
 
 	// Use Cases — service
 	CreateService ports.CreateServiceUseCase `container:"usecase"`
@@ -105,6 +131,7 @@ type Container struct {
 	ServiceOrderHandler *serviceorderhandler.ServiceOrderHandler `container:"handler"`
 	ServiceHandler      *servicehandler.ServiceHandler           `container:"handler"`
 	PartHandler         *parthandler.PartHandler                 `container:"handler"`
+	InternalHandler     *internalapi.Handler                     `container:"handler"`
 }
 
 var (
@@ -122,12 +149,56 @@ func GetContainer() *Container {
 
 func (c *Container) initialize() {
 	c.Config = config.Load()
+	c.Logger = logger.New(c.Config.LogLevel)
+	slog.SetDefault(c.Logger)
+	c.setupNewRelic()
 	c.setupDatabase()
-	c.setupNotifiers()
+	c.setupMessagingClients()
 	c.setupRepositories()
 	c.setupUseCases()
 	c.setupHandlers()
+	c.setupWorkers()
 	c.seedAdmin()
+}
+
+func (c *Container) setupNewRelic() {
+	app, err := observability.NewRelic(c.Config.NewRelicAppName, c.Config.NewRelicLicenseKey)
+	switch {
+	case err != nil:
+		c.Logger.Error("new relic desabilitado", "error", err)
+	case app != nil:
+		c.NR = app
+		c.Logger.Info("new relic habilitado", "app_name", c.Config.NewRelicAppName)
+	default:
+		c.Logger.Info("new relic desabilitado: NEW_RELIC_LICENSE_KEY ausente")
+	}
+}
+
+// DB expõe a conexão para o readiness probe.
+func (c *Container) DB() *gorm.DB { return c.db }
+
+func (c *Container) setupMessagingClients() {
+	if !c.Config.MessagingEnabled() {
+		c.Logger.Warn("mensageria desligada: defina SQS_SAGA_REPLIES_URL, SQS_BILLING_COMMANDS_URL, SQS_EXECUTION_COMMANDS_URL e SNS_OS_EVENTS_ARN")
+		return
+	}
+	awsCfg, err := awsx.LoadConfig(context.Background())
+	if err != nil {
+		log.Fatalf("bootstrap: aws config: %v", err)
+	}
+	c.sqsClient = sqs.NewFromConfig(awsCfg)
+	c.snsClient = sns.NewFromConfig(awsCfg)
+}
+
+func (c *Container) setupWorkers() {
+	if c.sqsClient == nil {
+		return
+	}
+	c.OutboxRelay = outbox.NewRelay(c.db, messaging.NewAWSPublisher(c.snsClient, c.sqsClient), c.NR, c.Logger).
+		WithInterval(c.Config.OutboxPollInterval)
+	c.SagaConsumer = messaging.NewConsumer(c.sqsClient, c.Config.SagaRepliesQueueURL, "os-saga-replies", c.NR, c.Logger)
+	inboundmsg.RegisterSagaReplies(c.SagaConsumer, c.HandleSagaReply)
+	c.SagaTimeouts = scheduler.NewSagaTimeouts(c.ExpireSagas, c.Config.SagaTimeoutCheck, c.NR, c.Logger)
 }
 
 func (c *Container) setupDatabase() {
@@ -136,30 +207,20 @@ func (c *Container) setupDatabase() {
 		log.Fatalf("bootstrap: failed to connect to postgresql: %v", err)
 	}
 
-	if err := db.AutoMigrate(
-		&pgmodel.User{},
-		&pgmodel.RefreshToken{},
-		&pgmodel.Requester{},
-		&pgmodel.Vehicle{},
-		&pgmodel.Service{},
-		&pgmodel.Part{},
-		&pgmodel.ServiceOrder{},
-	); err != nil {
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("bootstrap: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+
+	if err := postgresql.Migrate(db); err != nil {
 		log.Fatalf("bootstrap: failed to run migrations: %v", err)
 	}
 
 	c.db = db
 	log.Printf("bootstrap: connected to postgresql and migrations applied")
-}
-
-func (c *Container) setupNotifiers() {
-	c.EmailNotifier = smtpadapter.New(
-		c.Config.SMTPHost,
-		c.Config.SMTPPort,
-		c.Config.SMTPUsername,
-		c.Config.SMTPPassword,
-		c.Config.SMTPFrom,
-	)
 }
 
 func (c *Container) setupRepositories() {
@@ -170,6 +231,14 @@ func (c *Container) setupRepositories() {
 	c.ServiceOrderRepo = postgresql.NewServiceOrderRepository(c.db)
 	c.ServiceRepo = postgresql.NewServiceRepository(c.db)
 	c.PartRepo = postgresql.NewPartRepository(c.db)
+	c.SagaRepo = postgresql.NewSagaRepository(c.db)
+	c.HistoryRepo = postgresql.NewStatusHistoryRepository(c.db)
+	c.TxManager = postgresql.NewTxManager(c.db)
+	c.Messenger = postgresql.NewOutboxMessenger(postgresql.Routes{
+		BillingCommandsQueueURL:   c.Config.BillingCommandsQueueURL,
+		ExecutionCommandsQueueURL: c.Config.ExecutionCommandsQueueURL,
+		OSEventsTopicARN:          c.Config.OSEventsTopicARN,
+	})
 }
 
 func (c *Container) setupUseCases() {
@@ -206,22 +275,45 @@ func (c *Container) setupUseCases() {
 	c.UpdateVehicle = vehicleuc.NewUpdateVehicle(c.VehicleRepo)
 	c.DeleteVehicle = vehicleuc.NewDeleteVehicle(c.VehicleRepo)
 
-	// ServiceOrder
-	c.CreateServiceOrder = serviceorderuc.NewCreateServiceOrder(
-		c.ServiceOrderRepo, c.RequesterRepo, c.VehicleRepo,
-	)
+	// ServiceOrder + saga
+	orchestrator := sagauc.NewOrchestrator(sagauc.Deps{
+		Tx:         c.TxManager,
+		Inbox:      postgresql.NewInbox(c.db, "os-saga-replies"),
+		Sagas:      c.SagaRepo,
+		Orders:     c.ServiceOrderRepo,
+		History:    c.HistoryRepo,
+		Requesters: c.RequesterRepo,
+		Vehicles:   c.VehicleRepo,
+		Services:   c.ServiceRepo,
+		Parts:      c.PartRepo,
+		Messenger:  c.Messenger,
+	}, sagauc.Config{
+		ApprovalTimeout: c.Config.SagaApprovalTimeout,
+		PaymentTimeout:  c.Config.SagaPaymentTimeout,
+		FaultInjection:  c.Config.FaultInjectionEnabled,
+	})
+	c.CreateServiceOrder = sagauc.NewCreateServiceOrder(orchestrator)
+	c.CancelServiceOrder = sagauc.NewCancelServiceOrder(orchestrator)
+	c.DeliverServiceOrder = sagauc.NewDeliverServiceOrder(orchestrator)
+	c.HandleSagaReply = sagauc.NewHandleReply(orchestrator)
+	c.ExpireSagas = sagauc.NewExpireSagas(orchestrator)
+
+	upstream := httpclient.Config{Timeout: c.Config.UpstreamTimeout}
+	billing := services.NewBillingClient(services.Config{
+		Name: "billing-service", BaseURL: c.Config.BillingServiceURL, JWTSecret: c.Config.JWTSecret, HTTP: upstream,
+	}, c.Logger)
+	execution := services.NewExecutionClient(services.Config{
+		Name: "execution-service", BaseURL: c.Config.ExecutionServiceURL, JWTSecret: c.Config.JWTSecret, HTTP: upstream,
+	}, c.Logger)
+
 	c.GetServiceOrder = serviceorderuc.NewGetServiceOrder(c.ServiceOrderRepo)
 	c.GetServiceOrderByCode = serviceorderuc.NewGetServiceOrderByCode(c.ServiceOrderRepo, c.RequesterRepo)
 	c.ListServiceOrders = serviceorderuc.NewListServiceOrders(c.ServiceOrderRepo)
 	c.ListServiceOrdersByRequester = serviceorderuc.NewListServiceOrdersByRequester(c.ServiceOrderRepo)
 	c.ListServiceOrdersByDocument = serviceorderuc.NewListServiceOrdersByDocument(c.ServiceOrderRepo, c.RequesterRepo)
-	c.UpdateServiceOrderStatus = serviceorderuc.NewUpdateServiceOrderStatus(
-		c.ServiceOrderRepo, c.ServiceRepo, c.PartRepo,
-		c.RequesterRepo, c.EmailNotifier,
-	)
-	c.UpdateServiceOrder = serviceorderuc.NewUpdateServiceOrder(c.ServiceOrderRepo)
-	c.DeleteServiceOrder = serviceorderuc.NewDeleteServiceOrder(c.ServiceOrderRepo)
-	c.UpdateServiceOrderStatusByCode = serviceorderuc.NewUpdateServiceOrderStatusByCode(c.ServiceOrderRepo, c.RequesterRepo, c.EmailNotifier)
+	c.GetServiceOrderHistory = serviceorderuc.NewGetServiceOrderHistory(c.ServiceOrderRepo, c.HistoryRepo)
+	c.GetServiceOrderDetails = serviceorderuc.NewGetServiceOrderDetails(
+		c.ServiceOrderRepo, c.SagaRepo, c.HistoryRepo, billing, execution)
 	c.GetAverageExecutionTime = serviceorderuc.NewGetAverageExecutionTime(c.ServiceOrderRepo)
 
 	// Service
@@ -254,13 +346,19 @@ func (c *Container) setupHandlers() {
 		c.CreateVehicle, c.GetVehicle, c.ListVehicles,
 		c.UpdateVehicle, c.DeleteVehicle,
 	)
-	c.ServiceOrderHandler = serviceorderhandler.NewServiceOrderHandler(
-		c.CreateServiceOrder, c.GetServiceOrder, c.GetServiceOrderByCode,
-		c.ListServiceOrders, c.ListServiceOrdersByDocument,
-		c.UpdateServiceOrderStatus, c.UpdateServiceOrder, c.DeleteServiceOrder,
-		c.UpdateServiceOrderStatusByCode,
-		c.GetAverageExecutionTime,
-	)
+	c.ServiceOrderHandler = serviceorderhandler.NewServiceOrderHandler(serviceorderhandler.Deps{
+		Create:               c.CreateServiceOrder,
+		GetByID:              c.GetServiceOrder,
+		GetByCode:            c.GetServiceOrderByCode,
+		ListAll:              c.ListServiceOrders,
+		ListByDocument:       c.ListServiceOrdersByDocument,
+		Cancel:               c.CancelServiceOrder,
+		Deliver:              c.DeliverServiceOrder,
+		History:              c.GetServiceOrderHistory,
+		Details:              c.GetServiceOrderDetails,
+		AverageExecutionTime: c.GetAverageExecutionTime,
+	})
+	c.InternalHandler = internalapi.NewHandler(c.Config.InternalAPIToken, c.GetRequesterByDocument)
 	c.ServiceHandler = servicehandler.NewServiceHandler(
 		c.CreateService, c.GetService, c.ListServices,
 		c.UpdateService, c.DeleteService,
@@ -297,5 +395,5 @@ func (c *Container) seedAdmin() {
 		log.Printf("bootstrap: failed to seed admin user: %v", err)
 		return
 	}
-	log.Printf("bootstrap: admin user seeded (%s)", email)
+	c.Logger.Info("bootstrap: admin user seeded", "email", email)
 }

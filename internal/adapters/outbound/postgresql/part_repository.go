@@ -20,7 +20,7 @@ func NewPartRepository(db *gorm.DB) ports.PartRepository {
 
 func (r *partRepository) Create(ctx context.Context, p *entities.Part) error {
 	m := pgmodel.FromPart(p)
-	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
+	if err := conn(ctx, r.db).Create(m).Error; err != nil {
 		return mapError(err)
 	}
 	p.SetID(m.ID)
@@ -29,7 +29,7 @@ func (r *partRepository) Create(ctx context.Context, p *entities.Part) error {
 
 func (r *partRepository) FindByID(ctx context.Context, id string) (*entities.Part, error) {
 	var m pgmodel.Part
-	if err := r.db.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
+	if err := conn(ctx, r.db).First(&m, "id = ?", id).Error; err != nil {
 		return nil, mapError(err)
 	}
 	return m.ToDomain(), nil
@@ -37,7 +37,7 @@ func (r *partRepository) FindByID(ctx context.Context, id string) (*entities.Par
 
 func (r *partRepository) FindByIDs(ctx context.Context, ids []string) ([]*entities.Part, error) {
 	var docs []pgmodel.Part
-	if err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&docs).Error; err != nil {
+	if err := conn(ctx, r.db).Where("id IN ?", ids).Find(&docs).Error; err != nil {
 		return nil, mapError(err)
 	}
 	parts := make([]*entities.Part, 0, len(docs))
@@ -49,7 +49,7 @@ func (r *partRepository) FindByIDs(ctx context.Context, ids []string) ([]*entiti
 
 func (r *partRepository) FindByManufacturerCodes(ctx context.Context, codes []string) ([]*entities.Part, error) {
 	var docs []pgmodel.Part
-	if err := r.db.WithContext(ctx).Where("manufacturer_code IN ?", codes).Find(&docs).Error; err != nil {
+	if err := conn(ctx, r.db).Where("manufacturer_code IN ?", codes).Find(&docs).Error; err != nil {
 		return nil, mapError(err)
 	}
 	parts := make([]*entities.Part, 0, len(docs))
@@ -61,7 +61,7 @@ func (r *partRepository) FindByManufacturerCodes(ctx context.Context, codes []st
 
 func (r *partRepository) FindAll(ctx context.Context) ([]*entities.Part, error) {
 	var docs []pgmodel.Part
-	if err := r.db.WithContext(ctx).Find(&docs).Error; err != nil {
+	if err := conn(ctx, r.db).Find(&docs).Error; err != nil {
 		return nil, mapError(err)
 	}
 	parts := make([]*entities.Part, 0, len(docs))
@@ -73,15 +73,15 @@ func (r *partRepository) FindAll(ctx context.Context) ([]*entities.Part, error) 
 
 func (r *partRepository) Update(ctx context.Context, p *entities.Part) error {
 	m := pgmodel.FromPart(p)
-	return mapError(r.db.WithContext(ctx).Save(m).Error)
+	return mapError(conn(ctx, r.db).Save(m).Error)
 }
 
 func (r *partRepository) Delete(ctx context.Context, id string) error {
-	return mapError(r.db.WithContext(ctx).Delete(&pgmodel.Part{}, "id = ?", id).Error)
+	return mapError(conn(ctx, r.db).Delete(&pgmodel.Part{}, "id = ?", id).Error)
 }
 
 func (r *partRepository) UpdateStock(ctx context.Context, id string, delta int) error {
-	result := r.db.WithContext(ctx).
+	result := conn(ctx, r.db).
 		Model(&pgmodel.Part{}).
 		Where("id = ? AND stock + ? >= 0", id, delta).
 		UpdateColumn("stock", gorm.Expr("stock + ?", delta))
@@ -90,7 +90,7 @@ func (r *partRepository) UpdateStock(ctx context.Context, id string, delta int) 
 	}
 	if result.RowsAffected == 0 {
 		var count int64
-		if err := r.db.WithContext(ctx).
+		if err := conn(ctx, r.db).
 			Model(&pgmodel.Part{}).
 			Where("id = ?", id).
 			Count(&count).Error; err != nil {
@@ -102,4 +102,9 @@ func (r *partRepository) UpdateStock(ctx context.Context, id string, delta int) 
 		return domainerrors.ErrInsufficientStock
 	}
 	return nil
+}
+
+// ReserveStock baixa quantity unidades do estoque, falhando se o saldo nao for suficiente.
+func (r *partRepository) ReserveStock(ctx context.Context, id string, quantity int) error {
+	return r.UpdateStock(ctx, id, -quantity)
 }

@@ -114,11 +114,7 @@ func TestFromServiceOrder_ToDomain_RoundTrip(t *testing.T) {
 	parts := []entities.PartItem{{PartID: "p1", Description: "Peca", Quantity: 2, UnitPrice: 50.0}}
 	startedAt := time.Date(2024, 6, 2, 10, 0, 0, 0, time.UTC)
 	finishedAt := time.Date(2024, 6, 2, 14, 30, 0, 0, time.UTC)
-	so := entities.ReconstituteServiceOrder(
-		"oid-1", 0, "cust-1", "veh-1", entities.StatusInExecution,
-		services, parts, 200.0, "notas", createdAt, updatedAt,
-		&startedAt, &finishedAt,
-	)
+	so := entities.ReconstituteServiceOrder(entities.ServiceOrderSnapshot{ID: "oid-1", RequesterID: "cust-1", VehicleID: "veh-1", Status: entities.StatusInExecution, Services: services, Parts: parts, TotalAmount: 200.0, Notes: "notas", CreatedAt: createdAt, UpdatedAt: updatedAt, StartedAt: &startedAt, FinishedAt: &finishedAt})
 
 	m := FromServiceOrder(so)
 	if m.ID != "oid-1" || m.Status != entities.StatusInExecution {
@@ -157,11 +153,7 @@ func TestFromServiceOrder_ToDomain_RoundTrip(t *testing.T) {
 func TestFromServiceOrder_ToDomain_TimestampsNulos(t *testing.T) {
 	createdAt := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	updatedAt := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
-	so := entities.ReconstituteServiceOrder(
-		"oid-2", 0, "cust-1", "veh-1", entities.StatusReceived,
-		nil, nil, 0, "", createdAt, updatedAt,
-		nil, nil,
-	)
+	so := entities.ReconstituteServiceOrder(entities.ServiceOrderSnapshot{ID: "oid-2", RequesterID: "cust-1", VehicleID: "veh-1", Status: entities.StatusReceived, CreatedAt: createdAt, UpdatedAt: updatedAt})
 
 	m := FromServiceOrder(so)
 	if m.StartedAt != nil || m.FinishedAt != nil {

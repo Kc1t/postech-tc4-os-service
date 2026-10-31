@@ -166,25 +166,6 @@ func TestServiceOrderRepository_FindByRequesterID(t *testing.T) {
 	}
 }
 
-func TestServiceOrderRepository_UpdateStatus(t *testing.T) {
-	c, v := seedVehicle(t, "OS00005")
-	repo := NewServiceOrderRepository(testDB)
-	so := newTestOrder(c.ID(), v.ID())
-	if err := repo.Create(context.Background(), so); err != nil {
-		t.Fatalf("setup failed: %v", err)
-	}
-	t.Cleanup(func() { testDB.Delete(&pgmodel.ServiceOrder{}, "id = ?", so.ID()) })
-
-	if err := repo.UpdateStatus(context.Background(), so.ID(), entities.StatusInExecution); err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	found, _ := repo.FindByID(context.Background(), so.ID())
-	if found.Status() != entities.StatusInExecution {
-		t.Errorf("expected status InProgress, got %s", found.Status())
-	}
-}
-
 func TestServiceOrderRepository_Update(t *testing.T) {
 	c, v := seedVehicle(t, "OS00006")
 	repo := NewServiceOrderRepository(testDB)
@@ -233,12 +214,9 @@ func TestServiceOrderRepository_AverageExecutionTime(t *testing.T) {
 	started2 := now.Add(-4 * time.Hour)
 	finished2 := now.Add(-1 * time.Hour) // duracao 3h
 
-	so1 := entities.ReconstituteServiceOrder("", 0, c.ID(), v.ID(),
-		entities.StatusFinished, nil, nil, 0, "", now, now, &started1, &finished1)
-	so2 := entities.ReconstituteServiceOrder("", 0, c.ID(), v.ID(),
-		entities.StatusFinished, nil, nil, 0, "", now, now, &started2, &finished2)
-	so3 := entities.ReconstituteServiceOrder("", 0, c.ID(), v.ID(),
-		entities.StatusReceived, nil, nil, 0, "", now, now, nil, nil)
+	so1 := entities.ReconstituteServiceOrder(entities.ServiceOrderSnapshot{RequesterID: c.ID(), VehicleID: v.ID(), Status: entities.StatusFinished, CreatedAt: now, UpdatedAt: now, StartedAt: &started1, FinishedAt: &finished1})
+	so2 := entities.ReconstituteServiceOrder(entities.ServiceOrderSnapshot{RequesterID: c.ID(), VehicleID: v.ID(), Status: entities.StatusFinished, CreatedAt: now, UpdatedAt: now, StartedAt: &started2, FinishedAt: &finished2})
+	so3 := entities.ReconstituteServiceOrder(entities.ServiceOrderSnapshot{RequesterID: c.ID(), VehicleID: v.ID(), Status: entities.StatusReceived, CreatedAt: now, UpdatedAt: now})
 
 	for _, so := range []*entities.ServiceOrder{so1, so2, so3} {
 		if err := repo.Create(context.Background(), so); err != nil {
@@ -302,11 +280,6 @@ func TestServiceOrderRepository_AverageExecutionTime_SemAmostras(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// ApplyApprovalTransition — decremento de estoque + save da OS em uma unica
-// transacao. Falha em qualquer passo dispara rollback de tudo.
-// =============================================================================
-
 // seedPart cria uma peca com o estoque informado e cadastra cleanup.
 func seedPart(t *testing.T, code string, stock int) *entities.Part {
 	t.Helper()
@@ -328,130 +301,54 @@ func partStock(t *testing.T, id string) int {
 	return m.Stock
 }
 
-func TestServiceOrderRepository_ApplyApprovalTransition_Sucesso(t *testing.T) {
-	c, v := seedVehicle(t, "OS10001")
-	part1 := seedPart(t, "AAT-001", 10)
-	part2 := seedPart(t, "AAT-002", 5)
-
+func TestServiceOrderRepository_Update_OptimisticLock(t *testing.T) {
+	c, v := seedVehicle(t, "OS00011")
 	repo := NewServiceOrderRepository(testDB)
 	so := newTestOrder(c.ID(), v.ID())
-	so.SetParts([]entities.PartItem{
-		{PartID: part1.ID(), Description: part1.Name(), Quantity: 3, UnitPrice: part1.Price()},
-		{PartID: part2.ID(), Description: part2.Name(), Quantity: 2, UnitPrice: part2.Price()},
-	})
 	if err := repo.Create(context.Background(), so); err != nil {
-		t.Fatalf("setup Create: %v", err)
+		t.Fatal(err)
 	}
 	t.Cleanup(func() { testDB.Delete(&pgmodel.ServiceOrder{}, "id = ?", so.ID()) })
 
-	if err := so.UpdateStatus(entities.StatusInDiagnosis); err != nil {
-		t.Fatalf("transicao diag: %v", err)
+	a, _ := repo.FindByID(context.Background(), so.ID())
+	b, _ := repo.FindByID(context.Background(), so.ID())
+	if err := a.TransitionTo(entities.StatusInDiagnosis); err != nil {
+		t.Fatal(err)
 	}
-	if err := so.UpdateStatus(entities.StatusAwaitingApproval); err != nil {
-		t.Fatalf("transicao awaiting: %v", err)
+	a.SetServices([]entities.ServiceItem{{ServiceID: "s1", Code: 7, Description: "Alinhamento", Price: 80}})
+	if err := repo.Update(context.Background(), a); err != nil {
+		t.Fatalf("primeira escrita: %v", err)
 	}
-	if err := so.UpdateStatus(entities.StatusInExecution); err != nil {
-		t.Fatalf("transicao exec: %v", err)
+	if a.Version() != b.Version()+1 {
+		t.Fatalf("versão não incrementada: %d", a.Version())
+	}
+	if err := b.Cancel("x"); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Update(context.Background(), b); !errors.Is(err, domainerrors.ErrConcurrentUpdate) {
+		t.Fatalf("escrita com versão velha deveria falhar com ErrConcurrentUpdate, veio %v", err)
+	}
+	got, _ := repo.FindByID(context.Background(), so.ID())
+	if got.Status() != entities.StatusInDiagnosis || got.TotalAmount() != 80 || got.Services()[0].Code != 7 {
+		t.Fatalf("estado persistido incorreto: %s %.2f", got.Status(), got.TotalAmount())
 	}
 
-	if err := repo.ApplyApprovalTransition(context.Background(), so); err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if got := partStock(t, part1.ID()); got != 7 {
-		t.Errorf("part1 stock = %d, esperava 7 (10 - 3)", got)
-	}
-	if got := partStock(t, part2.ID()); got != 3 {
-		t.Errorf("part2 stock = %d, esperava 3 (5 - 2)", got)
-	}
-	persisted, err := repo.FindByID(context.Background(), so.ID())
-	if err != nil {
-		t.Fatalf("FindByID: %v", err)
-	}
-	if persisted.Status() != entities.StatusInExecution {
-		t.Errorf("status persistido = %q, esperava in_execution", persisted.Status())
-	}
-	if persisted.StartedAt() == nil {
-		t.Error("StartedAt nao foi persistido")
+	ghost := entities.ReconstituteServiceOrder(entities.ServiceOrderSnapshot{ID: "00000000-0000-0000-0000-000000000000", Version: 1})
+	if err := repo.Update(context.Background(), ghost); !errors.Is(err, domainerrors.ErrNotFound) {
+		t.Fatalf("OS inexistente: esperava ErrNotFound, veio %v", err)
 	}
 }
 
-func TestServiceOrderRepository_ApplyApprovalTransition_EstoqueInsuficiente_RollbackTotal(t *testing.T) {
-	c, v := seedVehicle(t, "OS10002")
-	part1 := seedPart(t, "AAT-011", 10) // suficiente
-	part2 := seedPart(t, "AAT-012", 1)  // insuficiente (pede 5)
-
-	repo := NewServiceOrderRepository(testDB)
-	so := newTestOrder(c.ID(), v.ID())
-	so.SetParts([]entities.PartItem{
-		{PartID: part1.ID(), Description: part1.Name(), Quantity: 3, UnitPrice: part1.Price()},
-		{PartID: part2.ID(), Description: part2.Name(), Quantity: 5, UnitPrice: part2.Price()},
-	})
-	if err := repo.Create(context.Background(), so); err != nil {
-		t.Fatalf("setup Create: %v", err)
+func TestPartRepository_ReserveStock(t *testing.T) {
+	p := seedPart(t, "RSV-001", 3)
+	repo := NewPartRepository(testDB)
+	if err := repo.ReserveStock(context.Background(), p.ID(), 2); err != nil {
+		t.Fatal(err)
 	}
-	t.Cleanup(func() { testDB.Delete(&pgmodel.ServiceOrder{}, "id = ?", so.ID()) })
-
-	if err := so.UpdateStatus(entities.StatusInDiagnosis); err != nil {
-		t.Fatalf("transicao diag: %v", err)
+	if err := repo.ReserveStock(context.Background(), p.ID(), 2); !errors.Is(err, domainerrors.ErrInsufficientStock) {
+		t.Fatalf("esperava ErrInsufficientStock, veio %v", err)
 	}
-	if err := so.UpdateStatus(entities.StatusAwaitingApproval); err != nil {
-		t.Fatalf("transicao awaiting: %v", err)
-	}
-	if err := so.UpdateStatus(entities.StatusInExecution); err != nil {
-		t.Fatalf("transicao exec: %v", err)
-	}
-
-	err := repo.ApplyApprovalTransition(context.Background(), so)
-	if !errors.Is(err, domainerrors.ErrInsufficientStock) {
-		t.Fatalf("erro = %v, esperava ErrInsufficientStock", err)
-	}
-
-	if got := partStock(t, part1.ID()); got != 10 {
-		t.Errorf("part1 stock = %d, esperava 10 (rollback)", got)
-	}
-	if got := partStock(t, part2.ID()); got != 1 {
-		t.Errorf("part2 stock = %d, esperava 1 (inalterado)", got)
-	}
-	persisted, ferr := repo.FindByID(context.Background(), so.ID())
-	if ferr != nil {
-		t.Fatalf("FindByID: %v", ferr)
-	}
-	if persisted.Status() == entities.StatusInExecution {
-		t.Error("status no banco mudou para in_execution apesar do erro — rollback falhou")
-	}
-}
-
-func TestServiceOrderRepository_ApplyApprovalTransition_PecaInexistente_Rollback(t *testing.T) {
-	c, v := seedVehicle(t, "OS10003")
-	part1 := seedPart(t, "AAT-021", 10)
-
-	repo := NewServiceOrderRepository(testDB)
-	so := newTestOrder(c.ID(), v.ID())
-	so.SetParts([]entities.PartItem{
-		{PartID: part1.ID(), Description: part1.Name(), Quantity: 2, UnitPrice: part1.Price()},
-		{PartID: "00000000-0000-0000-0000-000000000000", Description: "inexistente", Quantity: 1, UnitPrice: 10.00},
-	})
-	if err := repo.Create(context.Background(), so); err != nil {
-		t.Fatalf("setup Create: %v", err)
-	}
-	t.Cleanup(func() { testDB.Delete(&pgmodel.ServiceOrder{}, "id = ?", so.ID()) })
-
-	if err := so.UpdateStatus(entities.StatusInDiagnosis); err != nil {
-		t.Fatalf("transicao diag: %v", err)
-	}
-	if err := so.UpdateStatus(entities.StatusAwaitingApproval); err != nil {
-		t.Fatalf("transicao awaiting: %v", err)
-	}
-	if err := so.UpdateStatus(entities.StatusInExecution); err != nil {
-		t.Fatalf("transicao exec: %v", err)
-	}
-
-	err := repo.ApplyApprovalTransition(context.Background(), so)
-	if !errors.Is(err, domainerrors.ErrNotFound) {
-		t.Fatalf("erro = %v, esperava ErrNotFound", err)
-	}
-	if got := partStock(t, part1.ID()); got != 10 {
-		t.Errorf("part1 stock = %d, esperava 10 (rollback da peca que existia)", got)
+	if partStock(t, p.ID()) != 1 {
+		t.Fatalf("estoque = %d", partStock(t, p.ID()))
 	}
 }

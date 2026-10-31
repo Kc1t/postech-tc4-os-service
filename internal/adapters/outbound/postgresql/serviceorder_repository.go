@@ -21,7 +21,7 @@ func NewServiceOrderRepository(db *gorm.DB) ports.ServiceOrderRepository {
 
 func (r *serviceOrderRepository) Create(ctx context.Context, so *entities.ServiceOrder) error {
 	m := pgmodel.FromServiceOrder(so)
-	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
+	if err := conn(ctx, r.db).Create(m).Error; err != nil {
 		return mapError(err)
 	}
 	so.SetID(m.ID)
@@ -31,7 +31,7 @@ func (r *serviceOrderRepository) Create(ctx context.Context, so *entities.Servic
 
 func (r *serviceOrderRepository) FindByID(ctx context.Context, id string) (*entities.ServiceOrder, error) {
 	var m pgmodel.ServiceOrder
-	if err := r.db.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
+	if err := conn(ctx, r.db).First(&m, "id = ?", id).Error; err != nil {
 		return nil, mapError(err)
 	}
 	return m.ToDomain(), nil
@@ -39,24 +39,30 @@ func (r *serviceOrderRepository) FindByID(ctx context.Context, id string) (*enti
 
 func (r *serviceOrderRepository) FindByCode(ctx context.Context, code int) (*entities.ServiceOrder, error) {
 	var m pgmodel.ServiceOrder
-	if err := r.db.WithContext(ctx).First(&m, "code = ?", code).Error; err != nil {
+	if err := conn(ctx, r.db).First(&m, "code = ?", code).Error; err != nil {
 		return nil, mapError(err)
 	}
 	return m.ToDomain(), nil
 }
 
+// FindAll lista as OS em andamento para a operacao: as mais adiantadas no fluxo primeiro e,
+// dentro do mesmo status, as mais antigas. Finalizadas, entregues e canceladas ficam de fora
+// (continuam no banco e na consulta por id).
 func (r *serviceOrderRepository) FindAll(ctx context.Context) ([]*entities.ServiceOrder, error) {
 	var docs []pgmodel.ServiceOrder
-	err := r.db.WithContext(ctx).
+	err := conn(ctx, r.db).
 		Where("status NOT IN ?", []string{
 			string(entities.StatusFinished),
 			string(entities.StatusDelivered),
+			string(entities.StatusCancelled),
 		}).
 		Order("CASE status" +
 			" WHEN 'in_execution' THEN 1" +
-			" WHEN 'awaiting_approval' THEN 2" +
-			" WHEN 'in_diagnosis' THEN 3" +
-			" WHEN 'received' THEN 4" +
+			" WHEN 'awaiting_payment' THEN 2" +
+			" WHEN 'awaiting_approval' THEN 3" +
+			" WHEN 'awaiting_budget' THEN 4" +
+			" WHEN 'in_diagnosis' THEN 5" +
+			" WHEN 'received' THEN 6" +
 			" END").
 		Order("created_at ASC").
 		Find(&docs).Error
@@ -72,7 +78,7 @@ func (r *serviceOrderRepository) FindAll(ctx context.Context) ([]*entities.Servi
 
 func (r *serviceOrderRepository) FindByRequesterID(ctx context.Context, requesterID string) ([]*entities.ServiceOrder, error) {
 	var docs []pgmodel.ServiceOrder
-	if err := r.db.WithContext(ctx).Find(&docs, "requester_id = ?", requesterID).Error; err != nil {
+	if err := conn(ctx, r.db).Find(&docs, "requester_id = ?", requesterID).Error; err != nil {
 		return nil, mapError(err)
 	}
 	orders := make([]*entities.ServiceOrder, 0, len(docs))
@@ -82,55 +88,40 @@ func (r *serviceOrderRepository) FindByRequesterID(ctx context.Context, requeste
 	return orders, nil
 }
 
-func (r *serviceOrderRepository) UpdateStatus(ctx context.Context, id string, status entities.OrderStatus) error {
-	return mapError(r.db.WithContext(ctx).Model(&pgmodel.ServiceOrder{}).Where("id = ?", id).Update("status", status).Error)
-}
-
+// Update grava a OS com optimistic locking: so atualiza se a versao lida ainda e a do banco.
 func (r *serviceOrderRepository) Update(ctx context.Context, so *entities.ServiceOrder) error {
 	m := pgmodel.FromServiceOrder(so)
-	return mapError(r.db.WithContext(ctx).Save(m).Error)
-}
-
-func (r *serviceOrderRepository) ApplyApprovalTransition(ctx context.Context, so *entities.ServiceOrder) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for _, p := range so.Parts() {
-			if err := decrementStockTx(tx, p.PartID, p.Quantity); err != nil {
-				return err
-			}
-		}
-		m := pgmodel.FromServiceOrder(so)
-		return tx.Save(m).Error
-	})
-	return mapError(err)
-}
-
-func decrementStockTx(tx *gorm.DB, partID string, quantity int) error {
-	result := tx.Model(&pgmodel.Part{}).
-		Where("id = ? AND stock - ? >= 0", partID, quantity).
-		UpdateColumn("stock", gorm.Expr("stock - ?", quantity))
-	if result.Error != nil {
-		return result.Error
+	current := m.Version
+	m.Version = current + 1
+	res := conn(ctx, r.db).Model(&pgmodel.ServiceOrder{}).
+		Where("id = ? AND version = ?", so.ID(), current).
+		Select("status", "services", "parts", "total_amount", "notes", "cancel_reason",
+			"version", "updated_at", "started_at", "finished_at").
+		Updates(m)
+	if res.Error != nil {
+		return mapError(res.Error)
 	}
-	if result.RowsAffected == 0 {
+	if res.RowsAffected == 0 {
 		var count int64
-		if err := tx.Model(&pgmodel.Part{}).Where("id = ?", partID).Count(&count).Error; err != nil {
-			return err
+		if err := conn(ctx, r.db).Model(&pgmodel.ServiceOrder{}).Where("id = ?", so.ID()).Count(&count).Error; err != nil {
+			return mapError(err)
 		}
 		if count == 0 {
 			return domainerrors.ErrNotFound
 		}
-		return domainerrors.ErrInsufficientStock
+		return domainerrors.ErrConcurrentUpdate
 	}
+	so.SetVersion(m.Version)
 	return nil
 }
 
 func (r *serviceOrderRepository) Delete(ctx context.Context, id string) error {
-	return mapError(r.db.WithContext(ctx).Delete(&pgmodel.ServiceOrder{}, "id = ?", id).Error)
+	return mapError(conn(ctx, r.db).Delete(&pgmodel.ServiceOrder{}, "id = ?", id).Error)
 }
 
 func (r *serviceOrderRepository) AverageExecutionTime(ctx context.Context) (time.Duration, error) {
 	var averageSeconds float64
-	err := r.db.WithContext(ctx).
+	err := conn(ctx, r.db).
 		Model(&pgmodel.ServiceOrder{}).
 		Where("started_at IS NOT NULL AND finished_at IS NOT NULL").
 		Select("COALESCE(EXTRACT(EPOCH FROM AVG(finished_at - started_at)), 0)").

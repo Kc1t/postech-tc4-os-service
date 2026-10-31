@@ -17,4 +17,8 @@ var (
 	ErrInvalidCredentials           = errors.New("invalid credentials")
 	ErrInvalidRefreshToken          = errors.New("invalid or expired refresh token")
 	ErrAccountLocked                = errors.New("account temporarily locked")
+	ErrConcurrentUpdate             = errors.New("resource was modified concurrently")
+	ErrSagaOutOfStep                = errors.New("saga is not waiting for this reply")
+	ErrUnknownCatalogItem           = errors.New("service or part not found in catalog")
+	ErrInvalidSimulatedFailure      = errors.New("simulate_failure must be one of: budget, payment, repair")
 )

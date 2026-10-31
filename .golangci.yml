@@ -1,0 +1,22 @@
+version: "2"
+run:
+  timeout: 5m
+linters:
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - noctx
+    - unconvert
+  settings:
+    gosec:
+      excludes:
+        - G104 # coberto pelo errcheck
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx, bodyclose]
+      - path: internal/ports/mocks/
+        linters: [all]
+      - path: docs/
+        linters: [all]

@@ -1,14 +1,17 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: workshop-api-hpa
+  name: os-service
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: workshop-api
+    name: os-service
   minReplicas: 2
-  maxReplicas: 10
+  maxReplicas: 6
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120
   metrics:
     - type: Resource
       resource:

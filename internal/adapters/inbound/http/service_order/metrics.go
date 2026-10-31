@@ -18,7 +18,7 @@ import (
 // @Security    BearerAuth
 // @Router      /service-orders/metrics/execution-time [get]
 func (h *ServiceOrderHandler) AverageExecutionTime(c *gin.Context) {
-	avg, err := h.averageExecutionTime.Execute(c.Request.Context())
+	avg, err := h.d.AverageExecutionTime.Execute(c.Request.Context())
 	if err != nil {
 		httputil.HandleError(c, err)
 		return

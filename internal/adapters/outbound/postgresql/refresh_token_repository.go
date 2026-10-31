@@ -21,7 +21,7 @@ func NewRefreshTokenRepository(db *gorm.DB) ports.RefreshTokenRepository {
 
 func (r *refreshTokenRepository) Create(ctx context.Context, rt *entities.RefreshToken) error {
 	m := pgmodel.FromRefreshToken(rt)
-	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
+	if err := conn(ctx, r.db).Create(m).Error; err != nil {
 		return err
 	}
 	rt.SetID(m.ID)
@@ -30,7 +30,7 @@ func (r *refreshTokenRepository) Create(ctx context.Context, rt *entities.Refres
 
 func (r *refreshTokenRepository) FindByTokenHash(ctx context.Context, hash string) (*entities.RefreshToken, error) {
 	var m pgmodel.RefreshToken
-	if err := r.db.WithContext(ctx).First(&m, "token_hash = ? AND revoked = false", hash).Error; err != nil {
+	if err := conn(ctx, r.db).First(&m, "token_hash = ? AND revoked = false", hash).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domainerrors.ErrNotFound
 		}
@@ -40,7 +40,7 @@ func (r *refreshTokenRepository) FindByTokenHash(ctx context.Context, hash strin
 }
 
 func (r *refreshTokenRepository) Revoke(ctx context.Context, id string) error {
-	result := r.db.WithContext(ctx).
+	result := conn(ctx, r.db).
 		Model(&pgmodel.RefreshToken{}).
 		Where("id = ? AND revoked = false", id).
 		Update("revoked", true)
@@ -54,14 +54,14 @@ func (r *refreshTokenRepository) Revoke(ctx context.Context, id string) error {
 }
 
 func (r *refreshTokenRepository) RevokeByUserID(ctx context.Context, userID string) error {
-	return r.db.WithContext(ctx).
+	return conn(ctx, r.db).
 		Model(&pgmodel.RefreshToken{}).
 		Where("user_id = ? AND revoked = false", userID).
 		Update("revoked", true).Error
 }
 
 func (r *refreshTokenRepository) RotateToken(ctx context.Context, oldID string, newRT *entities.RefreshToken) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return conn(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&pgmodel.RefreshToken{}).
 			Where("id = ? AND revoked = false", oldID).
 			Update("revoked", true)

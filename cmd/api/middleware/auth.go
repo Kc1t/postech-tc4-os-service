@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -12,13 +13,13 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authorization header required"})
+			unauthorized(c, "authorization header required")
 			return
 		}
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
+			unauthorized(c, "invalid authorization header format")
 			return
 		}
 
@@ -29,20 +30,20 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 			return []byte(jwtSecret), nil
 		})
 		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			unauthorized(c, "invalid or expired token")
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
+			unauthorized(c, "invalid token claims")
 			return
 		}
 
 		sub, subOk := claims["sub"].(string)
 		role, roleOk := claims["role"].(string)
 		if !subOk || sub == "" || !roleOk || role == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "incomplete token claims"})
+			unauthorized(c, "incomplete token claims")
 			return
 		}
 
@@ -58,4 +59,8 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func unauthorized(c *gin.Context, msg string) {
+	httputil.Abort(c, http.StatusUnauthorized, httputil.CodeUnauthorized, msg)
 }

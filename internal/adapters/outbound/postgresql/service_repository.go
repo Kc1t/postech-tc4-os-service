@@ -19,7 +19,7 @@ func NewServiceRepository(db *gorm.DB) ports.ServiceRepository {
 
 func (r *serviceRepository) Create(ctx context.Context, s *entities.Service) error {
 	m := pgmodel.FromService(s)
-	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
+	if err := conn(ctx, r.db).Create(m).Error; err != nil {
 		return mapError(err)
 	}
 	s.SetID(m.ID)
@@ -28,7 +28,7 @@ func (r *serviceRepository) Create(ctx context.Context, s *entities.Service) err
 
 func (r *serviceRepository) FindByID(ctx context.Context, id string) (*entities.Service, error) {
 	var m pgmodel.Service
-	if err := r.db.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
+	if err := conn(ctx, r.db).First(&m, "id = ?", id).Error; err != nil {
 		return nil, mapError(err)
 	}
 	return m.ToDomain(), nil
@@ -36,7 +36,7 @@ func (r *serviceRepository) FindByID(ctx context.Context, id string) (*entities.
 
 func (r *serviceRepository) FindByIDs(ctx context.Context, ids []string) ([]*entities.Service, error) {
 	var docs []pgmodel.Service
-	if err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&docs).Error; err != nil {
+	if err := conn(ctx, r.db).Where("id IN ?", ids).Find(&docs).Error; err != nil {
 		return nil, mapError(err)
 	}
 	services := make([]*entities.Service, 0, len(docs))
@@ -48,7 +48,7 @@ func (r *serviceRepository) FindByIDs(ctx context.Context, ids []string) ([]*ent
 
 func (r *serviceRepository) FindByCodes(ctx context.Context, codes []int) ([]*entities.Service, error) {
 	var docs []pgmodel.Service
-	if err := r.db.WithContext(ctx).Where("code IN ?", codes).Find(&docs).Error; err != nil {
+	if err := conn(ctx, r.db).Where("code IN ?", codes).Find(&docs).Error; err != nil {
 		return nil, mapError(err)
 	}
 	services := make([]*entities.Service, 0, len(docs))
@@ -60,7 +60,7 @@ func (r *serviceRepository) FindByCodes(ctx context.Context, codes []int) ([]*en
 
 func (r *serviceRepository) FindAll(ctx context.Context) ([]*entities.Service, error) {
 	var docs []pgmodel.Service
-	if err := r.db.WithContext(ctx).Find(&docs).Error; err != nil {
+	if err := conn(ctx, r.db).Find(&docs).Error; err != nil {
 		return nil, mapError(err)
 	}
 	services := make([]*entities.Service, 0, len(docs))
@@ -72,9 +72,9 @@ func (r *serviceRepository) FindAll(ctx context.Context) ([]*entities.Service, e
 
 func (r *serviceRepository) Update(ctx context.Context, s *entities.Service) error {
 	m := pgmodel.FromService(s)
-	return mapError(r.db.WithContext(ctx).Save(m).Error)
+	return mapError(conn(ctx, r.db).Save(m).Error)
 }
 
 func (r *serviceRepository) Delete(ctx context.Context, id string) error {
-	return mapError(r.db.WithContext(ctx).Delete(&pgmodel.Service{}, "id = ?", id).Error)
+	return mapError(conn(ctx, r.db).Delete(&pgmodel.Service{}, "id = ?", id).Error)
 }

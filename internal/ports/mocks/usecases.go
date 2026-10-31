@@ -15,6 +15,8 @@ import (
 	time "time"
 
 	entities "github.com/Kc1t/postech-tc4-os-service/internal/domain/entities"
+	ports "github.com/Kc1t/postech-tc4-os-service/internal/ports"
+	contracts "github.com/Kc1t/postech-tc4-os-service/pkg/contracts"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -637,44 +639,6 @@ func (mr *MockListServiceOrdersByRequesterUseCaseMockRecorder) Execute(ctx, requ
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockListServiceOrdersByRequesterUseCase)(nil).Execute), ctx, requesterID)
 }
 
-// MockUpdateServiceOrderStatusUseCase is a mock of UpdateServiceOrderStatusUseCase interface.
-type MockUpdateServiceOrderStatusUseCase struct {
-	ctrl     *gomock.Controller
-	recorder *MockUpdateServiceOrderStatusUseCaseMockRecorder
-	isgomock struct{}
-}
-
-// MockUpdateServiceOrderStatusUseCaseMockRecorder is the mock recorder for MockUpdateServiceOrderStatusUseCase.
-type MockUpdateServiceOrderStatusUseCaseMockRecorder struct {
-	mock *MockUpdateServiceOrderStatusUseCase
-}
-
-// NewMockUpdateServiceOrderStatusUseCase creates a new mock instance.
-func NewMockUpdateServiceOrderStatusUseCase(ctrl *gomock.Controller) *MockUpdateServiceOrderStatusUseCase {
-	mock := &MockUpdateServiceOrderStatusUseCase{ctrl: ctrl}
-	mock.recorder = &MockUpdateServiceOrderStatusUseCaseMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockUpdateServiceOrderStatusUseCase) EXPECT() *MockUpdateServiceOrderStatusUseCaseMockRecorder {
-	return m.recorder
-}
-
-// Execute mocks base method.
-func (m *MockUpdateServiceOrderStatusUseCase) Execute(ctx context.Context, input entities.StatusUpdate) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Execute", ctx, input)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Execute indicates an expected call of Execute.
-func (mr *MockUpdateServiceOrderStatusUseCaseMockRecorder) Execute(ctx, input any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockUpdateServiceOrderStatusUseCase)(nil).Execute), ctx, input)
-}
-
 // MockGetServiceOrderByCodeUseCase is a mock of GetServiceOrderByCodeUseCase interface.
 type MockGetServiceOrderByCodeUseCase struct {
 	ctrl     *gomock.Controller
@@ -753,108 +717,70 @@ func (mr *MockListServiceOrdersByDocumentUseCaseMockRecorder) Execute(ctx, docum
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockListServiceOrdersByDocumentUseCase)(nil).Execute), ctx, document)
 }
 
-// MockUpdateServiceOrderStatusByCodeUseCase is a mock of UpdateServiceOrderStatusByCodeUseCase interface.
-type MockUpdateServiceOrderStatusByCodeUseCase struct {
+// MockCancelServiceOrderUseCase is a mock of CancelServiceOrderUseCase interface.
+type MockCancelServiceOrderUseCase struct {
 	ctrl     *gomock.Controller
-	recorder *MockUpdateServiceOrderStatusByCodeUseCaseMockRecorder
+	recorder *MockCancelServiceOrderUseCaseMockRecorder
 	isgomock struct{}
 }
 
-// MockUpdateServiceOrderStatusByCodeUseCaseMockRecorder is the mock recorder for MockUpdateServiceOrderStatusByCodeUseCase.
-type MockUpdateServiceOrderStatusByCodeUseCaseMockRecorder struct {
-	mock *MockUpdateServiceOrderStatusByCodeUseCase
+// MockCancelServiceOrderUseCaseMockRecorder is the mock recorder for MockCancelServiceOrderUseCase.
+type MockCancelServiceOrderUseCaseMockRecorder struct {
+	mock *MockCancelServiceOrderUseCase
 }
 
-// NewMockUpdateServiceOrderStatusByCodeUseCase creates a new mock instance.
-func NewMockUpdateServiceOrderStatusByCodeUseCase(ctrl *gomock.Controller) *MockUpdateServiceOrderStatusByCodeUseCase {
-	mock := &MockUpdateServiceOrderStatusByCodeUseCase{ctrl: ctrl}
-	mock.recorder = &MockUpdateServiceOrderStatusByCodeUseCaseMockRecorder{mock}
+// NewMockCancelServiceOrderUseCase creates a new mock instance.
+func NewMockCancelServiceOrderUseCase(ctrl *gomock.Controller) *MockCancelServiceOrderUseCase {
+	mock := &MockCancelServiceOrderUseCase{ctrl: ctrl}
+	mock.recorder = &MockCancelServiceOrderUseCaseMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockUpdateServiceOrderStatusByCodeUseCase) EXPECT() *MockUpdateServiceOrderStatusByCodeUseCaseMockRecorder {
+func (m *MockCancelServiceOrderUseCase) EXPECT() *MockCancelServiceOrderUseCaseMockRecorder {
 	return m.recorder
 }
 
 // Execute mocks base method.
-func (m *MockUpdateServiceOrderStatusByCodeUseCase) Execute(ctx context.Context, code int, requesterDocument string, newStatus entities.OrderStatus) error {
+func (m *MockCancelServiceOrderUseCase) Execute(ctx context.Context, id, reason string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Execute", ctx, code, requesterDocument, newStatus)
+	ret := m.ctrl.Call(m, "Execute", ctx, id, reason)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Execute indicates an expected call of Execute.
-func (mr *MockUpdateServiceOrderStatusByCodeUseCaseMockRecorder) Execute(ctx, code, requesterDocument, newStatus any) *gomock.Call {
+func (mr *MockCancelServiceOrderUseCaseMockRecorder) Execute(ctx, id, reason any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockUpdateServiceOrderStatusByCodeUseCase)(nil).Execute), ctx, code, requesterDocument, newStatus)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockCancelServiceOrderUseCase)(nil).Execute), ctx, id, reason)
 }
 
-// MockUpdateServiceOrderUseCase is a mock of UpdateServiceOrderUseCase interface.
-type MockUpdateServiceOrderUseCase struct {
+// MockDeliverServiceOrderUseCase is a mock of DeliverServiceOrderUseCase interface.
+type MockDeliverServiceOrderUseCase struct {
 	ctrl     *gomock.Controller
-	recorder *MockUpdateServiceOrderUseCaseMockRecorder
+	recorder *MockDeliverServiceOrderUseCaseMockRecorder
 	isgomock struct{}
 }
 
-// MockUpdateServiceOrderUseCaseMockRecorder is the mock recorder for MockUpdateServiceOrderUseCase.
-type MockUpdateServiceOrderUseCaseMockRecorder struct {
-	mock *MockUpdateServiceOrderUseCase
+// MockDeliverServiceOrderUseCaseMockRecorder is the mock recorder for MockDeliverServiceOrderUseCase.
+type MockDeliverServiceOrderUseCaseMockRecorder struct {
+	mock *MockDeliverServiceOrderUseCase
 }
 
-// NewMockUpdateServiceOrderUseCase creates a new mock instance.
-func NewMockUpdateServiceOrderUseCase(ctrl *gomock.Controller) *MockUpdateServiceOrderUseCase {
-	mock := &MockUpdateServiceOrderUseCase{ctrl: ctrl}
-	mock.recorder = &MockUpdateServiceOrderUseCaseMockRecorder{mock}
+// NewMockDeliverServiceOrderUseCase creates a new mock instance.
+func NewMockDeliverServiceOrderUseCase(ctrl *gomock.Controller) *MockDeliverServiceOrderUseCase {
+	mock := &MockDeliverServiceOrderUseCase{ctrl: ctrl}
+	mock.recorder = &MockDeliverServiceOrderUseCaseMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockUpdateServiceOrderUseCase) EXPECT() *MockUpdateServiceOrderUseCaseMockRecorder {
+func (m *MockDeliverServiceOrderUseCase) EXPECT() *MockDeliverServiceOrderUseCaseMockRecorder {
 	return m.recorder
 }
 
 // Execute mocks base method.
-func (m *MockUpdateServiceOrderUseCase) Execute(ctx context.Context, so *entities.ServiceOrder) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Execute", ctx, so)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Execute indicates an expected call of Execute.
-func (mr *MockUpdateServiceOrderUseCaseMockRecorder) Execute(ctx, so any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockUpdateServiceOrderUseCase)(nil).Execute), ctx, so)
-}
-
-// MockDeleteServiceOrderUseCase is a mock of DeleteServiceOrderUseCase interface.
-type MockDeleteServiceOrderUseCase struct {
-	ctrl     *gomock.Controller
-	recorder *MockDeleteServiceOrderUseCaseMockRecorder
-	isgomock struct{}
-}
-
-// MockDeleteServiceOrderUseCaseMockRecorder is the mock recorder for MockDeleteServiceOrderUseCase.
-type MockDeleteServiceOrderUseCaseMockRecorder struct {
-	mock *MockDeleteServiceOrderUseCase
-}
-
-// NewMockDeleteServiceOrderUseCase creates a new mock instance.
-func NewMockDeleteServiceOrderUseCase(ctrl *gomock.Controller) *MockDeleteServiceOrderUseCase {
-	mock := &MockDeleteServiceOrderUseCase{ctrl: ctrl}
-	mock.recorder = &MockDeleteServiceOrderUseCaseMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDeleteServiceOrderUseCase) EXPECT() *MockDeleteServiceOrderUseCaseMockRecorder {
-	return m.recorder
-}
-
-// Execute mocks base method.
-func (m *MockDeleteServiceOrderUseCase) Execute(ctx context.Context, id string) error {
+func (m *MockDeliverServiceOrderUseCase) Execute(ctx context.Context, id string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Execute", ctx, id)
 	ret0, _ := ret[0].(error)
@@ -862,9 +788,178 @@ func (m *MockDeleteServiceOrderUseCase) Execute(ctx context.Context, id string) 
 }
 
 // Execute indicates an expected call of Execute.
-func (mr *MockDeleteServiceOrderUseCaseMockRecorder) Execute(ctx, id any) *gomock.Call {
+func (mr *MockDeliverServiceOrderUseCaseMockRecorder) Execute(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockDeleteServiceOrderUseCase)(nil).Execute), ctx, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockDeliverServiceOrderUseCase)(nil).Execute), ctx, id)
+}
+
+// MockGetServiceOrderHistoryUseCase is a mock of GetServiceOrderHistoryUseCase interface.
+type MockGetServiceOrderHistoryUseCase struct {
+	ctrl     *gomock.Controller
+	recorder *MockGetServiceOrderHistoryUseCaseMockRecorder
+	isgomock struct{}
+}
+
+// MockGetServiceOrderHistoryUseCaseMockRecorder is the mock recorder for MockGetServiceOrderHistoryUseCase.
+type MockGetServiceOrderHistoryUseCaseMockRecorder struct {
+	mock *MockGetServiceOrderHistoryUseCase
+}
+
+// NewMockGetServiceOrderHistoryUseCase creates a new mock instance.
+func NewMockGetServiceOrderHistoryUseCase(ctrl *gomock.Controller) *MockGetServiceOrderHistoryUseCase {
+	mock := &MockGetServiceOrderHistoryUseCase{ctrl: ctrl}
+	mock.recorder = &MockGetServiceOrderHistoryUseCaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockGetServiceOrderHistoryUseCase) EXPECT() *MockGetServiceOrderHistoryUseCaseMockRecorder {
+	return m.recorder
+}
+
+// Execute mocks base method.
+func (m *MockGetServiceOrderHistoryUseCase) Execute(ctx context.Context, id string) ([]*entities.StatusHistoryEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Execute", ctx, id)
+	ret0, _ := ret[0].([]*entities.StatusHistoryEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Execute indicates an expected call of Execute.
+func (mr *MockGetServiceOrderHistoryUseCaseMockRecorder) Execute(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockGetServiceOrderHistoryUseCase)(nil).Execute), ctx, id)
+}
+
+// MockGetServiceOrderDetailsUseCase is a mock of GetServiceOrderDetailsUseCase interface.
+type MockGetServiceOrderDetailsUseCase struct {
+	ctrl     *gomock.Controller
+	recorder *MockGetServiceOrderDetailsUseCaseMockRecorder
+	isgomock struct{}
+}
+
+// MockGetServiceOrderDetailsUseCaseMockRecorder is the mock recorder for MockGetServiceOrderDetailsUseCase.
+type MockGetServiceOrderDetailsUseCaseMockRecorder struct {
+	mock *MockGetServiceOrderDetailsUseCase
+}
+
+// NewMockGetServiceOrderDetailsUseCase creates a new mock instance.
+func NewMockGetServiceOrderDetailsUseCase(ctrl *gomock.Controller) *MockGetServiceOrderDetailsUseCase {
+	mock := &MockGetServiceOrderDetailsUseCase{ctrl: ctrl}
+	mock.recorder = &MockGetServiceOrderDetailsUseCaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockGetServiceOrderDetailsUseCase) EXPECT() *MockGetServiceOrderDetailsUseCaseMockRecorder {
+	return m.recorder
+}
+
+// Execute mocks base method.
+func (m *MockGetServiceOrderDetailsUseCase) Execute(ctx context.Context, id string) (*ports.ServiceOrderDetails, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Execute", ctx, id)
+	ret0, _ := ret[0].(*ports.ServiceOrderDetails)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Execute indicates an expected call of Execute.
+func (mr *MockGetServiceOrderDetailsUseCaseMockRecorder) Execute(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockGetServiceOrderDetailsUseCase)(nil).Execute), ctx, id)
+}
+
+// MockHandleSagaReplyUseCase is a mock of HandleSagaReplyUseCase interface.
+type MockHandleSagaReplyUseCase struct {
+	ctrl     *gomock.Controller
+	recorder *MockHandleSagaReplyUseCaseMockRecorder
+	isgomock struct{}
+}
+
+// MockHandleSagaReplyUseCaseMockRecorder is the mock recorder for MockHandleSagaReplyUseCase.
+type MockHandleSagaReplyUseCaseMockRecorder struct {
+	mock *MockHandleSagaReplyUseCase
+}
+
+// NewMockHandleSagaReplyUseCase creates a new mock instance.
+func NewMockHandleSagaReplyUseCase(ctrl *gomock.Controller) *MockHandleSagaReplyUseCase {
+	mock := &MockHandleSagaReplyUseCase{ctrl: ctrl}
+	mock.recorder = &MockHandleSagaReplyUseCaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockHandleSagaReplyUseCase) EXPECT() *MockHandleSagaReplyUseCaseMockRecorder {
+	return m.recorder
+}
+
+// Execute mocks base method.
+func (m *MockHandleSagaReplyUseCase) Execute(ctx context.Context, env contracts.Envelope) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Execute", ctx, env)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Execute indicates an expected call of Execute.
+func (mr *MockHandleSagaReplyUseCaseMockRecorder) Execute(ctx, env any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockHandleSagaReplyUseCase)(nil).Execute), ctx, env)
+}
+
+// Types mocks base method.
+func (m *MockHandleSagaReplyUseCase) Types() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Types")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// Types indicates an expected call of Types.
+func (mr *MockHandleSagaReplyUseCaseMockRecorder) Types() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Types", reflect.TypeOf((*MockHandleSagaReplyUseCase)(nil).Types))
+}
+
+// MockExpireSagasUseCase is a mock of ExpireSagasUseCase interface.
+type MockExpireSagasUseCase struct {
+	ctrl     *gomock.Controller
+	recorder *MockExpireSagasUseCaseMockRecorder
+	isgomock struct{}
+}
+
+// MockExpireSagasUseCaseMockRecorder is the mock recorder for MockExpireSagasUseCase.
+type MockExpireSagasUseCaseMockRecorder struct {
+	mock *MockExpireSagasUseCase
+}
+
+// NewMockExpireSagasUseCase creates a new mock instance.
+func NewMockExpireSagasUseCase(ctrl *gomock.Controller) *MockExpireSagasUseCase {
+	mock := &MockExpireSagasUseCase{ctrl: ctrl}
+	mock.recorder = &MockExpireSagasUseCaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockExpireSagasUseCase) EXPECT() *MockExpireSagasUseCaseMockRecorder {
+	return m.recorder
+}
+
+// Execute mocks base method.
+func (m *MockExpireSagasUseCase) Execute(ctx context.Context, now time.Time) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Execute", ctx, now)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Execute indicates an expected call of Execute.
+func (mr *MockExpireSagasUseCaseMockRecorder) Execute(ctx, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockExpireSagasUseCase)(nil).Execute), ctx, now)
 }
 
 // MockGetAverageExecutionTimeUseCase is a mock of GetAverageExecutionTimeUseCase interface.
@@ -1326,4 +1421,160 @@ func (m *MockAdjustPartStockUseCase) Execute(ctx context.Context, id string, del
 func (mr *MockAdjustPartStockUseCaseMockRecorder) Execute(ctx, id, delta any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockAdjustPartStockUseCase)(nil).Execute), ctx, id, delta)
+}
+
+// MockRegisterUseCase is a mock of RegisterUseCase interface.
+type MockRegisterUseCase struct {
+	ctrl     *gomock.Controller
+	recorder *MockRegisterUseCaseMockRecorder
+	isgomock struct{}
+}
+
+// MockRegisterUseCaseMockRecorder is the mock recorder for MockRegisterUseCase.
+type MockRegisterUseCaseMockRecorder struct {
+	mock *MockRegisterUseCase
+}
+
+// NewMockRegisterUseCase creates a new mock instance.
+func NewMockRegisterUseCase(ctrl *gomock.Controller) *MockRegisterUseCase {
+	mock := &MockRegisterUseCase{ctrl: ctrl}
+	mock.recorder = &MockRegisterUseCaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRegisterUseCase) EXPECT() *MockRegisterUseCaseMockRecorder {
+	return m.recorder
+}
+
+// Execute mocks base method.
+func (m *MockRegisterUseCase) Execute(ctx context.Context, name, email, rawPassword string, role entities.Role) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Execute", ctx, name, email, rawPassword, role)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Execute indicates an expected call of Execute.
+func (mr *MockRegisterUseCaseMockRecorder) Execute(ctx, name, email, rawPassword, role any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockRegisterUseCase)(nil).Execute), ctx, name, email, rawPassword, role)
+}
+
+// MockLoginUseCase is a mock of LoginUseCase interface.
+type MockLoginUseCase struct {
+	ctrl     *gomock.Controller
+	recorder *MockLoginUseCaseMockRecorder
+	isgomock struct{}
+}
+
+// MockLoginUseCaseMockRecorder is the mock recorder for MockLoginUseCase.
+type MockLoginUseCaseMockRecorder struct {
+	mock *MockLoginUseCase
+}
+
+// NewMockLoginUseCase creates a new mock instance.
+func NewMockLoginUseCase(ctrl *gomock.Controller) *MockLoginUseCase {
+	mock := &MockLoginUseCase{ctrl: ctrl}
+	mock.recorder = &MockLoginUseCaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockLoginUseCase) EXPECT() *MockLoginUseCaseMockRecorder {
+	return m.recorder
+}
+
+// Execute mocks base method.
+func (m *MockLoginUseCase) Execute(ctx context.Context, email, password string) (string, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Execute", ctx, email, password)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Execute indicates an expected call of Execute.
+func (mr *MockLoginUseCaseMockRecorder) Execute(ctx, email, password any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockLoginUseCase)(nil).Execute), ctx, email, password)
+}
+
+// MockRefreshTokenUseCase is a mock of RefreshTokenUseCase interface.
+type MockRefreshTokenUseCase struct {
+	ctrl     *gomock.Controller
+	recorder *MockRefreshTokenUseCaseMockRecorder
+	isgomock struct{}
+}
+
+// MockRefreshTokenUseCaseMockRecorder is the mock recorder for MockRefreshTokenUseCase.
+type MockRefreshTokenUseCaseMockRecorder struct {
+	mock *MockRefreshTokenUseCase
+}
+
+// NewMockRefreshTokenUseCase creates a new mock instance.
+func NewMockRefreshTokenUseCase(ctrl *gomock.Controller) *MockRefreshTokenUseCase {
+	mock := &MockRefreshTokenUseCase{ctrl: ctrl}
+	mock.recorder = &MockRefreshTokenUseCaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRefreshTokenUseCase) EXPECT() *MockRefreshTokenUseCaseMockRecorder {
+	return m.recorder
+}
+
+// Execute mocks base method.
+func (m *MockRefreshTokenUseCase) Execute(ctx context.Context, rawRefreshToken string) (string, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Execute", ctx, rawRefreshToken)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Execute indicates an expected call of Execute.
+func (mr *MockRefreshTokenUseCaseMockRecorder) Execute(ctx, rawRefreshToken any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockRefreshTokenUseCase)(nil).Execute), ctx, rawRefreshToken)
+}
+
+// MockLogoutUseCase is a mock of LogoutUseCase interface.
+type MockLogoutUseCase struct {
+	ctrl     *gomock.Controller
+	recorder *MockLogoutUseCaseMockRecorder
+	isgomock struct{}
+}
+
+// MockLogoutUseCaseMockRecorder is the mock recorder for MockLogoutUseCase.
+type MockLogoutUseCaseMockRecorder struct {
+	mock *MockLogoutUseCase
+}
+
+// NewMockLogoutUseCase creates a new mock instance.
+func NewMockLogoutUseCase(ctrl *gomock.Controller) *MockLogoutUseCase {
+	mock := &MockLogoutUseCase{ctrl: ctrl}
+	mock.recorder = &MockLogoutUseCaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockLogoutUseCase) EXPECT() *MockLogoutUseCaseMockRecorder {
+	return m.recorder
+}
+
+// Execute mocks base method.
+func (m *MockLogoutUseCase) Execute(ctx context.Context, userID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Execute", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Execute indicates an expected call of Execute.
+func (mr *MockLogoutUseCaseMockRecorder) Execute(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockLogoutUseCase)(nil).Execute), ctx, userID)
 }

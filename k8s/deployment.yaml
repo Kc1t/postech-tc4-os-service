@@ -1,45 +1,82 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: workshop-api
+  name: os-service
   labels:
-    app: workshop-api
+    app: os-service
+    app.kubernetes.io/part-of: oficina
 spec:
   replicas: 2
+  revisionHistoryLimit: 5
+  # Rolling update sem indisponibilidade: sobe um pod novo, espera ficar ready e só então
+  # derruba um antigo.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
-      app: workshop-api
+      app: os-service
   template:
     metadata:
       labels:
-        app: workshop-api
+        app: os-service
+        app.kubernetes.io/part-of: oficina
     spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: workshop-api
+        - name: os-service
           image: IMAGE_PLACEHOLDER
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
           envFrom:
             - configMapRef:
-                name: workshop-api-config
+                name: os-service-config
             - secretRef:
-                name: workshop-api-secret
+                name: os-service-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: "100m"
               memory: "128Mi"
             limits:
               cpu: "500m"
-              memory: "512Mi"
+              memory: "384Mi"
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 3
+            failureThreshold: 20
           readinessProbe:
             httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 5
+              path: /health/ready
+              port: http
             periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 15
+              path: /health/live
+              port: http
             periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          lifecycle:
+            # Dá tempo do pod sair dos endpoints do Service antes do SIGTERM.
+            preStop:
+              exec:
+                command: ["sleep", "5"]

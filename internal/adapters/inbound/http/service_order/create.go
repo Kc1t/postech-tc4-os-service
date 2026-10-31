@@ -14,10 +14,20 @@ import (
 // @Tags        service-orders
 // @Accept      json
 // @Produce     json
+// @Description Abre a OS e inicia a saga (StartDiagnosis para o execution-service). Com
+// @Description FAULT_INJECTION_ENABLED=true, o header X-Simulate-Failure (budget, payment ou
+// @Description repair) força a falha da etapa para demonstrar as compensações.
 // @Param       body body commands.CreateServiceOrderRequest true "Dados da OS"
+// @Param       X-Simulate-Failure header string false "Falha simulada: budget, payment ou repair"
 // @Success     201 {object} commands.ServiceOrderResponse
+// @Failure     400 {object} httputil.ErrorResponse
+// @Failure     404 {object} httputil.ErrorResponse
+// @Failure     422 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /service-orders [post]
+// SimulateFailureHeader é o header de demonstração das compensações da saga.
+const SimulateFailureHeader = "X-Simulate-Failure"
+
 func (h *ServiceOrderHandler) Create(c *gin.Context) {
 	var req commands.CreateServiceOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -35,9 +45,10 @@ func (h *ServiceOrderHandler) Create(c *gin.Context) {
 		RequesterDocument: doc.Value(),
 		VehiclePlate:      req.VehiclePlate,
 		Notes:             req.Notes,
+		SimulateFailure:   c.GetHeader(SimulateFailureHeader),
 	}
 
-	so, err := h.create.Execute(c.Request.Context(), input)
+	so, err := h.d.Create.Execute(c.Request.Context(), input)
 	if err != nil {
 		httputil.HandleError(c, err)
 		return

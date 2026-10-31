@@ -1,7 +1,9 @@
 package routes
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	_ "github.com/Kc1t/postech-tc4-os-service/docs"
 
@@ -13,12 +15,23 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// HealthPaths ficam fora do log de requisições.
+var HealthPaths = []string{"/health", "/health/live", "/health/ready"}
+
+// Pinger é o que o readiness precisa do banco.
+type Pinger interface {
+	PingContext(ctx context.Context) error
+}
+
 func Setup(router *gin.Engine, c *bootstrap.Container) {
-	router.Use(middleware.CORS())
+	router.Use(middleware.CORS(c.Config.CORSAllowedOrigins))
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	router.GET("/health", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+
+	sqlDB, _ := c.DB().DB()
+	Health(router, sqlDB)
+
+	// Rotas internas (Lambda de autenticação), fora do API Gateway público.
+	c.InternalHandler.SetupRoutes(router)
 
 	prefix := router.Group("/api/v1")
 
@@ -47,4 +60,25 @@ func Setup(router *gin.Engine, c *bootstrap.Container) {
 	c.ServiceHandler.SetupRoutes(admin)
 	c.PartHandler.SetupRoutes(admin)
 	c.ServiceOrderHandler.SetupRoutes(admin)
+}
+
+// Health registra as probes. live diz só que o processo responde (o kubelet reinicia o pod se
+// falhar); ready verifica o banco (o pod sai do Service enquanto falhar, sem reiniciar).
+func Health(router gin.IRouter, db Pinger) {
+	live := func(ctx *gin.Context) { ctx.JSON(http.StatusOK, gin.H{"status": "ok"}) }
+	router.GET("/health", live)
+	router.GET("/health/live", live)
+	router.GET("/health/ready", func(ctx *gin.Context) {
+		if db == nil {
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"status": "unavailable", "postgres": "not configured"})
+			return
+		}
+		pingCtx, cancel := context.WithTimeout(ctx.Request.Context(), 2*time.Second)
+		defer cancel()
+		if err := db.PingContext(pingCtx); err != nil {
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"status": "unavailable", "postgres": "down"})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"status": "ok", "postgres": "up"})
+	})
 }
