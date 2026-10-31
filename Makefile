@@ -1,4 +1,4 @@
-.PHONY: help run build up down logs tidy swagger mocks test cover lint test-db
+.PHONY: help run build up down logs tidy swagger mocks test cover lint test-db bdd
 
 APP_NAME=os-service
 MAIN=./cmd/api
@@ -41,6 +41,10 @@ test:
 cover:
 	$(TEST_DB_ENV) go test -count=1 -coverprofile=coverage.out $(COVER_PKGS)
 	go tool cover -func=coverage.out | tail -1
+
+# BDD da saga (godog): features/saga.feature contra o orquestrador real e o Postgres de teste.
+bdd:
+	$(TEST_DB_ENV) go test -tags bdd -count=1 -v -run TestFeatures ./internal/application/usecase/saga/
 
 lint:
 	golangci-lint run ./...

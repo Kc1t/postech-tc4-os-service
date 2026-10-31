@@ -52,8 +52,15 @@ var routes = postgresql.Routes{
 	OSEventsTopicARN:          "arn:aws:sns:us-east-1:000000000000:os-events",
 }
 
+// tb é o que o fixture usa do *testing.T. O BDD (godog) passa um adaptador do T do cenário.
+type tb interface {
+	Helper()
+	Fatal(args ...any)
+	Cleanup(func())
+}
+
 type fx struct {
-	t       *testing.T
+	t       tb
 	ctx     context.Context
 	now     time.Time
 	o       *Orchestrator
@@ -70,7 +77,7 @@ type fx struct {
 	sagas     []string
 }
 
-func newFx(t *testing.T, cfg Config) *fx {
+func newFx(t tb, cfg Config) *fx {
 	t.Helper()
 	f := &fx{t: t, ctx: context.Background(), now: time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)}
 	f.o = NewOrchestrator(Deps{
@@ -122,7 +129,7 @@ func (f *fx) seedCatalog(stock int) {
 	})
 }
 
-func must(t *testing.T, err error) {
+func must(t tb, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatal(err)
@@ -197,7 +204,7 @@ func (f *fx) statuses(osID string) []entities.OrderStatus {
 	return out
 }
 
-func decodeAs[T any](t *testing.T, e contracts.Envelope) T {
+func decodeAs[T any](t tb, e contracts.Envelope) T {
 	t.Helper()
 	v, err := contracts.Decode[T](e)
 	must(t, err)
