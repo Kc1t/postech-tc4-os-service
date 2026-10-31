@@ -26,7 +26,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/newrelic/go-agent/v3/newrelic"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	authhandler "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http/auth"
@@ -202,7 +201,7 @@ func (c *Container) setupWorkers() {
 }
 
 func (c *Container) setupDatabase() {
-	db, err := gorm.Open(postgres.Open(c.Config.PostgresDSN), &gorm.Config{})
+	db, err := postgresql.Open(c.Config.PostgresDSN)
 	if err != nil {
 		log.Fatalf("bootstrap: failed to connect to postgresql: %v", err)
 	}

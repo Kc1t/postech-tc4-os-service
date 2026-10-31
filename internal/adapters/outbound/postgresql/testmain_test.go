@@ -11,7 +11,10 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var testDB *gorm.DB
+var (
+	testDB  *gorm.DB
+	testDSN string
+)
 
 func TestMain(m *testing.M) {
 	host := getEnvOrDefault("TEST_DB_HOST", "localhost")
@@ -25,6 +28,7 @@ func TestMain(m *testing.M) {
 		host, port, user, password, dbname,
 	)
 
+	testDSN = dsn
 	db, err := gorm.Open(gormpostgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
