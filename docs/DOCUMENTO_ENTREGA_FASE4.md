@@ -65,7 +65,7 @@
 | Reparo recusado depois de pago | **estorna o pagamento**, cancela o orçamento, devolve as peças |
 | Prazo vencido (aprovação 72 h, pagamento 24 h) ou cancelamento pela oficina | as da etapa em que a saga parou |
 
-**Confiabilidade:** transactional outbox (estado e mensagem na mesma transação), consumidores idempotentes (inbox por `message_id`), `SELECT … FOR UPDATE` e lock otimista na saga, DLQ com alarme e runbook. Para a demonstração, o header `X-Simulate-Failure: budget|payment|repair` força a falha de uma etapa.
+**Confiabilidade:** transactional outbox (estado e mensagem na mesma transação, com espera exponencial entre tentativas e alerta de mensagem travada), consumidores idempotentes (inbox por `message_id`, guardado por mais tempo que a DLQ), `SELECT … FOR UPDATE` e lock otimista na saga, DLQ com alarme e runbook. Os 23 tipos de mensagem têm JSON Schema validado nos testes de contrato de produtor e consumidor ([AsyncAPI](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/asyncapi/asyncapi.yaml)). Para a demonstração, o header `X-Simulate-Failure: budget|payment|repair` força a falha de uma etapa.
 
 ## 5. Divisão dos microsserviços e tecnologias
 
