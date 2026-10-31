@@ -1,5 +1,5 @@
 # ── Build ─────────────────────────────────────────────────────────────────────
-FROM golang:1.25-alpine AS builder
+FROM golang:1.26-alpine AS builder
 WORKDIR /src
 
 COPY go.mod go.sum ./
@@ -10,7 +10,7 @@ RUN go install github.com/swaggo/swag/cmd/swag@v1.16.3 && swag init -g cmd/api/m
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/os-service ./cmd/api
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
-FROM alpine:3.20
+FROM alpine:3.22
 RUN apk --no-cache add ca-certificates tzdata \
  && addgroup -S app -g 10001 \
  && adduser -S app -u 10001 -G app
