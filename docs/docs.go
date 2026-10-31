@@ -140,6 +140,7 @@ const docTemplate = `{
         },
         "/internal/requesters/{document}": {
             "get": {
+                "description": "Rota servida fora do prefixo /api/v1, em GET /internal/requesters/{document}; não é exposta no API Gateway.",
                 "produces": [
                     "application/json"
                 ],
