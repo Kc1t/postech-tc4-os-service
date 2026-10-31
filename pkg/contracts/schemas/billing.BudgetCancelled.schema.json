@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.BudgetCancelled",
+  "description": "Evento do billing-service (tópico billing-events → fila os-saga-replies): confirmação do CancelBudget. Não muda a saga; fica como auditoria.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.BudgetCancelled"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "budget_id",
+        "reason"
+      ],
+      "properties": {
+        "budget_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Orçamento cancelado."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Motivo registrado no orçamento."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "73ada63f-4be6-4b15-a13b-d585b75a4eab",
+      "type": "billing.BudgetCancelled",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "8eb2c12b-2bd0-427f-afb1-faf27fc52056",
+      "causation_id": "654adaf6-db91-4143-ba60-53e266d971ee",
+      "producer": "billing-service",
+      "occurred_at": "2026-11-03T12:00:01Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "reason": "cancelada pela oficina: cliente desistiu do serviço"
+      }
+    }
+  ]
+}

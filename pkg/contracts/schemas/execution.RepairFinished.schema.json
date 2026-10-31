@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "execution.RepairFinished",
+  "description": "Evento do execution-service (tópico execution-events → fila os-saga-replies): reparo concluído. A saga termina e a OS fica pronta para entrega.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "execution.RepairFinished"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "finished_at"
+      ],
+      "properties": {
+        "finished_at": {
+          "$ref": "common.schema.json#/$defs/dateTime",
+          "description": "Fim do reparo."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "58559765-5d04-4805-a382-21f505047a77",
+      "type": "execution.RepairFinished",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "c6d16230-c3c7-48ed-a79d-d719d82a2261",
+      "producer": "execution-service",
+      "occurred_at": "2026-11-03T15:10:00Z",
+      "payload": {
+        "finished_at": "2026-11-03T15:10:00Z"
+      }
+    }
+  ]
+}

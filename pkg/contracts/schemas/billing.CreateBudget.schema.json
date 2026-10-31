@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.CreateBudget",
+  "description": "Comando do os-service para o billing-service (fila billing-commands): gera o orçamento da OS a partir do diagnóstico, com os preços do catálogo. Resposta: BudgetCreated ou BudgetCreationFailed.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.CreateBudget"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "os_code",
+        "requester",
+        "items",
+        "total"
+      ],
+      "properties": {
+        "os_code": {
+          "$ref": "common.schema.json#/$defs/osCode"
+        },
+        "requester": {
+          "$ref": "common.schema.json#/$defs/requester"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "common.schema.json#/$defs/item"
+          },
+          "description": "Serviços e peças diagnosticados."
+        },
+        "total": {
+          "$ref": "common.schema.json#/$defs/money",
+          "description": "Soma de quantity × unit_price dos itens (o billing confere)."
+        },
+        "simulate_failure": {
+          "$ref": "common.schema.json#/$defs/simulateFailure",
+          "description": "\"budget\" faz o billing responder BudgetCreationFailed."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "250aa4d7-d464-48f0-b821-60de621d2531",
+      "type": "billing.CreateBudget",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "7b8a58c2-0d6e-46fa-a689-c6608a798ae5",
+      "causation_id": "aa8ae3df-4421-407c-b8d4-d138c3a9717c",
+      "producer": "os-service",
+      "occurred_at": "2026-11-03T10:05:01Z",
+      "payload": {
+        "os_code": 1042,
+        "requester": {
+          "id": "a0fd317e-365a-43b1-9362-328f0ca321a4",
+          "name": "Ana Souza",
+          "email": "ana.souza@example.com",
+          "document": "52998224725"
+        },
+        "items": [
+          {
+            "kind": "service",
+            "ref": "4012",
+            "description": "Troca de pastilhas de freio",
+            "quantity": 1,
+            "unit_price": 150
+          },
+          {
+            "kind": "part",
+            "ref": "BOSCH-0986BB0606",
+            "description": "Pastilha de freio dianteira",
+            "quantity": 2,
+            "unit_price": 90
+          }
+        ],
+        "total": 330
+      }
+    }
+  ]
+}

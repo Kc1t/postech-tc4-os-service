@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.PaymentRefunded",
+  "description": "Evento do billing-service (tópico billing-events → fila os-saga-replies): estorno concluído no provedor. A compensação da saga termina.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.PaymentRefunded"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "budget_id",
+        "payment_id",
+        "amount"
+      ],
+      "properties": {
+        "budget_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Orçamento do pagamento estornado."
+        },
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Pagamento estornado."
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/money",
+          "description": "Valor estornado."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "95e96e9d-a9bc-4b1d-af2e-eeb4b32508ec",
+      "type": "billing.PaymentRefunded",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "afb5440e-0779-47da-9dc3-7a40f5218244",
+      "causation_id": "33d32c85-909a-413b-90c6-b81c240ce5b7",
+      "producer": "billing-service",
+      "occurred_at": "2026-11-03T11:42:14Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "payment_id": "f3e63f2b-c55b-40cd-959e-be85535e5702",
+        "amount": 330
+      }
+    }
+  ]
+}

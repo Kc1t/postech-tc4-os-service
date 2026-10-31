@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "execution.CancelExecution",
+  "description": "Comando do os-service para o execution-service (fila execution-commands): compensação que cancela a execução (qualquer status não final).",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "execution.CancelExecution"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "reason"
+      ],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Motivo do cancelamento; vazio vira \"cancelada pela saga\"."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "ca69aa88-3834-4840-bb32-cab520c4f89a",
+      "type": "execution.CancelExecution",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "8eb2c12b-2bd0-427f-afb1-faf27fc52056",
+      "producer": "os-service",
+      "occurred_at": "2026-11-03T12:00:00Z",
+      "payload": {
+        "reason": "cancelada pela oficina: cliente desistiu do serviço"
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "execution.ExecutionCancelled",
+  "description": "Evento do execution-service (tópico execution-events → fila os-saga-replies): confirmação do CancelExecution. Não muda a saga; fica como auditoria.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "execution.ExecutionCancelled"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "reason"
+      ],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Motivo registrado no cancelamento."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "1e14da09-912e-45ad-a9d4-84ebad627b18",
+      "type": "execution.ExecutionCancelled",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "8eb2c12b-2bd0-427f-afb1-faf27fc52056",
+      "causation_id": "ca69aa88-3834-4840-bb32-cab520c4f89a",
+      "producer": "execution-service",
+      "occurred_at": "2026-11-03T12:00:01Z",
+      "payload": {
+        "reason": "cancelada pela oficina: cliente desistiu do serviço"
+      }
+    }
+  ]
+}

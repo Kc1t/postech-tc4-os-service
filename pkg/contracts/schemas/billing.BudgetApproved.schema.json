@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.BudgetApproved",
+  "description": "Evento do billing-service (tópico billing-events → fila os-saga-replies): o cliente aprovou o orçamento pela API. A saga pede o pagamento.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.BudgetApproved"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "budget_id",
+        "approved_at"
+      ],
+      "properties": {
+        "budget_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Orçamento aprovado."
+        },
+        "approved_at": {
+          "$ref": "common.schema.json#/$defs/dateTime",
+          "description": "Momento da aprovação."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "715a2d92-f69c-4066-8098-7a7ce050863b",
+      "type": "billing.BudgetApproved",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "8dfcb9bb-42de-4365-b8a5-ba1405487f49",
+      "producer": "billing-service",
+      "occurred_at": "2026-11-03T11:30:00Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "approved_at": "2026-11-03T11:30:00Z"
+      }
+    }
+  ]
+}

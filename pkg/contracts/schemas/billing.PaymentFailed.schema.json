@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.PaymentFailed",
+  "description": "Evento do billing-service (tópico billing-events → fila os-saga-replies): a cobrança falhou (recusa do provedor, orçamento inválido ou falha simulada). A saga compensa.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.PaymentFailed"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "budget_id",
+        "payment_id",
+        "reason"
+      ],
+      "properties": {
+        "budget_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Orçamento da cobrança."
+        },
+        "payment_id": {
+          "type": "string",
+          "anyOf": [
+            {
+              "format": "uuid"
+            },
+            {
+              "const": ""
+            }
+          ],
+          "description": "ID do pagamento no billing-service; vazio quando a cobrança nem chegou a ser criada (orçamento inexistente ou não aprovado)."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Motivo da falha."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "386e56ea-cc6f-42f7-88ca-849039e9b2ab",
+      "type": "billing.PaymentFailed",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "8dfcb9bb-42de-4365-b8a5-ba1405487f49",
+      "causation_id": "e211d30a-fc4e-4ef9-a702-340161923f08",
+      "producer": "billing-service",
+      "occurred_at": "2026-11-03T11:30:02Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "payment_id": "f3e63f2b-c55b-40cd-959e-be85535e5702",
+        "reason": "falha simulada no pagamento (simulate_failure=payment)"
+      }
+    }
+  ]
+}

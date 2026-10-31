@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "execution.RepairRejected",
+  "description": "Evento do execution-service (tópico execution-events → fila os-saga-replies): o reparo foi recusado (capacidade esgotada, execução em status inválido ou falha simulada). A saga compensa e estorna.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "execution.RepairRejected"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "reason"
+      ],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Motivo da recusa."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "687f4937-d593-45b9-a6f0-66a89606c419",
+      "type": "execution.RepairRejected",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "afb5440e-0779-47da-9dc3-7a40f5218244",
+      "causation_id": "6b54e9f3-162a-4753-968b-364d706e8dfb",
+      "producer": "execution-service",
+      "occurred_at": "2026-11-03T11:42:12Z",
+      "payload": {
+        "reason": "capacidade de reparos esgotada (10 de 10 em andamento)"
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.RefundPayment",
+  "description": "Comando do os-service para o billing-service (fila billing-commands): compensação que estorna o pagamento aprovado do orçamento. Resposta: PaymentRefunded.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.RefundPayment"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "budget_id",
+        "reason"
+      ],
+      "properties": {
+        "budget_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Orçamento cujo pagamento aprovado será estornado."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Motivo do estorno."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "33d32c85-909a-413b-90c6-b81c240ce5b7",
+      "type": "billing.RefundPayment",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "afb5440e-0779-47da-9dc3-7a40f5218244",
+      "causation_id": "687f4937-d593-45b9-a6f0-66a89606c419",
+      "producer": "os-service",
+      "occurred_at": "2026-11-03T11:42:13Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "reason": "execução recusada pela oficina: capacidade de reparos esgotada (10 de 10 em andamento)"
+      }
+    }
+  ]
+}

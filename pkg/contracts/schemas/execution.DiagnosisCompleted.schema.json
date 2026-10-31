@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "execution.DiagnosisCompleted",
+  "description": "Evento do execution-service (tópico execution-events → fila os-saga-replies): diagnóstico concluído com os serviços e peças necessários. O os-service reserva as peças e pede o orçamento.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "execution.DiagnosisCompleted"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "services",
+        "parts"
+      ],
+      "properties": {
+        "services": {
+          "type": "array",
+          "description": "Serviços do catálogo indicados (pode ser vazio se houver peças).",
+          "items": {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Código do serviço no catálogo do os-service."
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "parts": {
+          "type": "array",
+          "description": "Peças indicadas (pode ser vazio se houver serviços).",
+          "items": {
+            "type": "object",
+            "required": [
+              "manufacturer_code",
+              "quantity"
+            ],
+            "properties": {
+              "manufacturer_code": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Código do fabricante da peça no catálogo."
+              },
+              "quantity": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Quantidade necessária."
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Observações do mecânico (omitidas quando vazias)."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "aa8ae3df-4421-407c-b8d4-d138c3a9717c",
+      "type": "execution.DiagnosisCompleted",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "7b8a58c2-0d6e-46fa-a689-c6608a798ae5",
+      "producer": "execution-service",
+      "occurred_at": "2026-11-03T10:05:00Z",
+      "payload": {
+        "services": [
+          {
+            "code": 4012
+          }
+        ],
+        "parts": [
+          {
+            "manufacturer_code": "BOSCH-0986BB0606",
+            "quantity": 2
+          }
+        ],
+        "notes": "Pastilhas no limite; discos sem desgaste"
+      }
+    }
+  ]
+}

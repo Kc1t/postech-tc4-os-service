@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "execution.RepairStarted",
+  "description": "Evento do execution-service (tópico execution-events → fila os-saga-replies): o mecânico começou o reparo.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "execution.RepairStarted"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "started_at"
+      ],
+      "properties": {
+        "started_at": {
+          "$ref": "common.schema.json#/$defs/dateTime",
+          "description": "Início do reparo."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "9b543c69-69ca-44e5-bcbd-0bb080ef7d1f",
+      "type": "execution.RepairStarted",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "c6d16230-c3c7-48ed-a79d-d719d82a2261",
+      "producer": "execution-service",
+      "occurred_at": "2026-11-03T13:00:00Z",
+      "payload": {
+        "started_at": "2026-11-03T13:00:00Z"
+      }
+    }
+  ]
+}

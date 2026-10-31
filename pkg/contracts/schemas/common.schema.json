@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Definições comuns",
+  "description": "Tipos compartilhados pelos payloads (pkg/contracts/contracts.go). Cada definição corresponde a um tipo Go ou a um conjunto de constantes do pacote.",
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador UUID (gerado com uuid.NewString ou gen_random_uuid)."
+    },
+    "dateTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Instante em RFC 3339, como o Go serializa time.Time (UTC, com fração de segundo opcional)."
+    },
+    "money": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Valor em reais (R$)."
+    },
+    "osCode": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Número sequencial da OS, mostrado ao cliente (#1042)."
+    },
+    "simulateFailure": {
+      "type": "string",
+      "enum": [
+        "budget",
+        "payment",
+        "repair"
+      ],
+      "description": "Falha simulada (contracts.FailBudget, FailPayment, FailRepair). Só tem efeito com FAULT_INJECTION_ENABLED=true e só é enviada no comando da etapa correspondente."
+    },
+    "orderStatus": {
+      "type": "string",
+      "enum": [
+        "received",
+        "in_diagnosis",
+        "awaiting_budget",
+        "awaiting_approval",
+        "awaiting_payment",
+        "in_execution",
+        "finished",
+        "delivered",
+        "cancelled"
+      ],
+      "description": "Status da Ordem de Serviço (entities.OrderStatus do os-service)."
+    },
+    "itemKind": {
+      "type": "string",
+      "enum": [
+        "service",
+        "part"
+      ],
+      "description": "contracts.ItemKindService (mão de obra) ou contracts.ItemKindPart (peça)."
+    },
+    "item": {
+      "type": "object",
+      "required": [
+        "kind",
+        "ref",
+        "description",
+        "quantity",
+        "unit_price"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "common.schema.json#/$defs/itemKind"
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Código do serviço no catálogo (como texto) ou código do fabricante da peça."
+        },
+        "description": {
+          "type": "string",
+          "description": "Descrição do item no catálogo."
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Quantidade (serviços têm quantidade 1)."
+        },
+        "unit_price": {
+          "$ref": "common.schema.json#/$defs/money",
+          "description": "Preço unitário do catálogo no momento do diagnóstico."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Item de orçamento e de execução (contracts.Item).",
+      "examples": [
+        {
+          "kind": "part",
+          "ref": "BOSCH-0986BB0606",
+          "description": "Pastilha de freio dianteira",
+          "quantity": 2,
+          "unit_price": 90
+        }
+      ]
+    },
+    "vehicle": {
+      "type": "object",
+      "required": [
+        "plate"
+      ],
+      "properties": {
+        "plate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Placa do veículo."
+        },
+        "brand": {
+          "type": "string",
+          "description": "Marca (omitida quando vazia)."
+        },
+        "model": {
+          "type": "string",
+          "description": "Modelo (omitido quando vazio)."
+        },
+        "year": {
+          "type": "integer",
+          "description": "Ano do modelo (omitido quando zero)."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Veículo da OS (contracts.Vehicle).",
+      "examples": [
+        {
+          "plate": "BRA2E19",
+          "brand": "Fiat",
+          "model": "Argo",
+          "year": 2022
+        }
+      ]
+    },
+    "requester": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "email",
+        "document"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "ID do cliente no os-service."
+        },
+        "name": {
+          "type": "string",
+          "description": "Nome do cliente."
+        },
+        "email": {
+          "type": "string",
+          "description": "E-mail do cliente; pode vir vazio (cliente sem e-mail não recebe notificação)."
+        },
+        "document": {
+          "type": "string",
+          "description": "CPF ou CNPJ do cliente, só dígitos."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Cliente dono da OS (contracts.Requester).",
+      "examples": [
+        {
+          "id": "a0fd317e-365a-43b1-9362-328f0ca321a4",
+          "name": "Ana Souza",
+          "email": "ana.souza@example.com",
+          "document": "52998224725"
+        }
+      ]
+    }
+  }
+}

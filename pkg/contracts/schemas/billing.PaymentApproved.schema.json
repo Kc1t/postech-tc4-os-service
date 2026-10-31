@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.PaymentApproved",
+  "description": "Evento do billing-service (tópico billing-events → fila os-saga-replies): pagamento confirmado pelo provedor (webhook ou simulador do gateway fake). A saga inicia o reparo.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.PaymentApproved"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "budget_id",
+        "payment_id",
+        "provider_payment_id",
+        "amount"
+      ],
+      "properties": {
+        "budget_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Orçamento pago."
+        },
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "ID do pagamento no billing-service."
+        },
+        "provider_payment_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ID do pagamento no provedor (Mercado Pago ou \"fake-<payment_id>\")."
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/money",
+          "description": "Valor pago."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "b67af288-adfa-46b1-a69e-97a11c793a38",
+      "type": "billing.PaymentApproved",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "afb5440e-0779-47da-9dc3-7a40f5218244",
+      "producer": "billing-service",
+      "occurred_at": "2026-11-03T11:42:10Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "payment_id": "f3e63f2b-c55b-40cd-959e-be85535e5702",
+        "provider_payment_id": "1325467890",
+        "amount": 330
+      }
+    }
+  ]
+}

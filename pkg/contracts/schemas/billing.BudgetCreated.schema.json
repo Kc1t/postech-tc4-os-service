@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.BudgetCreated",
+  "description": "Evento do billing-service (tópico billing-events → fila os-saga-replies): orçamento criado e aguardando a aprovação do cliente. Reentregas do CreateBudget repetem o evento com o mesmo orçamento.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.BudgetCreated"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "budget_id",
+        "total"
+      ],
+      "properties": {
+        "budget_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "ID do orçamento no billing-service."
+        },
+        "total": {
+          "$ref": "common.schema.json#/$defs/money",
+          "description": "Total do orçamento."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "6ad9f891-00d9-49f2-9f33-934588e2634f",
+      "type": "billing.BudgetCreated",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "7b8a58c2-0d6e-46fa-a689-c6608a798ae5",
+      "causation_id": "250aa4d7-d464-48f0-b821-60de621d2531",
+      "producer": "billing-service",
+      "occurred_at": "2026-11-03T10:05:02Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "total": 330
+      }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "execution.StartDiagnosis",
+  "description": "Comando do os-service para o execution-service (fila execution-commands): abre a execução da OS na fila de diagnóstico. Enviado na abertura da OS.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "execution.StartDiagnosis"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "os_code",
+        "vehicle"
+      ],
+      "properties": {
+        "os_code": {
+          "$ref": "common.schema.json#/$defs/osCode"
+        },
+        "vehicle": {
+          "$ref": "common.schema.json#/$defs/vehicle"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Observações da abertura (omitidas quando vazias)."
+        },
+        "simulate_failure": {
+          "$ref": "common.schema.json#/$defs/simulateFailure",
+          "description": "Reservado; o os-service não envia falha simulada no diagnóstico."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "f9c2af44-6584-4100-a2bd-25869f1e5e28",
+      "type": "execution.StartDiagnosis",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "66182390-cbd4-4d13-82f0-4f7790fe03fe",
+      "producer": "os-service",
+      "occurred_at": "2026-11-03T09:00:00.123456789Z",
+      "payload": {
+        "os_code": 1042,
+        "vehicle": {
+          "plate": "BRA2E19",
+          "brand": "Fiat",
+          "model": "Argo",
+          "year": 2022
+        },
+        "notes": "Barulho ao frear"
+      }
+    }
+  ]
+}

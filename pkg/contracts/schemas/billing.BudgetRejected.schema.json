@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.BudgetRejected",
+  "description": "Evento do billing-service (tópico billing-events → fila os-saga-replies): o cliente recusou o orçamento pela API. A saga compensa.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.BudgetRejected"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "budget_id",
+        "reason"
+      ],
+      "properties": {
+        "budget_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Orçamento recusado."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Motivo informado pelo cliente (obrigatório na recusa)."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "1dde8fb1-5e1e-48a8-88a9-0abcc098389d",
+      "type": "billing.BudgetRejected",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "8dfcb9bb-42de-4365-b8a5-ba1405487f49",
+      "producer": "billing-service",
+      "occurred_at": "2026-11-03T11:30:00Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "reason": "valor acima do esperado"
+      }
+    }
+  ]
+}

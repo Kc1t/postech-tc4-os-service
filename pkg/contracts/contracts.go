@@ -1,8 +1,12 @@
 // Package contracts define o contrato das mensagens trocadas entre os microsserviços da oficina.
 //
-// Este pacote é a fonte canônica: billing-service e execution-service carregam uma cópia literal
-// dele (e dos JSON Schemas em ./schemas). A documentação navegável está em docs/asyncapi.yaml.
-// Qualquer mudança aqui é uma mudança de contrato: incremente Version e atualize as cópias.
+// Este pacote é a fonte canônica (postech-tc4-os-service): billing-service, execution-service e a
+// Lambda de notificação carregam uma cópia literal dele, incluindo os JSON Schemas de ./schemas
+// (ver Validate). A documentação navegável está em docs/asyncapi/asyncapi.yaml do os-service, e o
+// local/check-contracts.sh do postech-tc4-infra-k8s falha se as cópias divergirem.
+// Qualquer mudança aqui é uma mudança de contrato: atualize structs e schemas juntos (os testes do
+// pacote comparam os dois), incremente Version quando a mudança quebrar consumidores e copie o
+// pacote para os outros repositórios.
 package contracts
 
 import (

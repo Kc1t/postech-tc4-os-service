@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "execution.StartRepair",
+  "description": "Comando do os-service para o execution-service (fila execution-commands): coloca a execução diagnosticada na fila de reparo. Enviado depois do pagamento aprovado.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "execution.StartRepair"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "os_code",
+        "items"
+      ],
+      "properties": {
+        "os_code": {
+          "$ref": "common.schema.json#/$defs/osCode"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "common.schema.json#/$defs/item"
+          },
+          "description": "Serviços e peças do orçamento pago."
+        },
+        "simulate_failure": {
+          "$ref": "common.schema.json#/$defs/simulateFailure",
+          "description": "\"repair\" faz o execution-service recusar o reparo."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "6b54e9f3-162a-4753-968b-364d706e8dfb",
+      "type": "execution.StartRepair",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "afb5440e-0779-47da-9dc3-7a40f5218244",
+      "causation_id": "b67af288-adfa-46b1-a69e-97a11c793a38",
+      "producer": "os-service",
+      "occurred_at": "2026-11-03T11:42:11Z",
+      "payload": {
+        "os_code": 1042,
+        "items": [
+          {
+            "kind": "service",
+            "ref": "4012",
+            "description": "Troca de pastilhas de freio",
+            "quantity": 1,
+            "unit_price": 150
+          },
+          {
+            "kind": "part",
+            "ref": "BOSCH-0986BB0606",
+            "description": "Pastilha de freio dianteira",
+            "quantity": 2,
+            "unit_price": 90
+          }
+        ]
+      }
+    }
+  ]
+}

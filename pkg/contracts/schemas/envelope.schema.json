@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Envelope",
+  "description": "Formato de toda mensagem (contracts.Envelope). O corpo SNS/SQS é este JSON; tipo, IDs e contexto de trace também viajam como MessageAttributes. Leitor tolerante: campos desconhecidos são aceitos e ignorados.",
+  "type": "object",
+  "required": [
+    "message_id",
+    "type",
+    "version",
+    "saga_id",
+    "os_id",
+    "producer",
+    "occurred_at",
+    "payload"
+  ],
+  "properties": {
+    "message_id": {
+      "$ref": "common.schema.json#/$defs/uuid",
+      "description": "ID único da mensagem; chave de idempotência do inbox dos consumidores."
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^(os|billing|execution)\\.[A-Z][A-Za-z]+$",
+      "description": "Tipo da mensagem. O prefixo é o serviço dono do contrato: comandos levam o nome do destinatário; eventos, o do publicador."
+    },
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Versão do contrato (contracts.Version). Consumidores rejeitam versões maiores que a sua."
+    },
+    "saga_id": {
+      "$ref": "common.schema.json#/$defs/uuid",
+      "description": "Saga da OS (saga_instances.id no os-service)."
+    },
+    "os_id": {
+      "$ref": "common.schema.json#/$defs/uuid",
+      "description": "Ordem de Serviço a que a mensagem se refere."
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "Correlação da requisição que originou a cadeia (cabeçalho X-Correlation-ID ou \"timeout-<saga_id>\" nos prazos vencidos). Omitido quando vazio."
+    },
+    "causation_id": {
+      "$ref": "common.schema.json#/$defs/uuid",
+      "description": "message_id da mensagem que causou esta (respostas a comandos). Omitido quando vazio."
+    },
+    "producer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Serviço que publicou a mensagem (os-service, billing-service ou execution-service)."
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/dateTime",
+      "description": "Momento em que a mensagem foi criada."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Corpo específico do tipo; o schema de cada tipo o detalha."
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "message_id": "6ad9f891-00d9-49f2-9f33-934588e2634f",
+      "type": "billing.BudgetCreated",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "7b8a58c2-0d6e-46fa-a689-c6608a798ae5",
+      "causation_id": "250aa4d7-d464-48f0-b821-60de621d2531",
+      "producer": "billing-service",
+      "occurred_at": "2026-11-03T10:05:02Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "total": 330
+      }
+    }
+  ]
+}

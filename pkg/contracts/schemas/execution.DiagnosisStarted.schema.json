@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "execution.DiagnosisStarted",
+  "description": "Evento do execution-service (tópico execution-events → fila os-saga-replies): o mecânico tirou o veículo da fila de diagnóstico.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "execution.DiagnosisStarted"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "started_at"
+      ],
+      "properties": {
+        "started_at": {
+          "$ref": "common.schema.json#/$defs/dateTime",
+          "description": "Início do diagnóstico."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "db369551-241c-4f66-a88a-a2b32f1b259a",
+      "type": "execution.DiagnosisStarted",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "479a5c68-1624-4c05-9e14-acd5d2b463c6",
+      "producer": "execution-service",
+      "occurred_at": "2026-11-03T09:20:00Z",
+      "payload": {
+        "started_at": "2026-11-03T09:20:00Z"
+      }
+    }
+  ]
+}

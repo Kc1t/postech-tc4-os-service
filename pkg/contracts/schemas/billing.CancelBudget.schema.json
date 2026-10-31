@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "billing.CancelBudget",
+  "description": "Comando do os-service para o billing-service (fila billing-commands): compensação que cancela o orçamento e a cobrança em aberto. Resposta: BudgetCancelled.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "billing.CancelBudget"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "budget_id",
+        "reason"
+      ],
+      "properties": {
+        "budget_id": {
+          "$ref": "common.schema.json#/$defs/uuid",
+          "description": "Orçamento a cancelar."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Motivo da compensação."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "654adaf6-db91-4143-ba60-53e266d971ee",
+      "type": "billing.CancelBudget",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "8eb2c12b-2bd0-427f-afb1-faf27fc52056",
+      "producer": "os-service",
+      "occurred_at": "2026-11-03T12:00:00Z",
+      "payload": {
+        "budget_id": "063d0798-cff7-4f00-9728-8e5128826616",
+        "reason": "cancelada pela oficina: cliente desistiu do serviço"
+      }
+    }
+  ]
+}

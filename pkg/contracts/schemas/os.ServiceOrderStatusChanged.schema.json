@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "os.ServiceOrderStatusChanged",
+  "description": "Evento do os-service (tópico os-events → fila notification-os-events): a OS mudou de status. A Lambda de notificação avisa o cliente por e-mail.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "type": {
+      "const": "os.ServiceOrderStatusChanged"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "os_code",
+        "status",
+        "previous_status",
+        "requester",
+        "total_amount"
+      ],
+      "properties": {
+        "os_code": {
+          "$ref": "common.schema.json#/$defs/osCode"
+        },
+        "status": {
+          "$ref": "common.schema.json#/$defs/orderStatus",
+          "description": "Status novo."
+        },
+        "previous_status": {
+          "type": "string",
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/orderStatus"
+            },
+            {
+              "const": ""
+            }
+          ],
+          "description": "Status anterior; vazio no evento de abertura da OS."
+        },
+        "requester": {
+          "$ref": "common.schema.json#/$defs/requester"
+        },
+        "total_amount": {
+          "$ref": "common.schema.json#/$defs/money",
+          "description": "Total da OS (zero antes do diagnóstico)."
+        },
+        "checkout_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link de pagamento; só vem em awaiting_payment, depois do PaymentLinkCreated."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Motivo do cancelamento (omitido quando vazio)."
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "message_id": "a96aee25-ae4e-4429-ab46-b9bf93807d7f",
+      "type": "os.ServiceOrderStatusChanged",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "66182390-cbd4-4d13-82f0-4f7790fe03fe",
+      "producer": "os-service",
+      "occurred_at": "2026-11-03T09:00:00.123456789Z",
+      "payload": {
+        "os_code": 1042,
+        "status": "received",
+        "previous_status": "",
+        "requester": {
+          "id": "a0fd317e-365a-43b1-9362-328f0ca321a4",
+          "name": "Ana Souza",
+          "email": "ana.souza@example.com",
+          "document": "52998224725"
+        },
+        "total_amount": 0
+      }
+    },
+    {
+      "message_id": "a189858c-71de-4a10-ba5c-1d9b3566cc37",
+      "type": "os.ServiceOrderStatusChanged",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "8dfcb9bb-42de-4365-b8a5-ba1405487f49",
+      "causation_id": "7560f1d2-0dc2-4cd7-bf17-4ccd16b81142",
+      "producer": "os-service",
+      "occurred_at": "2026-11-03T11:30:03Z",
+      "payload": {
+        "os_code": 1042,
+        "status": "awaiting_payment",
+        "previous_status": "awaiting_approval",
+        "requester": {
+          "id": "a0fd317e-365a-43b1-9362-328f0ca321a4",
+          "name": "Ana Souza",
+          "email": "ana.souza@example.com",
+          "document": "52998224725"
+        },
+        "total_amount": 330,
+        "checkout_url": "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=1325467890-f3e63f2b-c55b-40cd-959e-be85535e5702"
+      }
+    },
+    {
+      "message_id": "cdecdb67-fc33-47e7-aaeb-0084d65ae31e",
+      "type": "os.ServiceOrderStatusChanged",
+      "version": 1,
+      "saga_id": "f5517186-5fc2-49f0-9afb-21c5118ea375",
+      "os_id": "ee820080-21f1-41f8-857c-9302344afe32",
+      "correlation_id": "afb5440e-0779-47da-9dc3-7a40f5218244",
+      "causation_id": "687f4937-d593-45b9-a6f0-66a89606c419",
+      "producer": "os-service",
+      "occurred_at": "2026-11-03T11:42:13Z",
+      "payload": {
+        "os_code": 1042,
+        "status": "cancelled",
+        "previous_status": "in_execution",
+        "requester": {
+          "id": "a0fd317e-365a-43b1-9362-328f0ca321a4",
+          "name": "Ana Souza",
+          "email": "ana.souza@example.com",
+          "document": "52998224725"
+        },
+        "total_amount": 330,
+        "reason": "execução recusada pela oficina: capacidade de reparos esgotada (10 de 10 em andamento)"
+      }
+    }
+  ]
+}
