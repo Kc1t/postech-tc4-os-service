@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -101,6 +102,27 @@ func TestVehicleHandler_Create_DocumentoInvalido(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestVehicleHandler_Create_PlacaInvalidaDevolve400(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	h, create, _, _, _, _ := newHandler(ctrl)
+	create.EXPECT().Execute(gomock.Any(), gomock.Any()).Return(nil, domainerrors.ErrInvalidPlate)
+
+	body, _ := json.Marshal(map[string]any{
+		"requester_document": "52998224725",
+		"plate":              "AB-12", "brand": "Fiat", "model": "Argo", "year": 2022,
+	})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/vehicles", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	newTestRouter(h).ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "VALIDATION_ERROR") {
+		t.Fatalf("expected 400 VALIDATION_ERROR, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

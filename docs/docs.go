@@ -535,6 +535,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.RequesterResponse"
                         }
+                    },
+                    "400": {
+                        "description": "corpo ou CPF/CNPJ inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "documento já cadastrado",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -670,7 +682,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "id não é UUID",
+                        "description": "id não é UUID ou corpo inválido",
                         "schema": {
                             "$ref": "#/definitions/httputil.ErrorResponse"
                         }
@@ -844,19 +856,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "corpo, CPF/CNPJ ou placa inválidos",
                         "schema": {
                             "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "cliente, veículo, serviço ou peça não encontrados",
                         "schema": {
                             "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     },
                     "422": {
-                        "description": "Unprocessable Entity",
+                        "description": "VEHICLE_NOT_OWNED: veículo de outro cliente",
                         "schema": {
                             "$ref": "#/definitions/httputil.ErrorResponse"
                         }
@@ -1511,6 +1523,24 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.VehicleResponse"
                         }
+                    },
+                    "400": {
+                        "description": "corpo, CPF/CNPJ ou placa inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "cliente não encontrado",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "placa já cadastrada",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -1595,7 +1625,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "id não é UUID",
+                        "description": "id não é UUID, corpo ou placa inválidos",
                         "schema": {
                             "$ref": "#/definitions/httputil.ErrorResponse"
                         }

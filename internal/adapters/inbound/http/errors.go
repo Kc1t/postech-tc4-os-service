@@ -55,9 +55,11 @@ var mappings = []mapping{
 	{domainerrors.ErrAccountLocked, http.StatusTooManyRequests, CodeAccountLocked},
 	{domainerrors.ErrStatusNotAllowedForRequester, http.StatusForbidden, CodeForbidden},
 	{domainerrors.ErrDocumentMismatch, http.StatusForbidden, CodeForbidden},
+	// Formato de entrada inválido é 400 em qualquer camada que o detecte; 422 fica para regra de
+	// negócio que a entrada bem-formada viola (estoque, veículo de outro cliente).
 	{domainerrors.ErrInvalidID, http.StatusBadRequest, CodeValidation},
-	{domainerrors.ErrInvalidDocument, http.StatusUnprocessableEntity, CodeValidation},
-	{domainerrors.ErrInvalidPlate, http.StatusUnprocessableEntity, CodeValidation},
+	{domainerrors.ErrInvalidDocument, http.StatusBadRequest, CodeValidation},
+	{domainerrors.ErrInvalidPlate, http.StatusBadRequest, CodeValidation},
 	{domainerrors.ErrInvalidSimulatedFailure, http.StatusBadRequest, CodeInvalidSimulateArg},
 	{domainerrors.ErrInvalidStatus, http.StatusConflict, CodeInvalidTransition},
 	{domainerrors.ErrInvalidStatusValue, http.StatusUnprocessableEntity, CodeValidation},

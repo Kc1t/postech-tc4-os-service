@@ -18,6 +18,9 @@ import (
 // @Produce     json
 // @Param       body body commands.CreateVehicleRequest true "Dados do veiculo"
 // @Success     201 {object} commands.VehicleResponse
+// @Failure     400 {object} httputil.ErrorResponse "corpo, CPF/CNPJ ou placa inválidos"
+// @Failure     404 {object} httputil.ErrorResponse "cliente não encontrado"
+// @Failure     409 {object} httputil.ErrorResponse "placa já cadastrada"
 // @Security    BearerAuth
 // @Router      /vehicles [post]
 func (h *VehicleHandler) Create(c *gin.Context) {

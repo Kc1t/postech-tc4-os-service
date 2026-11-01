@@ -23,9 +23,9 @@ const SimulateFailureHeader = "X-Simulate-Failure"
 // @Param       body body commands.CreateServiceOrderRequest true "Dados da OS"
 // @Param       X-Simulate-Failure header string false "Falha simulada: budget, payment ou repair"
 // @Success     201 {object} commands.ServiceOrderResponse
-// @Failure     400 {object} httputil.ErrorResponse
-// @Failure     404 {object} httputil.ErrorResponse
-// @Failure     422 {object} httputil.ErrorResponse
+// @Failure     400 {object} httputil.ErrorResponse "corpo, CPF/CNPJ ou placa inválidos"
+// @Failure     404 {object} httputil.ErrorResponse "cliente, veículo, serviço ou peça não encontrados"
+// @Failure     422 {object} httputil.ErrorResponse "VEHICLE_NOT_OWNED: veículo de outro cliente"
 // @Security    BearerAuth
 // @Router      /service-orders [post]
 func (h *ServiceOrderHandler) Create(c *gin.Context) {

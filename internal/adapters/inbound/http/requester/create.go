@@ -15,6 +15,8 @@ import (
 // @Produce     json
 // @Param       body body commands.CreateRequesterRequest true "Dados do cliente"
 // @Success     201 {object} commands.RequesterResponse
+// @Failure     400 {object} httputil.ErrorResponse "corpo ou CPF/CNPJ inválidos"
+// @Failure     409 {object} httputil.ErrorResponse "documento já cadastrado"
 // @Security    BearerAuth
 // @Router      /requesters [post]
 func (h *RequesterHandler) Create(c *gin.Context) {
