@@ -1,6 +1,6 @@
 # ADR-0006: Erros sentinela centralizados em `domainerrors`
 
-- **Status:** Aceita, revisada em 2026-10
+- **Status:** Aceita, revisada em 2026-11 (critério entre 400 e 422)
 - **Data:** 2026-04
 - **Decisão por:** Reservoir Devs
 
@@ -56,6 +56,10 @@ var (
    | `ErrInvalidCredentials` | 401 | `UNAUTHORIZED` |
    | `ErrInvalidSimulatedFailure` | 400 | `INVALID_SIMULATE_FAILURE` |
    | `ErrInvalidID` | 400 | `VALIDATION_ERROR` |
+   | `ErrInvalidDocument`, `ErrInvalidPlate` | 400 | `VALIDATION_ERROR` |
+   | `ErrVehicleNotFromRequester` | 422 | `VEHICLE_NOT_FROM_REQUESTER` |
+
+   O critério entre 400 e 422: entrada com formato inválido (UUID, CPF/CNPJ, placa, corpo que não passa no bind) é 400, seja o handler ou o domínio que detecte; 422 fica para a entrada bem-formada que viola uma regra de negócio (estoque insuficiente, veículo de outro cliente). O erro de bind cita o campo do JSON e a regra (`httputil.BindingMessage`), sem expor o validator.
 
 4. Nada de `errors.New("...")` solto em casos de uso ou handlers. Erro novo entra em `domainerrors` e, se chega ao HTTP, na tabela.
 

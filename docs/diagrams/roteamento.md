@@ -123,12 +123,12 @@ flowchart LR
     end
 
     subgraph appl["os-service"]
-        a400["400<br/>id que não é UUID, código ou<br/>CPF/CNPJ inválido, corpo inválido,<br/>X-Simulate-Failure inválido"]
+        a400["400<br/>id que não é UUID, código,<br/>CPF/CNPJ ou placa inválidos,<br/>corpo inválido, X-Simulate-Failure inválido"]
         a401["401<br/>token ausente ou inválido,<br/>credenciais erradas"]
         a403["403<br/>papel insuficiente,<br/>documento alheio"]
         a404["404<br/>recurso inexistente,<br/>inclusive no DELETE"]
         a409["409<br/>já existe, transição inválida,<br/>atualização concorrente,<br/>cadastro em uso por OS"]
-        a422["422<br/>CPF ou placa inválidos no cadastro,<br/>estoque insuficiente,<br/>veículo de outro cliente"]
+        a422["422<br/>estoque insuficiente,<br/>veículo de outro cliente"]
         a500["500<br/>erro não mapeado"]
     end
 

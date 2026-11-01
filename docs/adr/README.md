@@ -24,7 +24,7 @@ ADRs ([formato de Michael Nygard](https://cognitect.com/blog/2011/11/15/document
 | [0003](0003-postgresql.md) | PostgreSQL como banco de dados relacional | 1 | Parcialmente substituída pela [ADR-0012](0012-banco-por-servico.md) |
 | [0004](0004-gorm-orm.md) | GORM como ORM | 1 | Aceita, revisada em 2026-10 |
 | [0005](0005-jwt-refresh-token.md) | Autenticação JWT com refresh token rotativo | 1 | Aceita, revisada em 2026-10 |
-| [0006](0006-domain-errors-sentinels.md) | Erros sentinela centralizados em `domainerrors` | 1 | Aceita, revisada em 2026-10 |
+| [0006](0006-domain-errors-sentinels.md) | Erros sentinela centralizados em `domainerrors` | 1 | Aceita, revisada em 2026-11 |
 | [0007](0007-api-gateway-comunicacao.md) | Comunicação entre API Gateway e aplicação | 3 | Aceita, revisada em 2026-10 |
 | [0008](0008-hpa.md) | Escalabilidade de pods via HPA | 3 | Aceita, revisada em 2026-10 |
 | [0009](0009-lambda-terraform-em-vez-de-sam.md) | Deploy da Lambda por Terraform, não por SAM | 3 | Aceita, revisada em 2026-10 |
