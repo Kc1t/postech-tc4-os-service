@@ -502,7 +502,45 @@
           }
         },
         {
-          "name": "Registrar usuário",
+          "name": "Registrar sem token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"error.code = UNAUTHORIZED\", () => pm.expect(pm.response.json().error.code).to.eql(\"UNAUTHORIZED\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/auth/register",
+            "description": "O gateway deixa /auth/* passar sem authorizer; o serviço exige o JWT de admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mecânico Postman\",\n  \"email\": \"{{staff_email}}\",\n  \"password\": \"{{staff_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Registrar usuário da equipe (admin)",
           "event": [
             {
               "listen": "test",
@@ -525,10 +563,7 @@
               }
             ],
             "url": "{{base_url}}/api/v1/auth/register",
-            "description": "Cria um usuário com e-mail único. A rota cria o papel client (sem CPF), que não acessa as rotas da equipe.",
-            "auth": {
-              "type": "noauth"
-            },
+            "description": "Só o admin cadastra outro usuário da equipe (papel admin). O cliente não se cadastra aqui: ele se autentica pelo CPF na Lambda auth-issuer.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Mecânico Postman\",\n  \"email\": \"{{staff_email}}\",\n  \"password\": \"{{staff_password}}\"\n}",
@@ -564,9 +599,6 @@
             ],
             "url": "{{base_url}}/api/v1/auth/register",
             "description": "E-mail é único.",
-            "auth": {
-              "type": "noauth"
-            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Mecânico Postman\",\n  \"email\": \"{{staff_email}}\",\n  \"password\": \"{{staff_password}}\"\n}",
@@ -659,15 +691,15 @@
           }
         },
         {
-          "name": "Usuário sem papel admin na rota da equipe (403)",
+          "name": "Usuário da equipe acessa as rotas da equipe (200)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
-                  "pm.test(\"error.code = FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"));"
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"lista de clientes\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
                 ]
               }
             }
@@ -676,7 +708,7 @@
             "method": "GET",
             "header": [],
             "url": "{{base_url}}/api/v1/requesters",
-            "description": "As rotas de cadastro e OS exigem role=admin.",
+            "description": "O usuário registrado pelo admin tem papel admin e lista os clientes.",
             "auth": {
               "type": "bearer",
               "bearer": [
