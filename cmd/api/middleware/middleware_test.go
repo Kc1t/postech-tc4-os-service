@@ -142,6 +142,36 @@ func TestAuth_RecusaTokenSemExpOuForaDoHS256(t *testing.T) {
 	}
 }
 
+func TestRequireRole(t *testing.T) {
+	cases := []struct {
+		name string
+		role any
+		want int
+	}{
+		{"admin", "admin", http.StatusOK},
+		{"cliente na rota da equipe", "client", http.StatusForbidden},
+		{"sem papel", nil, http.StatusForbidden},
+		{"papel de outro tipo", 42, http.StatusForbidden},
+	}
+	for _, tc := range cases {
+		r := gin.New()
+		r.Use(func(c *gin.Context) {
+			if tc.role != nil {
+				c.Set("user_role", tc.role)
+			}
+			c.Next()
+		})
+		r.Use(RequireRole("admin"))
+		r.POST("/auth/register", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/auth/register", nil))
+		if w.Code != tc.want {
+			t.Errorf("%s: expected %d, got %d", tc.name, tc.want, w.Code)
+		}
+	}
+}
+
 // --- CORS middleware ---
 
 func TestCORS_Allowlist(t *testing.T) {
