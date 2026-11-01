@@ -36,7 +36,7 @@ Declaradas em [`postech-tc4-infra-k8s/api_gateway.tf`](https://github.com/Kc1t/p
 |---|---|---|
 | `POST /auth` | Lambda auth-issuer | não (limite próprio: 10 req/s, rajada de 20) |
 | `GET /health` | os-service | não |
-| `POST /api/v1/auth/{proxy+}` | os-service (login, refresh, logout e register da equipe) | não |
+| `POST /api/v1/auth/{proxy+}` | os-service (login, refresh, logout e register da equipe) | não; o logout e o register exigem JWT no serviço, e o register, papel `admin` |
 | `ANY /api/v1/service-orders` e `/{proxy+}` | os-service | sim |
 | `ANY /api/v1/requesters`, `/vehicles`, `/services`, `/parts` e `/{proxy+}` de cada um | os-service | sim |
 | `ANY /api/v1/budgets/{proxy+}` | billing-service | sim |
@@ -57,10 +57,10 @@ flowchart TD
     pod(["requisição no pod"]) --> base["Recovery · nrgin · CorrelationID · RequestLogger · CORS"]
     base --> grp{{"grupo da rota"}}
 
-    grp -->|"/health, /swagger, /api/v1/auth/login, refresh, register"| open["aberta"]
+    grp -->|"/health, /swagger, /api/v1/auth/login e refresh"| open["aberta"]
     grp -->|"/internal/*"| tok{{"X-Internal-Token"}}
     grp -->|"/api/v1/auth/logout,<br/>/service-orders/code/{code}, /service-orders/requester"| auth1{{"Auth: JWT HS256 com exp"}}
-    grp -->|"demais /api/v1"| auth2{{"Auth: JWT HS256 com exp"}}
+    grp -->|"demais /api/v1,<br/>inclusive /api/v1/auth/register"| auth2{{"Auth: JWT HS256 com exp"}}
 
     tok -->|"sem token configurado"| r503(["503"])
     tok -->|"diferente"| r401a(["401"])
@@ -94,7 +94,7 @@ O `UUIDParams` roda nos grupos `service-orders`, `requesters`, `vehicles`, `serv
 | Grupo | Rotas | Acesso |
 |---|---|---|
 | Saúde e documentação | `GET /health`, `/health/live`, `/health/ready`, `/swagger/*` | aberta |
-| Autenticação da equipe | `POST /api/v1/auth/login`, `/refresh`, `/register`; `POST /api/v1/auth/logout` | aberta; logout com JWT |
+| Autenticação da equipe | `POST /api/v1/auth/login` e `/refresh`; `POST /api/v1/auth/logout`; `POST /api/v1/auth/register` | login e refresh abertas; logout com qualquer JWT; register só `admin` ([ADR-0023](../adr/0023-registro-restrito-a-equipe.md)) |
 | Interna | `GET /internal/requesters/{document}` | `X-Internal-Token` |
 | Cliente | `GET /api/v1/service-orders/code/{code}?document=`, `GET /api/v1/service-orders/requester?document=` | JWT com o `document` pedido |
 | Solicitantes | `POST`, `GET` em `/api/v1/requesters`; `GET /document/{document}`; `GET`, `PUT`, `DELETE /{id}`; `GET /{id}/vehicles` | `admin` |

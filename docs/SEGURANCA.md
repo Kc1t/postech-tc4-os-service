@@ -68,7 +68,7 @@ sequenceDiagram
 - Aceita só HS256 (`jwt.WithValidMethods`), recusa `alg: none`, valida a expiração e exige `sub` e `role`. O header `Authorization` é lido sem diferenciar maiúsculas.
 - `authorizer_result_ttl_in_seconds = 0`: cada requisição é validada de novo.
 - Devolve `subject`, `role` e `document` no contexto da requisição. Aceita o token do cliente e o da equipe, porque os dois usam o mesmo `JWT_SECRET`.
-- Rotas abertas no gateway: `GET /health`, `POST /auth`, `POST /api/v1/auth/{proxy+}` (login e refresh da equipe), `GET /fake-checkout/{proxy+}` e o webhook do Mercado Pago.
+- Rotas abertas no gateway: `GET /health`, `POST /auth`, `POST /api/v1/auth/{proxy+}` (login e refresh da equipe; o logout e o registro passam pelo gateway, mas exigem JWT no os-service), `GET /fake-checkout/{proxy+}` e o webhook do Mercado Pago.
 
 ### 2.3 Cada serviço revalida o JWT
 
@@ -92,7 +92,7 @@ O critério é o mesmo nas quatro camadas: token assinado com outro algoritmo (H
 - Depois de 5 erros seguidos (`MAX_FAILED_LOGINS`), a conta fica bloqueada por 15 minutos (`LOGIN_LOCK_MIN`). Conta bloqueada recebe o mesmo 401 de senha errada.
 - Access token HS256 de 15 minutos com `sub`, `email` e `role`. Refresh token de 7 dias, 32 bytes aleatórios, guardado só como SHA-256 em `refresh_tokens`. Cada uso revoga o refresh antigo e grava o novo na mesma transação (`RotateToken`); um refresh já usado recebe 401.
 - `POST /api/v1/auth/logout` revoga todos os refresh tokens do usuário.
-- `POST /api/v1/auth/register` é aberta e cria usuário com papel `client` e sem `document`. Esse token não passa em nenhuma rota de cliente (falta o `document`) nem nas de equipe (falta o papel `admin`). O `admin` é criado na subida a partir de `ADMIN_EMAIL` e `ADMIN_PASSWORD`; em produção, sem os dois, o seed não roda.
+- `POST /api/v1/auth/register` exige JWT de `admin` e cria outro usuário da equipe, com papel `admin` ([ADR-0023](adr/0023-registro-restrito-a-equipe.md)). A rota passa pelo gateway sem authorizer (`POST /api/v1/auth/{proxy+}`), então a barreira é o JWT validado no os-service. Até a fase 4 ela era pública e criava usuário `client` sem `document`, que não acessava nada mas permitia escrita anônima em `users`. O cliente não se cadastra: autentica pelo CPF na Lambda issuer. O primeiro `admin` é criado na subida a partir de `ADMIN_EMAIL` e `ADMIN_PASSWORD`; em produção, sem os dois, o seed não roda.
 
 ## 3. Autorização
 
@@ -100,10 +100,10 @@ O critério é o mesmo nas quatro camadas: token assinado com outro algoritmo (H
 
 | Serviço | Rotas | Quem passa |
 |---|---|---|
-| os-service | `POST /api/v1/auth/register`, `/login`, `/refresh`; `/health`, `/health/live`, `/health/ready`; `/swagger/*` | aberta |
+| os-service | `POST /api/v1/auth/login`, `/refresh`; `/health`, `/health/live`, `/health/ready`; `/swagger/*` | aberta |
 | os-service | `POST /api/v1/auth/logout` | qualquer JWT válido |
 | os-service | `GET /api/v1/service-orders/code/{code}?document=`, `GET /api/v1/service-orders/requester?document=` | JWT com `document` igual ao pedido; JWT `admin` sem `document` |
-| os-service | `requesters`, `vehicles`, `services`, `parts` (CRUD, `PATCH /parts/{id}/stock`), `service-orders` (abrir, listar, detalhar, histórico, cancelar, entregar, métrica de tempo) | `admin` |
+| os-service | `POST /api/v1/auth/register`; `requesters`, `vehicles`, `services`, `parts` (CRUD, `PATCH /parts/{id}/stock`), `service-orders` (abrir, listar, detalhar, histórico, cancelar, entregar, métrica de tempo) | `admin` |
 | os-service | `GET /internal/requesters/{document}` | `X-Internal-Token` |
 | billing-service | `GET /api/v1/budgets/os/{os_id}`, `GET /api/v1/budgets/{id}`, `GET /api/v1/payments/{id}` | `admin` ou `client` dono |
 | billing-service | `POST /api/v1/budgets/{id}/approve`, `/reject` | só o `client` dono |
@@ -271,6 +271,7 @@ Os três serviços criam o repositório no ECR com `scanOnPush=true`. Os `#nosec
 | Simulação recusada fora do fake | billing: `internal/application/usecase/payment/simulate_test.go` |
 | Bloqueio de conta, senha errada, usuário inexistente | os: [`login_test.go`](../internal/application/usecase/auth/login_test.go) |
 | Rotação e expiração do refresh token | os: [`refresh_test.go`](../internal/application/usecase/auth/refresh_test.go) |
+| Registro cria usuário da equipe (papel `admin`); corpo inválido e e-mail repetido recusados | os: `internal/adapters/inbound/http/auth/register_test.go` (`TestRegister_CriaUsuarioDaEquipe`, `TestRegister_Erros`) |
 | bcrypt | os: [`pkg/hasher/bcrypt_test.go`](../pkg/hasher/bcrypt_test.go) |
 | Validação de CPF/CNPJ | os: [`document_test.go`](../internal/domain/entities/document_test.go); lambda-auth: `internal/cpf/cpf_test.go` |
 | id que não é UUID → 400 no os-service | os: `internal/adapters/inbound/http/params_test.go` (`TestUUIDParams`), `service_order/handler_test.go` (`TestServiceOrderHandler_IDQueNaoEUUID`), `requester/handler_test.go` (`TestRequesterHandler_InvalidUUID`) e os testes de handler de `vehicle`, `service` e `part` |

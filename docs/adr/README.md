@@ -41,5 +41,6 @@ ADRs ([formato de Michael Nygard](https://cognitect.com/blog/2011/11/15/document
 | [0020](0020-mercado-pago-checkout-pro.md) | Mercado Pago Checkout Pro atrás da porta `PaymentGateway` | 4 | Aceita |
 | [0021](0021-ambiente-unico-no-eks.md) | Ambiente único no EKS; homologação no e2e local | 4 | Aceita |
 | [0022](0022-notificacao-por-lambda.md) | Notificação por Lambda consumindo a fila de eventos da OS | 4 | Aceita |
+| [0023](0023-registro-restrito-a-equipe.md) | Registro de usuário restrito à equipe | 4 | Aceita |
 
 A fase 2 não gerou ADR nova: as escolhas dela (EKS, RDS, Terraform, HPA e o pipeline) estão no [documento de entrega da fase 2](../DOCUMENTO_ENTREGA_FASE2.md).

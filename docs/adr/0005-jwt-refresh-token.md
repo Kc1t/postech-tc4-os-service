@@ -4,7 +4,7 @@
 - **Data:** 2026-04
 - **Decisão por:** Reservoir Devs
 
-> **Revisão nas fases 3 e 4:** o login por e-mail e senha descrito aqui é o da equipe da oficina. Na fase 3 o cliente passou a se autenticar por CPF numa Lambda própria ([RFC-0003](../rfc/0003-autenticacao-por-cpf.md)), e o "portal público" do item 5 deixou de existir: as rotas do cliente foram para trás do middleware `Auth` ([ADR-0007](0007-api-gateway-comunicacao.md)) e conferem se o `document` do token é o dono da OS (403 se não for). Na fase 4, a aprovação do orçamento saiu do os-service para o billing-service (`POST /api/v1/budgets/{id}/approve` e `/reject`). As notas de implementação no fim corrigem três pontos em que o texto original não batia com o código.
+> **Revisão nas fases 3 e 4:** o login por e-mail e senha descrito aqui é o da equipe da oficina. Na fase 3 o cliente passou a se autenticar por CPF numa Lambda própria ([RFC-0003](../rfc/0003-autenticacao-por-cpf.md)), e o "portal público" do item 5 deixou de existir: as rotas do cliente foram para trás do middleware `Auth` ([ADR-0007](0007-api-gateway-comunicacao.md)) e conferem se o `document` do token é o dono da OS (403 se não for). Na fase 4, a aprovação do orçamento saiu do os-service para o billing-service (`POST /api/v1/budgets/{id}/approve` e `/reject`). Ainda na fase 4, o registro de usuário passou a exigir JWT de `admin` e a criar usuário da equipe ([ADR-0023](0023-registro-restrito-a-equipe.md)). As notas de implementação no fim corrigem três pontos em que o texto original não batia com o código.
 
 ## Contexto
 
@@ -71,7 +71,7 @@ As rotas de consulta do cliente (`GET /api/v1/service-orders/code/:code` e a bus
 
 - `TokenService` em `internal/adapters/outbound/jwt/service.go`. Os casos de uso recebem a interface `ports.TokenService`, nunca a biblioteca de JWT ([ADR-0002](0002-hexagonal-architecture.md)).
 - Senhas com bcrypt, `BCRYPT_COST=12` (configurável).
-- `POST /api/v1/auth/register` cria usuário com role `client`. O usuário `admin` é criado na subida a partir de `ADMIN_EMAIL` e `ADMIN_PASSWORD`.
+- `POST /api/v1/auth/register` exige JWT de `admin` e cria outro usuário da equipe, com role `admin` ([ADR-0023](0023-registro-restrito-a-equipe.md)); até a fase 4 era pública e criava role `client`. O primeiro `admin` é criado na subida a partir de `ADMIN_EMAIL` e `ADMIN_PASSWORD`.
 - O middleware `Auth` também aceita o token emitido pela Lambda de CPF (mesmo segredo) e, quando há claim `document`, a guarda no contexto para a checagem de posse.
 - Diferenças em relação ao texto original desta ADR:
   - A tabela `refresh_tokens` não guarda o IP de emissão.
