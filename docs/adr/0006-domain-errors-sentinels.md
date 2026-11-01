@@ -4,7 +4,7 @@
 - **Data:** 2026-04
 - **Decisão por:** Reservoir Devs
 
-> **Revisão na fase 4:** o exemplo e a regra de mapeamento foram atualizados para o código atual. O handler não faz mais `switch`; o mapeamento é uma tabela única em `internal/adapters/inbound/http/errors.go`, e o corpo de erro (`{"error": {"code", "message"}}`) é o mesmo nos três microsserviços. A saga trouxe `ErrSagaOutOfStep`, `ErrUnknownCatalogItem` e `ErrInvalidSimulatedFailure`.
+> **Revisão na fase 4:** o exemplo e a regra de mapeamento foram atualizados para o código atual. O handler não faz mais `switch`; o mapeamento é uma tabela única em `internal/adapters/inbound/http/errors.go`, e o corpo de erro (`{"error": {"code", "message"}}`) é o mesmo nos três microsserviços. A saga trouxe `ErrSagaOutOfStep`, `ErrUnknownCatalogItem` e `ErrInvalidSimulatedFailure`; a validação de entrada trouxe `ErrInvalidID` e a exclusão de cadastro em uso, `ErrInUse`.
 
 ## Contexto
 
@@ -41,7 +41,7 @@ var (
 ### Regras
 
 1. Casos de uso devolvem erros de `domainerrors`, direto ou embrulhados com `fmt.Errorf("...: %w", domainerrors.ErrX)`.
-2. Repositórios traduzem os erros de infraestrutura (`internal/adapters/outbound/postgresql/errors.go`): `gorm.ErrRecordNotFound` vira `ErrNotFound` e a violação de unicidade (`23505`) vira `ErrAlreadyExists`.
+2. Repositórios traduzem os erros de infraestrutura (`internal/adapters/outbound/postgresql/errors.go`): `gorm.ErrRecordNotFound` vira `ErrNotFound`, a violação de unicidade (`23505`) vira `ErrAlreadyExists`, a de chave estrangeira (`23503`) vira `ErrInUse` e o texto inválido para UUID (`22P02`) vira `ErrInvalidID`.
 3. Handlers chamam `httputil.HandleError(c, err)`, que percorre uma tabela `erro → status, código` com `errors.Is`. Erro fora da tabela vira 500 `INTERNAL_ERROR` sem expor a mensagem. Exemplos da tabela:
 
    | Erro | Status | `code` |
@@ -49,11 +49,13 @@ var (
    | `ErrNotFound` | 404 | `NOT_FOUND` |
    | `ErrAlreadyExists` | 409 | `ALREADY_EXISTS` |
    | `ErrConcurrentUpdate` | 409 | `CONCURRENT_UPDATE` |
+   | `ErrInUse` | 409 | `RESOURCE_IN_USE` |
    | `ErrInvalidStatus` | 409 | `INVALID_STATUS_TRANSITION` |
    | `ErrInsufficientStock` | 422 | `INSUFFICIENT_STOCK` |
    | `ErrDocumentMismatch` | 403 | `FORBIDDEN` |
    | `ErrInvalidCredentials` | 401 | `UNAUTHORIZED` |
    | `ErrInvalidSimulatedFailure` | 400 | `INVALID_SIMULATE_FAILURE` |
+   | `ErrInvalidID` | 400 | `VALIDATION_ERROR` |
 
 4. Nada de `errors.New("...")` solto em casos de uso ou handlers. Erro novo entra em `domainerrors` e, se chega ao HTTP, na tabela.
 
@@ -77,7 +79,7 @@ var (
 
 - Sentinelas não carregam contexto (ex.: qual ID faltou). Mitigado com `fmt.Errorf("...: %w", ...)` quando preciso.
 - Mensagens em vários idiomas exigiriam trocar sentinelas por structs com código.
-- Erro de banco que o adapter não traduz cai no 500 genérico. Hoje a violação de chave estrangeira (`23503`, ex.: excluir um solicitante que ainda tem veículos) não é traduzida.
+- Erro de banco que o adapter não traduz cai no 500 genérico. Cada código novo do Postgres precisa entrar no `mapError`, como entraram a chave estrangeira (`23503`, excluir um cliente que ainda tem veículos) e o UUID inválido (`22P02`).
 
 ## Referências
 

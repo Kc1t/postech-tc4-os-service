@@ -45,7 +45,7 @@ Motivos:
 - Repositórios enxutos, com poucas linhas por método CRUD.
 - `AutoMigrate` na subida do serviço acelera a iteração.
 - Conversão domínio ↔ modelo isolada em `model/`.
-- Tradução de erros do banco centralizada em `internal/adapters/outbound/postgresql/errors.go` (`gorm.ErrRecordNotFound` → `ErrNotFound`, violação de unicidade `23505` → `ErrAlreadyExists`).
+- Tradução de erros do banco centralizada em `internal/adapters/outbound/postgresql/errors.go`: `gorm.ErrRecordNotFound` → `ErrNotFound`, violação de unicidade `23505` → `ErrAlreadyExists`, violação de chave estrangeira `23503` → `ErrInUse` e texto inválido para UUID `22P02` → `ErrInvalidID`.
 
 ### Negativas
 

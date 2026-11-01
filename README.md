@@ -170,7 +170,7 @@ Para demonstrar, com `FAULT_INJECTION_ENABLED=true`, o header `X-Simulate-Failur
 
 ## API REST
 
-Swagger em [`docs/swagger.yaml`](docs/swagger.yaml) (servido em `/swagger/index.html`) e collection em [`postman_collection.json`](postman_collection.json), organizada pelo fluxo da saga. Erros seguem um envelope único nos três serviços: `{"error": {"code": "...", "message": "..."}}`.
+Swagger em [`docs/swagger.yaml`](docs/swagger.yaml) (servido em `/swagger/index.html`) e collection em [`postman_collection.json`](postman_collection.json), organizada pelo fluxo da saga. Erros seguem um envelope único nos três serviços: `{"error": {"code": "...", "message": "..."}}`. Entrada inválida responde 400 antes de chegar ao banco (`{id}` que não é UUID, código da OS não numérico, CPF/CNPJ com dígito errado), `DELETE` de id inexistente responde 404 e excluir cadastro usado por OS responde 409 `RESOURCE_IN_USE`. A tabela erro → status está na [ADR-0006](docs/adr/0006-domain-errors-sentinels.md).
 
 | Grupo | Rotas (prefixo `/api/v1`) | Quem |
 |---|---|---|
@@ -190,11 +190,12 @@ As tabelas são criadas pelo `AutoMigrate` do GORM na subida: `users`, `refresh_
 ## Segurança em camadas
 
 1. **Borda:** API Gateway HTTPS com throttling (10 req/s em `POST /auth`) e Lambda authorizer em toda rota protegida, sem cache.
-2. **Serviço:** o middleware `Auth` valida o JWT de novo com o mesmo segredo, `RequireRole("admin")` protege as rotas da equipe, e as rotas do cliente conferem se o `document` do token é o pedido: diferente responde 403 (`ErrDocumentMismatch`), e OS de outro cliente responde 404.
-3. **Interno:** `/internal/*` fica fora do gateway e exige `X-Internal-Token`, comparado em tempo constante; sem token configurado, responde 503.
-4. **Equipe:** senha com bcrypt (custo 12), bloqueio de 15 min depois de 5 erros, access token de 15 min e refresh de 7 dias com rotação.
-5. **Execução:** contêiner sem root, sistema de arquivos só leitura, sem capabilities, `NetworkPolicy` só na porta 8080, banco só acessível pelo cluster.
-6. **Entrega:** gosec, govulncheck, Trivy, tfsec e o quality gate do SonarQube bloqueiam o merge; segredos só em GitHub Secrets e Secrets Manager.
+2. **Serviço:** o middleware `Auth` valida o JWT de novo com o mesmo segredo (só HS256, `exp` obrigatório), `RequireRole("admin")` protege as rotas da equipe, e as rotas do cliente conferem se o `document` do token é o pedido: diferente responde 403 (`ErrDocumentMismatch`), e OS de outro cliente responde 404.
+3. **Entrada:** id, código e documento são validados antes do caso de uso, e entrada inválida responde 400 em vez de 404 ou 500.
+4. **Interno:** `/internal/*` fica fora do gateway e exige `X-Internal-Token`, comparado em tempo constante; sem token configurado, responde 503.
+5. **Equipe:** senha com bcrypt (custo 12), bloqueio de 15 min depois de 5 erros, access token de 15 min e refresh de 7 dias com rotação.
+6. **Execução:** contêiner sem root, sistema de arquivos só leitura, sem capabilities, `NetworkPolicy` só na porta 8080, banco só acessível pelo cluster.
+7. **Entrega:** gosec, govulncheck, Trivy, tfsec e o quality gate do SonarQube bloqueiam o merge, e o kubeconform barra o deploy de manifesto inválido; segredos só em GitHub Secrets e Secrets Manager.
 
 Modelo de ameaça, segredos, dados pessoais, testes de cada controle e limitações em [`docs/SEGURANCA.md`](docs/SEGURANCA.md).
 
@@ -224,9 +225,10 @@ Evidência: cada execução do [workflow de CI](https://github.com/Kc1t/postech-
 | `sonarqube` | SonarQube Community num container do job, com quality gate próprio: cobertura ≥ 80%, duplicação ≤ 3% e nota A em confiabilidade, segurança e manutenibilidade |
 | `terraform` | fmt, validate e tfsec do `infra/` |
 | `image` | build da imagem e Trivy (CRITICAL com correção disponível bloqueia) |
+| `manifests` | kubeconform em modo strict sobre `k8s/`, contra o schema do Kubernetes 1.35 |
 | `deploy` | só na `main`, depois de todos os anteriores: `terraform apply` do RDS, DSN lida do Secrets Manager, imagem no ECR, Secret e manifests no EKS, rollout e smoke test em `/health/ready` pelo NLB |
 
-A `main` é protegida: só recebe PR, com os seis primeiros jobs obrigatórios e a branch atualizada, inclusive para administradores. O deploy só roda com a variável `AWS_DEPLOY_ENABLED=true`, porque as credenciais do Learner Lab expiram a cada sessão.
+A `main` é protegida: só recebe PR, com os jobs de validação obrigatórios, a branch atualizada e as conversas resolvidas, inclusive para administradores. O deploy só roda com a variável `AWS_DEPLOY_ENABLED=true`, porque as credenciais do Learner Lab expiram a cada sessão.
 
 ## Executar localmente
 

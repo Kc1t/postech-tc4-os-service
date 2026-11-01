@@ -5,12 +5,13 @@ Controles de segurança da oficina nos seis repositórios `postech-tc4-*`, confe
 | Camada | Controle principal |
 |---|---|
 | Borda | API Gateway HTTPS com throttling, Lambda authorizer em toda rota protegida, cache do authorizer desligado |
-| Serviço | cada serviço revalida o JWT, confere o papel por rota e a posse do recurso (403) |
+| Serviço | cada serviço revalida o JWT (só HS256, `exp` obrigatório), confere o papel por rota e a posse do recurso (403) |
+| Entrada | id que não é UUID, código e CPF/CNPJ inválidos recusados com 400 antes do caso de uso e do banco |
 | Interno | `/internal/*` fora do gateway, com `X-Internal-Token` comparado em tempo constante; JWT de serviço de 2 minutos entre serviços |
 | Pagamento | webhook do Mercado Pago com HMAC `x-signature` e releitura do pagamento no provedor |
 | Dados | TLS obrigatório no RDS, banco sem acesso público, CPF e e-mail mascarados nos logs das Lambdas e do billing |
 | Execução | contêiner sem root, sistema de arquivos só leitura, sem capabilities, `NetworkPolicy` |
-| Cadeia de entrega | golangci-lint com gosec, gosec, govulncheck, Trivy, tfsec, quality gate do SonarQube, `main` protegida |
+| Cadeia de entrega | golangci-lint com gosec, gosec, govulncheck, Trivy, tfsec, kubeconform, quality gate do SonarQube, `main` protegida |
 
 ## 1. Modelo de ameaça
 
@@ -75,12 +76,12 @@ O gateway não é a única barreira: o NLB de cada serviço é público, então 
 
 | Componente | Algoritmo aceito | `exp` | Claims exigidas | Código |
 |---|---|---|---|---|
-| os-service | família HMAC (`SigningMethodHMAC`) | validado quando presente | `sub` e `role` | [`cmd/api/middleware/auth.go`](../cmd/api/middleware/auth.go) |
+| os-service | só HS256 | obrigatório (`WithExpirationRequired`) | `sub` e `role` | [`cmd/api/middleware/auth.go`](../cmd/api/middleware/auth.go) |
 | billing-service | só HS256 | obrigatório (`WithExpirationRequired`) | `sub` e `role` válido | [`cmd/api/middleware/auth.go`](https://github.com/Kc1t/postech-tc4-billing-service/blob/main/cmd/api/middleware/auth.go) |
 | execution-service | só HS256 | obrigatório (`WithExpirationRequired`) | `sub` e `role` válido | [`cmd/api/middleware/auth.go`](https://github.com/Kc1t/postech-tc4-execution-service/blob/main/cmd/api/middleware/auth.go) |
-| authorizer | só HS256 | validado quando presente | `sub` e `role` | [`internal/token/token.go`](https://github.com/Kc1t/postech-tc4-lambda-auth/blob/main/internal/token/token.go) |
+| authorizer | só HS256 | obrigatório (`WithExpirationRequired`) | `sub` e `role` | [`internal/token/token.go`](https://github.com/Kc1t/postech-tc4-lambda-auth/blob/main/internal/token/token.go) |
 
-Os emissores (login do os-service, issuer e o token de serviço) sempre gravam `exp`. Billing e execution recusam subir em produção com o `JWT_SECRET` padrão; o os-service não faz essa checagem e depende do Secret criado pelo pipeline.
+O critério é o mesmo nas quatro camadas: token assinado com outro algoritmo (HS384, HS512, `alg: none`) ou sem `exp` é recusado. Os emissores (login do os-service, issuer e o token de serviço) sempre gravam `exp`. Billing e execution recusam subir em produção com o `JWT_SECRET` padrão; o os-service não faz essa checagem e depende do Secret criado pelo pipeline.
 
 ### 2.4 Login da equipe no os-service
 
@@ -131,6 +132,25 @@ O papel não basta: o cliente só vê o que é dele.
 ### 3.4 Chamadas entre serviços
 
 Na composição do `/details` ([ADR-0019](adr/0019-api-composition-no-details.md)), o os-service assina na hora um JWT de serviço (`sub = service:os-service`, `role: admin`, 2 minutos) e chama o billing e o execution direto no Service ClusterIP, sem passar pelo gateway. Os dois validam esse token com o mesmo middleware da equipe.
+
+### 3.5 Validação de entrada
+
+Entrada inválida para no handler com 400, antes do caso de uso e do banco, em vez de virar 404 ou 500. As checagens de identificador rodam depois da autenticação e do papel, então quem não tem acesso continua recebendo 401 ou 403.
+
+| Serviço | Entrada | Resposta |
+|---|---|---|
+| os-service | `{id}` que não é UUID em `service-orders`, `requesters`, `vehicles`, `services` e `parts` (middleware `httputil.UUIDParams`) | 400 `VALIDATION_ERROR`, "path parameter 'id' must be a valid UUID" |
+| os-service | id que escapa do middleware e chega ao Postgres como texto inválido para UUID (`22P02`) | 400 `VALIDATION_ERROR` (`ErrInvalidID`), segunda barreira no adapter |
+| os-service | `GET /service-orders/code/{code}` com código não numérico ou ≤ 0 | 400 `VALIDATION_ERROR` |
+| os-service | CPF/CNPJ com dígito verificador errado em `GET /requesters/document/{document}` e no `?document=` das rotas do cliente | 400; o documento formatado (`529.982.247-25`) é normalizado |
+| os-service | corpo JSON inválido ou sem campo obrigatório | 400 `VALIDATION_ERROR` |
+| os-service | `X-Simulate-Failure` fora de `budget`, `payment` e `repair` (com a injeção de falhas ligada) | 400 `INVALID_SIMULATE_FAILURE` |
+| os-service | `DELETE` de id inexistente | 404 |
+| os-service | excluir serviço ou peça usado por OS ativa, ou cliente ou veículo com OS | 409 `RESOURCE_IN_USE`; o serviço e a peça são conferidos antes, e a violação de chave estrangeira (`23503`) vira `ErrInUse` |
+| billing-service | id de orçamento ou de pagamento que não é UUID | 400 `INVALID_REQUEST`; `GET /budgets/os/{os_id}` aceita qualquer valor, porque a chave é do os-service |
+| execution-service | `os_id` que não é UUID na consulta e nas quatro transições | 400 `VALIDATION_ERROR`, sem consultar o DynamoDB |
+| Lambda issuer | corpo que não é JSON, CPF com tamanho errado, sequência repetida ou dígito errado | 400 |
+| Consumidores SQS | envelope que não decodifica, sem `message_id` ou `type`, ou de versão maior que a suportada | log `message_malformed` com alerta; a mensagem não é removida e vai para a DLQ depois de 5 entregas |
 
 ## 4. Webhook do Mercado Pago
 
@@ -210,7 +230,8 @@ Os cinco repositórios de código rodam os mesmos controles no Pull Request e no
 | gosec | duas execuções: relatório completo para o SonarQube (`-fmt=sonarqube`) e outra com `-severity=medium -confidence=medium` que reprova | achado médio ou alto |
 | govulncheck | `golang/govulncheck-action` | vulnerabilidade alcançável pelo código |
 | Trivy na imagem (os, billing, execution) | relatório de HIGH e CRITICAL, e uma segunda execução com `severity: CRITICAL`, `ignore-unfixed: true`, `exit-code: 1` | CRITICAL com correção disponível |
-| tfsec | `aquasecurity/tfsec-action` no `infra/` de cada repositório e no `postech-tc4-infra-k8s` | achado sem `tfsec:ignore` justificado |
+| tfsec | `aquasecurity/tfsec-action` no `infra/` de cada repositório e no `postech-tc4-infra-k8s`, com a versão do tfsec fixa nos serviços e nas Lambdas | achado sem `tfsec:ignore` justificado |
+| kubeconform (os, billing, execution) | job "Manifestos K8s (kubeconform)": todos os arquivos de `k8s/` em modo `-strict` contra o schema do Kubernetes 1.35; o deploy depende dele | manifesto inválido ou com campo desconhecido |
 | SonarQube | `.github/scripts/sonar.sh` sobe o SonarQube no job e aplica o gate `tc4-gate`: cobertura ≥ 80%, duplicação ≤ 3%, nota A em confiabilidade, segurança e manutenibilidade | gate reprovado |
 | Cobertura | job de testes com mínimo de 80% (`MIN_COVERAGE`) | abaixo de 80% |
 | `main` protegida | PR obrigatório, checks obrigatórios, branch atualizada, conversas resolvidas, vale para administradores | merge sem os checks |
@@ -232,10 +253,11 @@ Os três serviços criam o repositório no ECR com `scanOnPush=true`. Os `#nosec
 | Controle | Teste |
 |---|---|
 | 401 sem token, formato inválido, token inválido, expirado, outro segredo | os: [`cmd/api/middleware/middleware_test.go`](../cmd/api/middleware/middleware_test.go) (`TestAuth_*`) |
+| Só HS256 e `exp` obrigatório no os-service: token sem `exp` e token HS384/HS512 → 401 | os: `cmd/api/middleware/middleware_test.go` (`TestAuth_RecusaTokenSemExpOuForaDoHS256`) |
 | HS512, `alg: none`, sem `exp`, expirado; cliente → 403 no execution | execution: `cmd/api/middleware/middleware_test.go` (`TestAuth_Recusas`, `TestAuth_ClienteRecebe403`) |
 | Papéis por rota no billing (401 sem token, 403 por papel, webhook sem assinatura → 401) | billing: `cmd/api/routes/routes_test.go` (`TestPapeisPorRota`) |
 | Authorizer: válido, caixa diferente, sem header, sem esquema, vazio, expirado, outro segredo | lambda-auth: `internal/authorizer/handler_test.go` |
-| `alg: none` recusado, segredo errado, expirado | lambda-auth: `internal/token/token_test.go` |
+| `alg: none` recusado, segredo errado, expirado, sem `exp` | lambda-auth: `internal/token/token_test.go` (`TestVerify_RejectsMissingExp`) |
 | Issuer: CPF inválido 400, inexistente 404, inativo 403, os-service fora 503, outro erro 500 | lambda-auth: `internal/issuer/handler_test.go` (`TestHandle_Erros`) |
 | Cliente da rota interna: token errado não repete, retry só em 5xx | lambda-auth: `internal/requester/requester_test.go` |
 | Posse no os-service: documento diferente, ausente, cliente sem documento → 403 | os: [`ownership_test.go`](../internal/adapters/inbound/http/service_order/ownership_test.go) |
@@ -251,6 +273,12 @@ Os três serviços criam o repositório no ECR com `scanOnPush=true`. Os `#nosec
 | Rotação e expiração do refresh token | os: [`refresh_test.go`](../internal/application/usecase/auth/refresh_test.go) |
 | bcrypt | os: [`pkg/hasher/bcrypt_test.go`](../pkg/hasher/bcrypt_test.go) |
 | Validação de CPF/CNPJ | os: [`document_test.go`](../internal/domain/entities/document_test.go); lambda-auth: `internal/cpf/cpf_test.go` |
+| id que não é UUID → 400 no os-service | os: `internal/adapters/inbound/http/params_test.go` (`TestUUIDParams`), `service_order/handler_test.go` (`TestServiceOrderHandler_IDQueNaoEUUID`), `requester/handler_test.go` (`TestRequesterHandler_InvalidUUID`) e os testes de handler de `vehicle`, `service` e `part` |
+| `22P02` do Postgres → `ErrInvalidID` | os: `internal/adapters/outbound/postgresql/errors_test.go` (`TestMapError_InvalidTextRepresentation`), `delete_test.go` (`TestRepositories_IDQueNaoEUUIDDevolveInvalidID`) |
+| CPF/CNPJ inválido na busca por documento → 400 | os: `requester/handler_test.go` (`TestRequesterHandler_FindByDocument_InvalidDocument`) |
+| Exclusão: inexistente → 404, em uso → 409 `RESOURCE_IN_USE` | os: `delete_test.go` (`TestRepositories_DeleteInexistenteDevolveNotFound`), `TestVehicleRepository_DeleteComOS_DevolveErrInUse`, `TestServiceOrderRepository_ExistsActiveWithServiceEPart`, `TestDeletePart_Execute_EmUsoPorOSAtiva`, `TestDeleteService_Execute_EmUsoPorOSAtiva` |
+| id de orçamento ou pagamento que não é UUID → 400 depois do papel | billing: `internal/adapters/inbound/http/params_test.go` (`TestUUIDParams`), `cmd/api/routes/routes_test.go` |
+| `os_id` que não é UUID → 400 sem consultar o DynamoDB | execution: `internal/adapters/inbound/http/execution/handler_test.go` (`TestGet_Erros`) |
 | CORS por allowlist | os: [`middleware_test.go`](../cmd/api/middleware/middleware_test.go) (`TestCORS_Allowlist`); billing e execution: `TestCORS` |
 | Máscara de documento e e-mail | lambda-auth e notification-lambda: `internal/mask/mask_test.go` |
 | Mensagem duplicada não repete efeito | os: [`pkg/inbox/inbox_test.go`](../pkg/inbox/inbox_test.go), cenário "mensagem reentregue" em [`features/saga.feature`](../features/saga.feature); notifier: `TestHandle_DuplicadaNaoReenvia` |

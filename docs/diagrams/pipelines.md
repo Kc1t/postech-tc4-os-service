@@ -26,10 +26,11 @@ flowchart TD
     trig(["PR ou push"]) --> q["<b>quality</b><br/>go mod tidy, gofmt, go vet,<br/>golangci-lint, gosec, govulncheck,<br/>Swagger em dia"]
     trig --> t["<b>tests</b><br/>unitários e integração,<br/>cobertura mínima de 80%"]
     trig --> c["<b>bdd</b> (os) ou <b>component</b> (billing, execution)<br/>godog contra Postgres ou<br/>teste de componente com LocalStack"]
-    trig --> tf["<b>terraform</b><br/>fmt, validate, tfsec do infra/"]
+    trig --> tf["<b>terraform</b><br/>fmt, validate, tfsec do infra/<br/>(tfsec com versão fixa)"]
     trig --> img["<b>image</b><br/>build e Trivy<br/>(CRITICAL com correção bloqueia)"]
+    trig --> k["<b>manifests</b><br/>kubeconform strict em k8s/,<br/>schema do Kubernetes 1.35"]
     q & t --> s["<b>sonarqube</b><br/>SonarQube no container do job,<br/>quality gate próprio"]
-    q & t & c & s & tf & img --> d["<b>deploy</b> (main)<br/>terraform apply do banco, push no ECR,<br/>Secret e manifests, rollout, smoke test pelo NLB"]
+    q & t & c & s & tf & img & k --> d["<b>deploy</b> (main)<br/>terraform apply do banco, push no ECR,<br/>Secret e manifests, rollout, smoke test pelo NLB"]
 
     style d fill:#ffe0b2,stroke:#e80
 ```

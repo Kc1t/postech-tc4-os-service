@@ -59,8 +59,8 @@ flowchart TD
 
     grp -->|"/health, /swagger, /api/v1/auth/login, refresh, register"| open["aberta"]
     grp -->|"/internal/*"| tok{{"X-Internal-Token"}}
-    grp -->|"/api/v1/auth/logout,<br/>/service-orders/code/{code}, /service-orders/requester"| auth1{{"Auth: JWT válido"}}
-    grp -->|"demais /api/v1"| auth2{{"Auth: JWT válido"}}
+    grp -->|"/api/v1/auth/logout,<br/>/service-orders/code/{code}, /service-orders/requester"| auth1{{"Auth: JWT HS256 com exp"}}
+    grp -->|"demais /api/v1"| auth2{{"Auth: JWT HS256 com exp"}}
 
     tok -->|"sem token configurado"| r503(["503"])
     tok -->|"diferente"| r401a(["401"])
@@ -74,7 +74,9 @@ flowchart TD
     auth2 -->|"ausente ou inválido"| r401c(["401"])
     auth2 -->|"ok"| role{{"RequireRole(admin)"}}
     role -->|"outro papel"| r403b(["403"])
-    role -->|"admin"| hadm["handler da equipe"]
+    role -->|"admin"| uuid{{"UUIDParams: {id} é UUID?"}}
+    uuid -->|"não"| r400(["400"])
+    uuid -->|"sim"| hadm["handler da equipe"]
 
     style r401a fill:#ffe4e1,stroke:#c66
     style r401b fill:#ffe4e1,stroke:#c66
@@ -82,9 +84,10 @@ flowchart TD
     style r403a fill:#ffe0b2,stroke:#e80
     style r403b fill:#ffe0b2,stroke:#e80
     style r503 fill:#ffe4e1,stroke:#c66
+    style r400 fill:#ffe4e1,stroke:#c66
 ```
 
-O `logout` usa o mesmo grupo autenticado das rotas do cliente, sem a checagem de posse. As rotas estão em [`cmd/api/routes/routes.go`](../../cmd/api/routes/routes.go) e em cada `handler.go` de `internal/adapters/inbound/http`.
+O `UUIDParams` roda nos grupos `service-orders`, `requesters`, `vehicles`, `services` e `parts`, depois da autenticação e do papel. Na consulta do cliente por código, o handler recusa código não numérico ou ≤ 0 e CPF/CNPJ inválido com 400 antes de conferir a posse. O `logout` usa o mesmo grupo autenticado das rotas do cliente, sem a checagem de posse. As rotas estão em [`cmd/api/routes/routes.go`](../../cmd/api/routes/routes.go) e em cada `handler.go` de `internal/adapters/inbound/http`.
 
 ### Inventário do os-service
 
@@ -120,12 +123,12 @@ flowchart LR
     end
 
     subgraph appl["os-service"]
-        a400["400<br/>corpo inválido,<br/>X-Simulate-Failure inválido"]
+        a400["400<br/>id que não é UUID, código ou<br/>CPF/CNPJ inválido, corpo inválido,<br/>X-Simulate-Failure inválido"]
         a401["401<br/>token ausente ou inválido,<br/>credenciais erradas"]
         a403["403<br/>papel insuficiente,<br/>documento alheio"]
-        a404["404<br/>recurso inexistente"]
-        a409["409<br/>já existe, transição inválida,<br/>atualização concorrente"]
-        a422["422<br/>CPF ou placa inválidos,<br/>estoque insuficiente,<br/>veículo de outro cliente"]
+        a404["404<br/>recurso inexistente,<br/>inclusive no DELETE"]
+        a409["409<br/>já existe, transição inválida,<br/>atualização concorrente,<br/>cadastro em uso por OS"]
+        a422["422<br/>CPF ou placa inválidos no cadastro,<br/>estoque insuficiente,<br/>veículo de outro cliente"]
         a500["500<br/>erro não mapeado"]
     end
 
