@@ -107,6 +107,12 @@ const docTemplate = `{
         },
         "/auth/register": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "O cliente não se cadastra aqui: ele se autentica pelo CPF na Lambda auth-issuer.",
                 "consumes": [
                     "application/json"
                 ],
@@ -116,7 +122,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Registrar usuario",
+                "summary": "Registrar usuario da equipe (somente admin)",
                 "parameters": [
                     {
                         "description": "Dados do usuario",
@@ -133,6 +139,30 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/commands.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "e-mail já cadastrado",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     }
                 }
