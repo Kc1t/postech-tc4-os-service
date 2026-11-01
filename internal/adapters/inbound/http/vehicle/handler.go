@@ -1,6 +1,7 @@
 package vehiclehandler
 
 import (
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
 	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 	"github.com/gin-gonic/gin"
 )
@@ -30,7 +31,7 @@ func NewVehicleHandler(
 }
 
 func (h *VehicleHandler) SetupRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/vehicles")
+	g := rg.Group("/vehicles", httputil.UUIDParams("id"))
 	g.POST("", h.Create)
 	g.GET("", h.FindAll)
 	g.GET("/:id", h.FindByID)

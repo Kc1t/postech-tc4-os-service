@@ -116,7 +116,7 @@ func (r *serviceOrderRepository) Update(ctx context.Context, so *entities.Servic
 }
 
 func (r *serviceOrderRepository) Delete(ctx context.Context, id string) error {
-	return mapError(conn(ctx, r.db).Delete(&pgmodel.ServiceOrder{}, "id = ?", id).Error)
+	return deleteByID(conn(ctx, r.db), &pgmodel.ServiceOrder{}, id)
 }
 
 func (r *serviceOrderRepository) AverageExecutionTime(ctx context.Context) (time.Duration, error) {

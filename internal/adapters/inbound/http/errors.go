@@ -55,6 +55,7 @@ var mappings = []mapping{
 	{domainerrors.ErrAccountLocked, http.StatusTooManyRequests, CodeAccountLocked},
 	{domainerrors.ErrStatusNotAllowedForRequester, http.StatusForbidden, CodeForbidden},
 	{domainerrors.ErrDocumentMismatch, http.StatusForbidden, CodeForbidden},
+	{domainerrors.ErrInvalidID, http.StatusBadRequest, CodeValidation},
 	{domainerrors.ErrInvalidDocument, http.StatusUnprocessableEntity, CodeValidation},
 	{domainerrors.ErrInvalidPlate, http.StatusUnprocessableEntity, CodeValidation},
 	{domainerrors.ErrInvalidSimulatedFailure, http.StatusBadRequest, CodeInvalidSimulateArg},

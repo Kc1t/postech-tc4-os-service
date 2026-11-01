@@ -271,6 +271,18 @@
                         "schema": {
                             "$ref": "#/definitions/commands.PartResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -314,6 +326,18 @@
                         "schema": {
                             "$ref": "#/definitions/commands.PartResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -339,6 +363,12 @@
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -393,6 +423,18 @@
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -477,13 +519,32 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Requester Document",
+                        "description": "CPF ou CNPJ do cliente",
                         "name": "document",
                         "in": "path",
                         "required": true
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/commands.RequesterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "CPF/CNPJ inválido",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/requesters/{id}": {
@@ -514,6 +575,18 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/commands.RequesterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     }
                 }
@@ -558,6 +631,18 @@
                         "schema": {
                             "$ref": "#/definitions/commands.RequesterResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -583,6 +668,12 @@
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -631,6 +722,12 @@
                             "items": {
                                 "$ref": "#/definitions/commands.VehicleResponse"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     },
                     "500": {
@@ -766,6 +863,24 @@
                         "schema": {
                             "$ref": "#/definitions/commands.ServiceOrderResponse"
                         }
+                    },
+                    "400": {
+                        "description": "código não numérico ou CPF/CNPJ ausente ou inválido",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "o CPF do token não é o dono da OS",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -833,6 +948,18 @@
                                 "$ref": "#/definitions/commands.ServiceOrderResponse"
                             }
                         }
+                    },
+                    "400": {
+                        "description": "CPF/CNPJ ausente ou inválido",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "o CPF do token não é o do filtro",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -865,6 +992,18 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/commands.ServiceOrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     }
                 }
@@ -909,6 +1048,12 @@
                     "204": {
                         "description": "No Content"
                     },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -948,6 +1093,12 @@
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -995,6 +1146,12 @@
                             "$ref": "#/definitions/commands.ServiceOrderDetailsResponse"
                         }
                     },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1035,6 +1192,12 @@
                             "items": {
                                 "$ref": "#/definitions/commands.StatusHistoryResponse"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     },
                     "404": {
@@ -1138,6 +1301,18 @@
                         "schema": {
                             "$ref": "#/definitions/commands.ServiceResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -1181,6 +1356,18 @@
                         "schema": {
                             "$ref": "#/definitions/commands.ServiceResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -1206,6 +1393,12 @@
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -1308,7 +1501,20 @@
                         "required": true
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
             },
             "put": {
                 "security": [
@@ -1350,6 +1556,18 @@
                         "schema": {
                             "$ref": "#/definitions/commands.VehicleResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -1375,6 +1593,12 @@
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",

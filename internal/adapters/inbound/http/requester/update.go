@@ -16,6 +16,8 @@ import (
 // @Param       id path string true "Requester ID"
 // @Param       body body commands.UpdateRequesterRequest true "Dados para atualizar"
 // @Success     200 {object} commands.RequesterResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /requesters/{id} [put]
 func (h *RequesterHandler) Update(c *gin.Context) {

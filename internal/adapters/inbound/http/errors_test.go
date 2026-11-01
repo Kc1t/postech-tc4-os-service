@@ -39,6 +39,7 @@ func TestHandleError_Mapeamento(t *testing.T) {
 		{domainerrors.ErrInvalidRefreshToken, 401, CodeUnauthorized},
 		{domainerrors.ErrAccountLocked, 429, CodeAccountLocked},
 		{domainerrors.ErrDocumentMismatch, 403, CodeForbidden},
+		{domainerrors.ErrInvalidID, 400, CodeValidation},
 		{domainerrors.ErrInvalidDocument, 422, CodeValidation},
 		{domainerrors.ErrInvalidStatus, 409, CodeInvalidTransition},
 		{domainerrors.ErrOrderNotCancellable, 409, CodeNotCancellable},

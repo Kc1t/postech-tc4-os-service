@@ -278,6 +278,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.PartResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -321,6 +333,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.PartResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -346,6 +370,12 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -400,6 +430,18 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -484,13 +526,32 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Requester Document",
+                        "description": "CPF ou CNPJ do cliente",
                         "name": "document",
                         "in": "path",
                         "required": true
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/commands.RequesterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "CPF/CNPJ inválido",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/requesters/{id}": {
@@ -521,6 +582,18 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/commands.RequesterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     }
                 }
@@ -565,6 +638,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.RequesterResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -590,6 +675,12 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -638,6 +729,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/commands.VehicleResponse"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     },
                     "500": {
@@ -773,6 +870,24 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.ServiceOrderResponse"
                         }
+                    },
+                    "400": {
+                        "description": "código não numérico ou CPF/CNPJ ausente ou inválido",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "o CPF do token não é o dono da OS",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -840,6 +955,18 @@ const docTemplate = `{
                                 "$ref": "#/definitions/commands.ServiceOrderResponse"
                             }
                         }
+                    },
+                    "400": {
+                        "description": "CPF/CNPJ ausente ou inválido",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "o CPF do token não é o do filtro",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -872,6 +999,18 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/commands.ServiceOrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     }
                 }
@@ -916,6 +1055,12 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -955,6 +1100,12 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -1002,6 +1153,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/commands.ServiceOrderDetailsResponse"
                         }
                     },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1042,6 +1199,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/commands.StatusHistoryResponse"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
                         }
                     },
                     "404": {
@@ -1145,6 +1308,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.ServiceResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -1188,6 +1363,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.ServiceResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -1213,6 +1400,12 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",
@@ -1315,7 +1508,20 @@ const docTemplate = `{
                         "required": true
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    }
+                }
             },
             "put": {
                 "security": [
@@ -1357,6 +1563,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/commands.VehicleResponse"
                         }
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -1382,6 +1600,12 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "id não é UUID",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     },
                     "404": {
                         "description": "Not Found",

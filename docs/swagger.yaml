@@ -661,6 +661,10 @@ paths:
       responses:
         "204":
           description: No Content
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -688,6 +692,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.PartResponse'
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Buscar peca/insumo por ID
@@ -715,6 +727,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.PartResponse'
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Atualizar peca/insumo
@@ -741,6 +761,14 @@ paths:
       responses:
         "204":
           description: No Content
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Ajustar estoque de peca/insumo
@@ -795,6 +823,10 @@ paths:
       responses:
         "204":
           description: No Content
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -822,6 +854,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.RequesterResponse'
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Buscar cliente por ID
@@ -849,6 +889,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.RequesterResponse'
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Atualizar cliente
@@ -873,6 +921,10 @@ paths:
             items:
               $ref: '#/definitions/commands.VehicleResponse'
             type: array
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -885,14 +937,26 @@ paths:
   /requesters/document/{document}:
     get:
       parameters:
-      - description: Requester Document
+      - description: CPF ou CNPJ do cliente
         in: path
         name: document
         required: true
         type: string
       produces:
       - application/json
-      responses: {}
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/commands.RequesterResponse'
+        "400":
+          description: CPF/CNPJ inválido
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Buscar cliente por documento
@@ -971,6 +1035,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.ServiceOrderResponse'
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Buscar ordem de servico por ID
@@ -999,6 +1071,10 @@ paths:
       responses:
         "204":
           description: No Content
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1024,6 +1100,10 @@ paths:
       responses:
         "204":
           description: No Content
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1056,6 +1136,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.ServiceOrderDetailsResponse'
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1082,6 +1166,10 @@ paths:
             items:
               $ref: '#/definitions/commands.StatusHistoryResponse'
             type: array
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1111,6 +1199,18 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.ServiceOrderResponse'
+        "400":
+          description: código não numérico ou CPF/CNPJ ausente ou inválido
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "403":
+          description: o CPF do token não é o dono da OS
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Consultar OS pelo codigo (cliente autenticado por CPF)
@@ -1153,6 +1253,14 @@ paths:
             items:
               $ref: '#/definitions/commands.ServiceOrderResponse'
             type: array
+        "400":
+          description: CPF/CNPJ ausente ou inválido
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "403":
+          description: o CPF do token não é o do filtro
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Listar OS do cliente por CPF/CNPJ (cliente autenticado por CPF)
@@ -1207,6 +1315,10 @@ paths:
       responses:
         "204":
           description: No Content
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1234,6 +1346,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.ServiceResponse'
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Buscar servico por ID
@@ -1261,6 +1381,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.ServiceResponse'
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Atualizar servico
@@ -1315,6 +1443,10 @@ paths:
       responses:
         "204":
           description: No Content
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1337,7 +1469,15 @@ paths:
         type: string
       produces:
       - application/json
-      responses: {}
+      responses:
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Buscar veiculo por ID
@@ -1365,6 +1505,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/commands.VehicleResponse'
+        "400":
+          description: id não é UUID
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Atualizar veiculo

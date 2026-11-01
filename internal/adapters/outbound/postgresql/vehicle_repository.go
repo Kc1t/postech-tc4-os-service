@@ -72,5 +72,5 @@ func (r *vehicleRepository) Update(ctx context.Context, v *entities.Vehicle) err
 }
 
 func (r *vehicleRepository) Delete(ctx context.Context, id string) error {
-	return mapError(conn(ctx, r.db).Delete(&pgmodel.Vehicle{}, "id = ?", id).Error)
+	return deleteByID(conn(ctx, r.db), &pgmodel.Vehicle{}, id)
 }
