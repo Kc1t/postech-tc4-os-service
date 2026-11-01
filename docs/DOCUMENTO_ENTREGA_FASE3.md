@@ -5,6 +5,8 @@
 **Grupo 112** · Pós-Tech FIAP — SOAT (13SOAT) · Prazo: 15/09/2026
 
 > Este documento é a base do PDF submetido no Portal do Aluno.
+>
+> **Registro da fase 3 (monolito na AWS com Lambdas e New Relic), mantido como histórico.** Os repositórios `postech-tc3-*` e as rotas citados aqui são os daquela entrega; na fase 4 a aprovação do orçamento pelo cliente passou para o billing-service e o e-mail saiu do pod para uma Lambda ([ADR-0011](adr/0011-notificacoes-smtp-no-pod.md), substituída pela [ADR-0022](adr/0022-notificacao-por-lambda.md)). O estado atual está no [documento de entrega da fase 4](DOCUMENTO_ENTREGA_FASE4.md).
 
 ---
 

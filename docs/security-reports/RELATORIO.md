@@ -1,7 +1,8 @@
-# Relatório de Análise de Vulnerabilidades
+# Relatório de análise de vulnerabilidades da fase 1
 
-Workshop API — Tech Challenge Fase 1
-Data da execução: 2026-04-27
+Workshop API, Tech Challenge Fase 1 · execução de 2026-04-27
+
+> **Registro histórico.** O relatório mostra o estado de abril de 2026, e as mitigações recomendadas na seção 4 já foram aplicadas: `pgx/v5` está na v5.9.2 e `golang.org/x/crypto` na v0.57.0 (`go.mod`); o [`Dockerfile`](../../Dockerfile) roda com `USER 10001:10001` e tem `HEALTHCHECK`; o log de admin criado pelo seed passou para o logger JSON (`slog`), que escapa quebras de linha. Na fase 4 essas verificações não dependem mais de execução manual: gosec, govulncheck, Trivy e tfsec rodam e bloqueiam em todo PR, conforme a seção 8 de [`../SEGURANCA.md`](../SEGURANCA.md#8-cadeia-de-ci).
 
 ## 1. Metodologia
 
