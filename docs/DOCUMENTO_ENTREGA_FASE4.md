@@ -22,7 +22,7 @@
 | Vídeo de demonstração (até 15 min) | ⟨link do YouTube, não listado⟩ |
 | API Gateway (entrada única) | ⟨endpoint do gateway⟩ |
 | Swagger | `docs/swagger.yaml` em cada repositório de serviço |
-| Postman | `postman_collection.json` em cada repositório de serviço |
+| Postman | `postman_collection.json` em cada repositório de serviço; as três rodam juntas com `make postman` em `postech-tc4-infra-k8s/local` |
 | Dashboard do New Relic | ⟨links dos snapshots⟩ |
 | Decisões de arquitetura | [ADRs](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/adr/README.md) e [RFCs](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/rfc/README.md) |
 | Segurança | [docs/SEGURANCA.md](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/SEGURANCA.md) |
@@ -119,7 +119,7 @@ A divisão segue as **capacidades de negócio** do enunciado (atendimento, cobra
 | Pipeline independente com build, testes, qualidade e deploy em Kubernetes | um workflow por repositório; deploy no EKS com rollout e smoke test; as Lambdas por Terraform |
 | `main` protegida com PR e checagens | branch protection nos seis repositórios: PR obrigatório, checagens obrigatórias, branch atualizada e conversas resolvidas, inclusive para administradores |
 | Observabilidade da fase 3 | New Relic estendido aos novos serviços e às Lambdas, com o trace atravessando as filas |
-| Swagger ou Postman atualizados | os dois, em cada serviço |
+| Swagger ou Postman atualizados | os dois, em cada serviço; as collections têm teste em toda requisição e rodam juntas com `make postman` em `postech-tc4-infra-k8s/local`: 231 requisições, 512 asserções, 0 falhas |
 
 ## 7. Qualidade
 

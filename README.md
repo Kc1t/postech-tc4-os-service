@@ -24,7 +24,7 @@ Tech Challenge Fase 4, FIAP Pós Tech SOAT. O monolito da fase 3 foi dividido em
 | Testes unitários, BDD e cobertura ≥ 80% | [Testes e cobertura](#testes-e-cobertura): **86,3%**, com o resultado de cada execução no [CI](https://github.com/Kc1t/postech-tc4-os-service/actions/workflows/ci.yml) |
 | SonarQube no CI | job `sonarqube` do [CI](.github/workflows/ci.yml), quality gate próprio |
 | CI/CD com deploy em Kubernetes | [CI/CD](#cicd) |
-| Swagger e Postman | [`docs/swagger.yaml`](docs/swagger.yaml) e [`postman_collection.json`](postman_collection.json) |
+| Swagger e Postman | [`docs/swagger.yaml`](docs/swagger.yaml) e [`postman_collection.json`](postman_collection.json), com teste em toda requisição ([como rodar](#collection-postman)) |
 | Segurança | [Segurança em camadas](#segurança-em-camadas) e [`docs/SEGURANCA.md`](docs/SEGURANCA.md) |
 | Observabilidade | [Observabilidade](#observabilidade) |
 | Decisões de arquitetura | [ADRs](docs/adr/README.md) e [RFCs](docs/rfc/README.md) |
@@ -170,16 +170,30 @@ Para demonstrar, com `FAULT_INJECTION_ENABLED=true`, o header `X-Simulate-Failur
 
 ## API REST
 
-Swagger em [`docs/swagger.yaml`](docs/swagger.yaml) (servido em `/swagger/index.html`) e collection em [`postman_collection.json`](postman_collection.json), organizada pelo fluxo da saga. Erros seguem um envelope único nos três serviços: `{"error": {"code": "...", "message": "..."}}`. Entrada inválida responde 400 antes de chegar ao banco (`{id}` que não é UUID, código da OS não numérico, CPF/CNPJ com dígito errado), `DELETE` de id inexistente responde 404 e excluir cadastro usado por OS responde 409 `RESOURCE_IN_USE`. A tabela erro → status está na [ADR-0006](docs/adr/0006-domain-errors-sentinels.md).
+Swagger em [`docs/swagger.yaml`](docs/swagger.yaml), servido em `/swagger/index.html`; a collection Postman está [abaixo](#collection-postman). Erros seguem um envelope único nos três serviços: `{"error": {"code": "...", "message": "..."}}`. Entrada inválida responde 400 antes de chegar ao banco (`{id}` que não é UUID, código da OS não numérico, CPF/CNPJ com dígito errado), `DELETE` de id inexistente responde 404 e excluir cadastro usado por OS responde 409 `RESOURCE_IN_USE`. A tabela erro → status está na [ADR-0006](docs/adr/0006-domain-errors-sentinels.md).
 
 | Grupo | Rotas (prefixo `/api/v1`) | Quem |
 |---|---|---|
-| Autenticação da equipe | `POST /auth/login`, `/auth/refresh`, `/auth/register` abertas; `POST /auth/logout` com JWT | equipe |
+| Autenticação da equipe | `POST /auth/login` e `/auth/refresh` abertas; `POST /auth/logout` com JWT; `POST /auth/register` só com JWT `admin`, cria usuário da equipe ([ADR-0023](docs/adr/0023-registro-restrito-a-equipe.md)) | equipe |
 | Cadastros | `requesters`, `vehicles`, `services`, `parts` (CRUD) e `PATCH /parts/{id}/stock` | `admin` |
 | OS e saga | `POST /service-orders`, `GET /service-orders[/{id}]`, `GET /{id}/details`, `GET /{id}/history`, `POST /{id}/cancel`, `POST /{id}/deliver`, `GET /metrics/execution-time` | `admin` |
 | Cliente | `GET /service-orders/code/{code}?document=`, `GET /service-orders/requester?document=` | cliente com JWT do CPF, só as próprias OS |
 | Interna | `GET /internal/requesters/{document}` (fora do `/api/v1`) | Lambda issuer, com `X-Internal-Token`; sem rota no gateway |
 | Saúde | `GET /health`, `/health/live`, `/health/ready` (o `ready` testa o banco) | aberta |
+
+### Collection Postman
+
+A collection [`postman_collection.json`](postman_collection.json) segue o fluxo da OS e tem teste em toda requisição. Ela cobre:
+
+- health e autenticação (login, refresh com rotação, registro de usuário da equipe pelo admin, logout);
+- cadastros com casos negativos (UUID inválido → 400, inexistente → 404, duplicado → 409);
+- token do cliente pela Lambda auth-issuer;
+- abertura de uma OS por cenário da saga, entrega, histórico e `/details` (API composition);
+- consultas do cliente com o JWT do CPF (dono → 200, outro CPF → 403, código ou CPF inválido → 400);
+- estado final das compensações e e-mails no Mailpit;
+- limpeza (peça ou serviço em uso por OS ativa → 409).
+
+Para rodar sozinha, suba a stack de `postech-tc4-infra-k8s/local` (`make up && make lambdas && make gateway`) e rode a collection no Collection Runner, na ordem. A pasta 5 faz, no execution-service e no billing-service, as etapas da saga que não são deste serviço. Cada execução gera CPF, placa e códigos novos, então pode rodar várias vezes. Para rodar junto com as outras duas, use `make postman` no mesmo diretório: 231 requisições, 512 asserções, 0 falhas.
 
 ## Banco de dados
 
