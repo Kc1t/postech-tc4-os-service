@@ -1,10 +1,10 @@
 ## O que foi feito
 
-<!-- Descreva o que essa PR implementa, corrige ou refatora. Seja direto. -->
+<!-- O que este PR implementa, corrige ou refatora. -->
 
-## Por que foi feito
+## Por que
 
-<!-- Contexto e motivacao. Por que essa mudanca e necessaria agora? -->
+<!-- Contexto e motivação: por que a mudança é necessária agora. -->
 
 ## Como testar
 
@@ -14,15 +14,18 @@
 
 ## Checklist
 
-- [ ] Build passa (`go build ./...`)
-- [ ] Testes passam (`go test ./...`)
-- [ ] Sem secrets ou credenciais no codigo
-- [ ] Sem `TODO` novo sem rastreamento
+- [ ] `make test` e `make bdd` passam (Postgres de teste com `make test-db`)
+- [ ] Cobertura continua acima de 80% (`make cover`)
+- [ ] `make lint` sem achados
+- [ ] Swagger regenerado (`make swagger`) se a API mudou
+- [ ] Contrato de mensagem alterado também em `pkg/contracts` dos outros repositórios e no AsyncAPI (`make asyncapi` valida)
+- [ ] Sem segredo ou credencial no código
+- [ ] Sem `TODO` novo sem issue
 
-## Tipo de mudanca
+## Tipo de mudança
 
-- [ ] Nova feature
-- [ ] Refatoracao
-- [ ] Correcao de bug
-- [ ] Documentacao
-- [ ] Infra / CI
+- [ ] Nova funcionalidade
+- [ ] Refatoração
+- [ ] Correção de bug
+- [ ] Documentação
+- [ ] Infra ou CI
