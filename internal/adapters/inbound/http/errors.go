@@ -87,9 +87,10 @@ func HandleError(c *gin.Context, err error, msg ...string) {
 	Abort(c, status, code, message)
 }
 
-// HandleBadRequest responde 400 para corpo, parâmetro ou query inválidos.
+// HandleBadRequest responde 400 para corpo, parâmetro ou query inválidos, com a mensagem de
+// BindingMessage.
 func HandleBadRequest(c *gin.Context, err error) {
-	Abort(c, http.StatusBadRequest, CodeValidation, err.Error())
+	Abort(c, http.StatusBadRequest, CodeValidation, BindingMessage(err))
 }
 
 // Abort escreve a resposta de erro no formato padrão e interrompe a cadeia de handlers.
