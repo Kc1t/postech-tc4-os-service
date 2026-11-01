@@ -1,6 +1,6 @@
 # ADR-0012: Banco de dados por serviço — PostgreSQL no os e no billing, DynamoDB no execution
 
-- **Status:** Accepted
+- **Status:** Aceita
 - **Data:** 2026-10
 - **Decisão por:** Reservoir Devs
 
@@ -43,17 +43,17 @@ O que um serviço precisa do outro chega por **mensagem** (o comando `billing.Cr
 
 ## Alternativas consideradas
 
-1. **Uma instância RDS com um schema e um usuário por serviço.** Corta pela metade o custo de banco relacional (uma `db.t3.micro` em vez de duas). Descartada: o enunciado pede infraestrutura e banco próprios por serviço, e uma instância só volta a ser ponto único de falha e de contenção de I/O entre serviços. É o recuo natural se o crédito apertar.
+1. **Uma instância RDS com um schema e um usuário por serviço.** Corta pela metade o custo de banco relacional (uma `db.t3.micro` em vez de duas). Descartada porque o enunciado pede infraestrutura e banco próprios por serviço, e uma instância só volta a ser ponto único de falha e de contenção de I/O entre serviços. É o recuo natural se o crédito apertar.
 
-2. **DynamoDB também no billing.** Teria um banco a menos para operar. Descartada: o billing depende de unicidade (`os_id` no orçamento, ID do pagamento no provedor) e de transições de valor que precisam ser atômicas com o outbox. O PostgreSQL entrega isso com índice único e transação; no DynamoDB seriam itens auxiliares de unicidade e condições escritas à mão.
+2. **DynamoDB também no billing.** Teria um banco a menos para operar. Descartado porque o billing depende de unicidade (`os_id` no orçamento, ID do pagamento no provedor) e de transições de valor que precisam ser atômicas com o outbox. O PostgreSQL entrega isso com índice único e transação; no DynamoDB seriam itens auxiliares de unicidade e condições escritas à mão.
 
-3. **PostgreSQL no execution.** Funcionaria, mas o requisito de NoSQL ficaria sem dono. O execution é o melhor candidato: nenhuma consulta dele precisa de junção, e o volume cresce com o número de OS, não com relatórios.
+3. **PostgreSQL no execution.** Funcionaria. Descartado porque o requisito de NoSQL ficaria sem dono, e o execution é o melhor candidato: nenhuma consulta dele precisa de junção, e o volume cresce com o número de OS, não com relatórios.
 
-4. **DocumentDB ou MongoDB no execution.** Também atenderia o NoSQL. Descartado pelo custo: cobra por instância-hora, ligada ou ociosa. O DynamoDB sob demanda cobra por requisição e fica perto de zero fora da demonstração.
+4. **DocumentDB ou MongoDB no execution.** Também atenderia o NoSQL. Descartado pelo custo: o DocumentDB cobra por instância-hora, ligada ou ociosa. O DynamoDB sob demanda cobra por requisição e fica perto de zero fora da demonstração.
 
 5. **Uma tabela DynamoDB por tipo de item** (execuções, linha do tempo, outbox, inbox). A `TransactWriteItems` também atravessa tabelas, então a atomicidade não exigia tabela única. Descartada porque ler a execução com o histórico viraria duas chamadas, e seriam quatro tabelas para provisionar, com TTL e PITR em cada.
 
-6. **GSI comum em vez de esparso**, com o status como atributo filtrado. O índice carregaria todas as execuções já encerradas, e a fila pagaria leitura de itens que nunca aparecem nela.
+6. **GSI comum em vez de esparso**, com o status como atributo filtrado. Descartado porque o índice carregaria todas as execuções já encerradas, e a fila pagaria leitura de itens que nunca aparecem nela.
 
 ## Consequências
 
@@ -76,4 +76,4 @@ O que um serviço precisa do outro chega por **mensagem** (o comando `billing.Cr
 
 - Terraform: [`infra/main.tf`](../../infra/main.tf) (os-service), [`postech-tc4-billing-service/infra/main.tf`](https://github.com/Kc1t/postech-tc4-billing-service/blob/main/infra/main.tf), [`postech-tc4-execution-service/infra/main.tf`](https://github.com/Kc1t/postech-tc4-execution-service/blob/main/infra/main.tf)
 - Chaves da tabela única: [`internal/adapters/outbound/dynamodb/keys.go`](https://github.com/Kc1t/postech-tc4-execution-service/blob/main/internal/adapters/outbound/dynamodb/keys.go)
-- AWS — [Using global secondary indexes in DynamoDB: sparse indexes](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-indexes-general-sparse-indexes.html)
+- AWS: [Using global secondary indexes in DynamoDB: sparse indexes](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-indexes-general-sparse-indexes.html)

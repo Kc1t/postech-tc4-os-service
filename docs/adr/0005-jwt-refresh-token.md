@@ -39,7 +39,7 @@ Autenticação em duas peças, mais bloqueio de conta.
 
 ### 4. Bloqueio de conta
 
-Depois de **5 tentativas de login erradas** seguidas (`MAX_FAILED_LOGINS`), a conta fica bloqueada por **15 minutos** (`LOGIN_LOCK_MIN`), com os campos `failed_attempts` e `locked_until` do usuário. A regra fica no domínio (`User.RegisterFailedLogin`), não em middleware.
+Depois de **5 tentativas de login erradas** seguidas (`MAX_FAILED_LOGINS`), a conta fica bloqueada por **15 minutos** (`LOGIN_LOCK_MIN`), com os campos `failed_attempts` e `locked_until` do usuário. A regra fica no domínio (`User.RegisterFailedLogin`), não em middleware. Conta bloqueada recebe o mesmo 401 de credencial errada, e a senha é comparada mesmo quando o e-mail não existe (contra um hash fictício), para que nem a resposta nem o tempo revelem quais e-mails existem ou estão bloqueados.
 
 ### 5. Portal público (fase 1)
 

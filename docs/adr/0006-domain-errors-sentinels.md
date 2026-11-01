@@ -33,7 +33,6 @@ var (
     ErrInsufficientStock   = errors.New("insufficient stock")
     ErrDocumentMismatch    = errors.New("document does not match the authenticated requester")
     ErrInvalidCredentials  = errors.New("invalid credentials")
-    ErrAccountLocked       = errors.New("account temporarily locked")
     ErrConcurrentUpdate    = errors.New("resource was modified concurrently")
     // ...
 )
@@ -53,7 +52,7 @@ var (
    | `ErrInvalidStatus` | 409 | `INVALID_STATUS_TRANSITION` |
    | `ErrInsufficientStock` | 422 | `INSUFFICIENT_STOCK` |
    | `ErrDocumentMismatch` | 403 | `FORBIDDEN` |
-   | `ErrAccountLocked` | 429 | `ACCOUNT_LOCKED` |
+   | `ErrInvalidCredentials` | 401 | `UNAUTHORIZED` |
    | `ErrInvalidSimulatedFailure` | 400 | `INVALID_SIMULATE_FAILURE` |
 
 4. Nada de `errors.New("...")` solto em casos de uso ou handlers. Erro novo entra em `domainerrors` e, se chega ao HTTP, na tabela.
