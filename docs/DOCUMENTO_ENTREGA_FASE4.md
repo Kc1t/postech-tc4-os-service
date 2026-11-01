@@ -100,7 +100,7 @@ A divisão segue as **capacidades de negócio** do enunciado (atendimento, cobra
 | Bancos | Amazon RDS PostgreSQL 16 (dois), Amazon DynamoDB (dois) |
 | Pagamento | Mercado Pago Checkout Pro com webhook assinado (`x-signature`); gateway fake para testes |
 | Plataforma | Amazon EKS, API Gateway HTTP, Lambda, ECR, Secrets Manager, tudo em Terraform |
-| CI/CD | GitHub Actions por repositório, SonarQube, golangci-lint, gosec, govulncheck, tfsec, Trivy |
+| CI/CD | GitHub Actions por repositório, SonarQube, golangci-lint, gosec, govulncheck, tfsec, Trivy, kubeconform |
 | Testes | `testing` e gomock, godog (BDD), testes de componente com LocalStack, testes de contrato com JSON Schema |
 | Observabilidade | New Relic: APM, trace distribuído pelas mensagens, Postgres no trace, logs em contexto, dashboard, alertas e SLOs em Terraform |
 
@@ -131,11 +131,11 @@ A divisão segue as **capacidades de negócio** do enunciado (atendimento, cobra
 | lambda-auth | 91,4% | 90,6%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-lambda-auth/actions/workflows/ci.yml) |
 | notification-lambda | 92,0% | 89,0%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-notification-lambda/actions/workflows/ci.yml) |
 
-Em todos: 0 bugs, 0 vulnerabilidades, 0 code smells e 0% de duplicação. O quality gate é próprio (cobertura ≥ 80%, duplicação ≤ 3% e nota A em confiabilidade, segurança e manutenibilidade), e cada pipeline também roda golangci-lint, gosec, govulncheck, tfsec e Trivy. Cada execução do CI publica no resumo do job a cobertura do `go test` e a tabela do SonarQube.
+Em todos: 0 bugs, 0 vulnerabilidades, 0 code smells e 0% de duplicação. O quality gate é próprio (cobertura ≥ 80%, duplicação ≤ 3% e nota A em confiabilidade, segurança e manutenibilidade), e cada pipeline também roda golangci-lint, gosec, govulncheck e tfsec; os três serviços ainda passam a imagem pelo Trivy e os manifestos pelo kubeconform (strict, schema do Kubernetes 1.35). Cada execução do CI publica no resumo do job a cobertura do `go test` e a tabela do SonarQube.
 
 ## 8. Segurança
 
-Autenticação em camadas: o API Gateway aplica throttling e o Lambda authorizer valida o JWT em toda rota protegida; cada serviço valida o JWT de novo, confere o papel (`admin` para a equipe) e a posse do recurso: o CPF do token tem de ser o do cliente da OS ou do orçamento, e o pedido de outro CPF é recusado com 403. A rota interna fica fora do gateway e exige token próprio. Segredos ficam no GitHub Secrets e no Secrets Manager, os contêineres rodam sem root e com sistema de arquivos só leitura, e o CI bloqueia o merge com gosec, govulncheck, Trivy, tfsec e o quality gate. Detalhes, modelo de ameaça e testes de cada controle em [docs/SEGURANCA.md](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/SEGURANCA.md).
+Autenticação em camadas: o API Gateway aplica throttling e o Lambda authorizer valida o JWT em toda rota protegida; cada serviço valida o JWT de novo (nas quatro camadas, só HS256 e com `exp` obrigatório), confere o papel (`admin` para a equipe) e a posse do recurso: o CPF do token tem de ser o do cliente da OS ou do orçamento, e o pedido de outro CPF é recusado com 403. Entrada inválida (id que não é UUID, código da OS não numérico, CPF/CNPJ com dígito errado) responde 400 antes de chegar ao banco. A rota interna fica fora do gateway e exige token próprio. Segredos ficam no GitHub Secrets e no Secrets Manager, os contêineres rodam sem root e com sistema de arquivos só leitura, e o CI bloqueia o merge com gosec, govulncheck, Trivy, tfsec e o quality gate. Detalhes, modelo de ameaça e testes de cada controle em [docs/SEGURANCA.md](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/SEGURANCA.md).
 
 ## 9. Limitações conhecidas
 
