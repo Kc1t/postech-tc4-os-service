@@ -346,6 +346,18 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "RESOURCE_IN_USE: referenciado por ordem de serviço",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -578,6 +590,18 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "RESOURCE_IN_USE: referenciado por ordem de serviço",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -1189,6 +1213,18 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "RESOURCE_IN_USE: referenciado por ordem de serviço",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -1346,6 +1382,18 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "RESOURCE_IN_USE: referenciado por ordem de serviço",
+                        "schema": {
+                            "$ref": "#/definitions/httputil.ErrorResponse"
+                        }
                     }
                 }
             }

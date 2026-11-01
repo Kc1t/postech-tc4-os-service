@@ -15,6 +15,7 @@ func NewDeleteVehicle(repo ports.VehicleRepository) *DeleteVehicle {
 }
 
 func (uc *DeleteVehicle) Execute(ctx context.Context, id string) error {
-	// TODO: verificar OS abertas para o veiculo
+	// Um veículo com OS (em andamento ou no histórico) não sai: a FK ON DELETE RESTRICT recusa e o
+	// repositório devolve domainerrors.ErrInUse (409).
 	return uc.repo.Delete(ctx, id)
 }

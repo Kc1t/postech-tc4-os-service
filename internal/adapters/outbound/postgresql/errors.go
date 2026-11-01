@@ -13,8 +13,13 @@ func mapError(err error) error {
 		return domainerrors.ErrNotFound
 	}
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return domainerrors.ErrAlreadyExists
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505": // unique_violation
+			return domainerrors.ErrAlreadyExists
+		case "23503": // foreign_key_violation: OS ou veículo ainda referenciam o registro (ON DELETE RESTRICT)
+			return domainerrors.ErrInUse
+		}
 	}
 	return err
 }

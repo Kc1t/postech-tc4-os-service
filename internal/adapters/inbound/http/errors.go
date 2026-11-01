@@ -36,6 +36,7 @@ const (
 	CodeInternal           = "INTERNAL_ERROR"
 	CodeUnprocessable      = "UNPROCESSABLE_ENTITY"
 	CodeInvalidSimulateArg = "INVALID_SIMULATE_FAILURE"
+	CodeInUse              = "RESOURCE_IN_USE"
 )
 
 type mapping struct {
@@ -47,6 +48,7 @@ type mapping struct {
 var mappings = []mapping{
 	{domainerrors.ErrNotFound, http.StatusNotFound, CodeNotFound},
 	{domainerrors.ErrAlreadyExists, http.StatusConflict, CodeAlreadyExists},
+	{domainerrors.ErrInUse, http.StatusConflict, CodeInUse},
 	{domainerrors.ErrConcurrentUpdate, http.StatusConflict, CodeConcurrentUpdate},
 	{domainerrors.ErrInvalidCredentials, http.StatusUnauthorized, CodeUnauthorized},
 	{domainerrors.ErrInvalidRefreshToken, http.StatusUnauthorized, CodeUnauthorized},

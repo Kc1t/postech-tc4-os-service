@@ -661,6 +661,14 @@ paths:
       responses:
         "204":
           description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "409":
+          description: 'RESOURCE_IN_USE: referenciado por ordem de serviço'
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Deletar peca/insumo
@@ -787,6 +795,14 @@ paths:
       responses:
         "204":
           description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "409":
+          description: 'RESOURCE_IN_USE: referenciado por ordem de serviço'
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Deletar cliente
@@ -1191,6 +1207,14 @@ paths:
       responses:
         "204":
           description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "409":
+          description: 'RESOURCE_IN_USE: referenciado por ordem de serviço'
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Deletar servico
@@ -1291,6 +1315,14 @@ paths:
       responses:
         "204":
           description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
+        "409":
+          description: 'RESOURCE_IN_USE: referenciado por ordem de serviço'
+          schema:
+            $ref: '#/definitions/httputil.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Deletar veiculo

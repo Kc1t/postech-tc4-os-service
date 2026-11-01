@@ -41,6 +41,10 @@ type ServiceOrderRepository interface {
 	Update(ctx context.Context, so *entities.ServiceOrder) error
 	Delete(ctx context.Context, id string) error
 	AverageExecutionTime(ctx context.Context) (time.Duration, error)
+	// ExistsActiveWithService e ExistsActiveWithPart dizem se alguma OS em andamento (nem
+	// entregue nem cancelada) usa o serviço ou a peça do catálogo.
+	ExistsActiveWithService(ctx context.Context, serviceID string) (bool, error)
+	ExistsActiveWithPart(ctx context.Context, partID string) (bool, error)
 }
 
 // SagaRepository persiste o estado do orquestrador (uma saga por OS).

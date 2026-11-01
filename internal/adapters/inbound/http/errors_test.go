@@ -33,6 +33,7 @@ func TestHandleError_Mapeamento(t *testing.T) {
 		{domainerrors.ErrNotFound, 404, CodeNotFound},
 		{fmt.Errorf("repo: %w", domainerrors.ErrNotFound), 404, CodeNotFound},
 		{domainerrors.ErrAlreadyExists, 409, CodeAlreadyExists},
+		{domainerrors.ErrInUse, 409, CodeInUse},
 		{domainerrors.ErrConcurrentUpdate, 409, CodeConcurrentUpdate},
 		{domainerrors.ErrInvalidCredentials, 401, CodeUnauthorized},
 		{domainerrors.ErrInvalidRefreshToken, 401, CodeUnauthorized},
