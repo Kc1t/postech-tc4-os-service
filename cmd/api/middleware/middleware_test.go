@@ -120,6 +120,28 @@ func TestAuth_WrongSecret(t *testing.T) {
 	}
 }
 
+func TestAuth_RecusaTokenSemExpOuForaDoHS256(t *testing.T) {
+	r := gin.New()
+	r.Use(Auth("secret"))
+	r.GET("/", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	semExp, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "user-1", "role": "admin"}).SignedString([]byte("secret"))
+	hs512, _ := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
+		"sub": "user-1", "role": "admin", "exp": time.Now().Add(time.Hour).Unix(),
+	}).SignedString([]byte("secret"))
+
+	for name, tok := range map[string]string{"sem exp": semExp, "HS512": hs512} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("%s: expected 401, got %d", name, w.Code)
+		}
+	}
+}
+
 // --- CORS middleware ---
 
 func TestCORS_Allowlist(t *testing.T) {
