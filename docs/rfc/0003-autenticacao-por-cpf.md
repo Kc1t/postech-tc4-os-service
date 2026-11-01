@@ -1,9 +1,11 @@
 # RFC-0003: Estratégia de autenticação por CPF
 
-- **Status:** Aceita
+- **Status:** Aceita, revisada em 2026-10
 - **Data:** 2026-09
 - **Autor:** Reservoir Devs
-- **Decisões relacionadas:** ADR-0005 (JWT com refresh token), ADR-0007 (comunicação no gateway)
+- **Decisões relacionadas:** [ADR-0005](../adr/0005-jwt-refresh-token.md) (JWT com refresh token), [ADR-0007](../adr/0007-api-gateway-comunicacao.md) (comunicação no gateway), [ADR-0014](../adr/0014-lambdas-fora-da-vpc.md) (Lambdas fora da VPC)
+
+> **Revisão na fase 4:** a proposta segue, com três mudanças. A Lambda não lê mais a tabela `requesters`: consulta `GET /internal/requesters/{document}` no os-service com `X-Internal-Token` e responde 503 se ele estiver fora ([ADR-0014](../adr/0014-lambdas-fora-da-vpc.md)). A rota `POST /auth` ganhou limite próprio no gateway (10 req/s, rajada de 20) contra enumeração de CPF. E a aprovação do orçamento passou para o billing-service, que também confere se o `document` do token é o dono do orçamento (403 se não for). O segredo HS256 agora é compartilhado pelos três serviços, pelo issuer e pelo authorizer.
 
 ## Resumo
 
@@ -17,7 +19,7 @@ O enunciado é específico:
 
 Ao mesmo tempo, a aula "Realizando Autenticação e serviços de identificação" ensina **Amazon Cognito** como o caminho AWS para autenticar uma API, com JWT authorizer no API Gateway. Era preciso decidir explicitamente entre seguir a ferramenta da aula e cumprir o requisito como está escrito.
 
-Há também um contexto herdado: a aplicação já tem autenticação por e-mail e senha com JWT e refresh token rotativo (ADR-0005), usada pelo painel administrativo da oficina. A autenticação por CPF **não substitui** essa — é um segundo público.
+Há também um contexto herdado: a aplicação já tem autenticação por e-mail e senha com JWT e refresh token rotativo (ADR-0005), usada pelo painel administrativo da oficina. A autenticação por CPF **não substitui** essa: é um segundo público.
 
 ## Dois públicos, dois fluxos
 
@@ -32,27 +34,28 @@ Ambos produzem um JWT HS256 assinado com o **mesmo** `JWT_SECRET`, e ambos são 
 
 **`POST /auth`** com corpo `{"cpf": "529.982.247-25"}`:
 
-1. Normaliza e valida o CPF pelos dígitos verificadores — rejeita tamanho errado, dígito inválido e sequências repetidas.
-2. Consulta `requesters` por `document`.
+1. Normaliza e valida o CPF pelos dígitos verificadores: rejeita tamanho errado, dígito inválido e sequências repetidas.
+2. Consulta `requesters` por `document` (na fase 4, pela rota interna do os-service).
 3. Verifica `status`.
 4. Emite o JWT.
 
 | Situação | HTTP |
 |---|---|
-| CPF válido, cliente ativo | 200 com `access_token`, `token_type`, `expires_at` |
+| CPF válido, cliente ativo | 200 com `access_token`, `token_type`, `expires_at`, `expires_in` |
 | Payload malformado | 400 |
 | CPF inválido | 400 |
 | Cliente inexistente | 404 |
 | Cliente inativo | 403 |
+| os-service indisponível (fase 4) | 503 |
 | Falha interna | 500 |
 
 **Claims emitidas:** `sub` (id do solicitante), `role: client`, `email`, `name`, `document`, `iat`, `exp`.
 
 `role` é obrigatório: o middleware `Auth` da aplicação rejeita com 401 qualquer token sem `sub` e `role` preenchidos. Omiti-lo faria todo token emitido pela Lambda ser recusado pela aplicação.
 
-**Escopo do token:** não basta apresentar um JWT válido — o documento consultado precisa ser o do próprio token. `GET /service-orders/requester?document=X` com um token emitido para o CPF Y responde 403. Sem essa checagem, qualquer cliente autenticado leria as ordens de serviço de qualquer outro.
+**Escopo do token:** não basta apresentar um JWT válido; o documento consultado precisa ser o do próprio token. `GET /service-orders/requester?document=X` com um token emitido para o CPF Y responde 403. Sem essa checagem, qualquer cliente autenticado leria as ordens de serviço de qualquer outro.
 
-**Validade:** 15 minutos, sem refresh token. O fluxo do cliente é curto — consultar a OS, aprovar ou recusar o orçamento. Reautenticar com o CPF é barato e evita gerenciar revogação para esse público.
+**Validade:** 15 minutos, sem refresh token. O fluxo do cliente é curto: consultar a OS, aprovar ou recusar o orçamento. Reautenticar com o CPF é barato e evita gerenciar revogação para esse público.
 
 ## Alternativa principal: Amazon Cognito
 
@@ -60,13 +63,13 @@ Ambos produzem um JWT HS256 assinado com o **mesmo** `JWT_SECRET`, e ambos são 
 
 **Por que não foi adotado:**
 
-1. **Cognito não modela CPF como credencial.** O modelo é usuário e senha, ou federação. Autenticar *só* com CPF exigiria tratá-lo como username com senha fixa ou vazia — o que é uma distorção do produto, não um uso dele.
+1. **Cognito não modela CPF como credencial.** O modelo é usuário e senha, ou federação. Autenticar *só* com CPF exigiria tratá-lo como username com senha fixa ou vazia, o que é uma distorção do produto, não um uso dele.
 
 2. **O requisito não pede um provedor de identidade.** Pede validar o CPF, consultar existência e status **na base de dados da aplicação** e devolver um JWT. A fonte de verdade do cliente é a tabela `requesters`, não um user pool. Com Cognito, os dados existiriam em dois lugares e precisariam ser sincronizados.
 
 3. **Duplicaria a identidade já existente.** A aplicação tem `users` com papéis e bloqueio por tentativas falhas. Introduzir Cognito criaria um segundo sistema de identidade, com dois formatos de token e dois caminhos de validação.
 
-4. **CPF sozinho não é segredo.** Esse é o ponto mais importante, e vale para qualquer implementação: CPF é um identificador público, não uma credencial. Autenticar apenas com CPF é fraco por natureza. O enunciado pede exatamente isso, então foi implementado assim — mas o risco está registrado abaixo, e Cognito não o resolveria: continuaria sendo autenticação por um dado público.
+4. **CPF sozinho não é segredo.** Esse é o ponto mais importante, e vale para qualquer implementação: CPF é um identificador público, não uma credencial. Autenticar apenas com CPF é fraco por natureza. O enunciado pede exatamente isso, então foi implementado assim, mas o risco está registrado abaixo, e Cognito não o resolveria: continuaria sendo autenticação por um dado público.
 
 ## Outras alternativas avaliadas
 
@@ -81,12 +84,12 @@ Ambos produzem um JWT HS256 assinado com o **mesmo** `JWT_SECRET`, e ambos são 
 
 | Risco | Severidade | Mitigação |
 |---|---|---|
-| **CPF é dado público — qualquer um com o CPF de um cliente obtém um token válido** | Alta | Registrado como limitação deliberada do escopo. O token dura 15 min e dá acesso apenas a `role: client`; rotas administrativas exigem `role: admin`, que a Lambda nunca emite. Evolução: segundo fator. |
-| Enumeração de CPFs pelos códigos 404 e 403 | Média | Throttling no stage do gateway (100 req/s, burst 200). Uniformizar as respostas esconderia a distinção entre inexistente e inativo, que é útil ao cliente legítimo. |
+| **CPF é dado público: qualquer um com o CPF de um cliente obtém um token válido** | Alta | Registrado como limitação deliberada do escopo. O token dura 15 min e dá acesso apenas a `role: client`; rotas administrativas exigem `role: admin`, que a Lambda nunca emite. Evolução: segundo fator. |
+| Enumeração de CPFs pelos códigos 404 e 403 | Média | Throttling no stage do gateway (100 req/s, burst 200) e, na fase 4, limite próprio em `POST /auth` (10 req/s, burst 20). Uniformizar as respostas esconderia a distinção entre inexistente e inativo, que é útil ao cliente legítimo. |
 | Segredo HS256 replicado em aplicação, emissor e authorizer | Média | Todos leem do mesmo GitHub Secret. Rotação exige deploy coordenado dos dois repositórios. |
 | Cliente desativado continuar acessando até o token expirar | Baixa | Cache do authorizer em zero garante revalidação por requisição, mas o token em si segue válido por até 15 min. Aceito. |
 
 ## Questões em aberto
 
 - Vale reduzir a validade para 5 minutos? Diminui a janela de um token vazado ao custo de mais reautenticações num fluxo já curto.
-- A resposta 403 para cliente inativo deveria explicar o motivo? Hoje devolve apenas "cliente inativo", sem dizer por quê — decisão consciente para não vazar estado interno.
+- A resposta 403 para cliente inativo deveria explicar o motivo? Hoje devolve apenas "cliente inativo", sem dizer por quê: decisão consciente para não vazar estado interno.
