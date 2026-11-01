@@ -81,7 +81,7 @@ O gateway não é a única barreira: o NLB de cada serviço é público, então 
 | execution-service | só HS256 | obrigatório (`WithExpirationRequired`) | `sub` e `role` válido | [`cmd/api/middleware/auth.go`](https://github.com/Kc1t/postech-tc4-execution-service/blob/main/cmd/api/middleware/auth.go) |
 | authorizer | só HS256 | obrigatório (`WithExpirationRequired`) | `sub` e `role` | [`internal/token/token.go`](https://github.com/Kc1t/postech-tc4-lambda-auth/blob/main/internal/token/token.go) |
 
-O critério é o mesmo nas quatro camadas: token assinado com outro algoritmo (HS384, HS512, `alg: none`) ou sem `exp` é recusado. Os emissores (login do os-service, issuer e o token de serviço) sempre gravam `exp`. Billing e execution recusam subir em produção com o `JWT_SECRET` padrão; o os-service não faz essa checagem e depende do Secret criado pelo pipeline.
+O critério é o mesmo nas quatro camadas: token assinado com outro algoritmo (HS384, HS512, `alg: none`) ou sem `exp` é recusado. Os emissores (login do os-service, issuer e o token de serviço) sempre gravam `exp`. Os três serviços recusam subir em produção com o `JWT_SECRET` padrão ou vazio (no os-service, `Config.Validate`, teste `TestValidate_RecusaSegredoPadraoEmProducao`).
 
 ### 2.4 Login da equipe no os-service
 
@@ -204,7 +204,7 @@ Mascaramento nos logs (os dois últimos dígitos do documento, a primeira letra 
 | Lambda notifier | [`internal/mask`](https://github.com/Kc1t/postech-tc4-notification-lambda/blob/main/internal/mask/mask.go) | destinatário do e-mail e documento do cliente sem e-mail |
 | billing-service | [`entities.MaskDocument`](https://github.com/Kc1t/postech-tc4-billing-service/blob/main/internal/domain/entities/document.go) | documento no log de criação do orçamento |
 
-O os-service não registra dados do cliente como atributo de log, e o log de acesso grava o caminho sem a query string, então o `?document=` das rotas de cliente não vai para o log. O caminho, porém, vai inteiro: nas rotas que têm o documento no caminho (`/internal/requesters/{document}` e `/api/v1/requesters/document/{document}`), o CPF aparece no log de acesso ([limitação 6](#10-limitações)). O authorizer loga `subject` e `role`, não o documento. O access log do API Gateway grava a rota (`routeKey`), o IP e o status, não o caminho nem o corpo.
+O os-service não registra dados do cliente como atributo de log. O log de acesso grava o caminho sem a query string, então o `?document=` das rotas de cliente fica de fora. Nas duas rotas que têm o documento no caminho (`/internal/requesters/{document}` e `/api/v1/requesters/document/{document}`), o log grava o template da rota em vez do caminho ([`logging.go`](../cmd/api/middleware/logging.go), teste `TestRequestLogger_NaoLogaDocumentoDoCaminho`). Em todo log de acesso, o campo `route` traz o template. O authorizer loga `subject` e `role`, não o documento. O access log do API Gateway grava a rota (`routeKey`), o IP e o status, não o caminho nem o corpo.
 
 ## 7. Borda e rede
 
@@ -263,6 +263,9 @@ Os três serviços criam o repositório no ECR com `scanOnPush=true`. Os `#nosec
 | Posse no os-service: documento diferente, ausente, cliente sem documento → 403 | os: [`ownership_test.go`](../internal/adapters/inbound/http/service_order/ownership_test.go) |
 | OS de outro cliente → 404 | os: [`get_by_code_test.go`](../internal/application/usecase/service_order/get_by_code_test.go) (`TestGetServiceOrderByCode_OSDeOutroCliente`) |
 | Posse no billing (`ErrNotOwner`) | billing: `internal/domain/entities/budget_test.go` (`TestBudget_Access`), `internal/application/usecase/budget/decide_test.go`, `get_test.go` |
+| Papel por rota no os-service: cliente, sem papel ou papel de outro tipo → 403 | os: `cmd/api/middleware/middleware_test.go` (`TestRequireRole`) |
+| CPF no caminho não vai para o log de acesso (grava o template da rota) | os: `cmd/api/middleware/logging_test.go` (`TestRequestLogger_NaoLogaDocumentoDoCaminho`) |
+| `JWT_SECRET` padrão ou vazio recusado em produção | os: `config/config_test.go` (`TestValidate_RecusaSegredoPadraoEmProducao`) |
 | Token interno: errado e ausente → 401, sem token configurado → 503 | os: [`internalapi/handler_test.go`](../internal/adapters/inbound/http/internalapi/handler_test.go) (`TestRequireToken`) |
 | Assinatura do webhook: manifest, HMAC, sem segredo falha fechado, janela de tempo | billing: `internal/adapters/outbound/mercadopago/signature_test.go` |
 | Webhook: assinatura inválida → 401, notificações ignoradas, falha transitória pede reentrega | billing: `internal/adapters/inbound/http/webhook/handler_test.go` |
@@ -293,7 +296,6 @@ Nenhuma delas tira um requisito do enunciado; são escolhas de escopo ou restri�
 3. **Sem menor privilégio por serviço na AWS.** Todos os pods usam a `LabRole` pelo IMDS, então o IAM não impede um serviço de ler a fila ou a tabela de outro. Fora do lab: EKS Pod Identity com uma role por serviço e hop limit 1 ([ADR-0016](adr/0016-credenciais-dos-pods-pela-labrole.md)).
 4. **Um segredo HS256 para todos.** O mesmo `JWT_SECRET` está em cinco componentes, e o token de serviço do os-service tem papel `admin`. RS256 com JWKS separaria quem assina de quem valida.
 5. **Sem CMK.** Chaves gerenciadas da AWS, tópicos SNS sem criptografia em repouso, e as credenciais do SMTP e o `JWT_SECRET` das Lambdas em variável de ambiente e no state do Terraform.
-6. **CPF no caminho do log de acesso do os-service.** O middleware de log grava `URL.Path` inteiro, e duas rotas têm o documento no caminho: `/internal/requesters/{document}` (chamada a cada emissão de token) e `/api/v1/requesters/document/{document}`. A correção é logar o padrão da rota (`c.FullPath()`) em vez do caminho.
-7. **Janela de tempo do webhook desligada** (`MP_WEBHOOK_MAX_AGE = 0`). Uma notificação capturada pode ser reenviada; o efeito é nulo, porque o billing relê o pagamento e a máquina de estados não repete transições.
-8. **Access token não revogável.** Logout e desativação do cliente valem para o próximo token; o atual vale até expirar (no máximo 15 minutos).
-9. **Bloqueio de conta pode travar a equipe.** Cinco senhas erradas para um e-mail conhecido bloqueiam aquela conta por 15 minutos. Limite por IP ou CAPTCHA fica para depois.
+6. **Janela de tempo do webhook desligada** (`MP_WEBHOOK_MAX_AGE = 0`). Uma notificação capturada pode ser reenviada; o efeito é nulo, porque o billing relê o pagamento e a máquina de estados não repete transições.
+7. **Access token não revogável.** Logout e desativação do cliente valem para o próximo token; o atual vale até expirar (no máximo 15 minutos).
+8. **Bloqueio de conta pode travar a equipe.** Cinco senhas erradas para um e-mail conhecido bloqueiam aquela conta por 15 minutos. Limite por IP ou CAPTCHA fica para depois.
