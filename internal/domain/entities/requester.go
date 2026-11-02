@@ -59,7 +59,6 @@ func ReconstituteRequester(id, name, document, email, phone string, createdAt, u
 func (c *Requester) ID() string              { return c.id }
 func (c *Requester) Name() string            { return c.name }
 func (c *Requester) Document() string        { return c.document.Value() }
-func (c *Requester) DocumentVO() Document    { return c.document }
 func (c *Requester) Email() string           { return c.email }
 func (c *Requester) Phone() string           { return c.phone }
 func (c *Requester) Status() RequesterStatus { return c.status }

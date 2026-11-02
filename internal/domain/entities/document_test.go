@@ -169,3 +169,16 @@ func TestDocument_IsZero(t *testing.T) {
 		t.Error("Document valido nao deveria retornar IsZero() = true")
 	}
 }
+
+func TestDocument_FormattedSemMascaraQuandoOTamanhoNaoBate(t *testing.T) {
+	cases := map[string]Document{
+		"cpf curto":         ReconstituteDocument("123"),
+		"cnpj curto":        {value: "123", docType: DocumentTypeCNPJ},
+		"tipo desconhecido": {value: "123"},
+	}
+	for name, d := range cases {
+		if got := d.Formatted(); got != "123" {
+			t.Errorf("%s: esperava o valor cru, veio %q", name, got)
+		}
+	}
+}

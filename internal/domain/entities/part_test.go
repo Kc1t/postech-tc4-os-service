@@ -1,8 +1,11 @@
 package entities
 
 import (
+	"errors"
 	"testing"
 	"time"
+
+	domainerrors "github.com/Kc1t/postech-tc4-os-service/internal/domain/errors"
 )
 
 func TestNewPart(t *testing.T) {
@@ -125,5 +128,26 @@ func TestPart_SetStock_TouchesUpdatedAt(t *testing.T) {
 	}
 	if !p.UpdatedAt().After(before) {
 		t.Error("expected UpdatedAt to be updated after SetStock")
+	}
+}
+
+func TestPart_AdjustStock(t *testing.T) {
+	p := NewPart("FAB-001", "Filtro", "", "unidade", 10, 5)
+	if err := p.AdjustStock(3); err != nil || p.Stock() != 8 {
+		t.Fatalf("entrada: estoque %d, erro %v", p.Stock(), err)
+	}
+	if err := p.AdjustStock(-8); err != nil || p.Stock() != 0 {
+		t.Fatalf("saída até zero: estoque %d, erro %v", p.Stock(), err)
+	}
+	if err := p.AdjustStock(-1); !errors.Is(err, domainerrors.ErrInsufficientStock) || p.Stock() != 0 {
+		t.Fatalf("saída maior que o estoque: estoque %d, erro %v", p.Stock(), err)
+	}
+}
+
+func TestPart_SetManufacturerCode(t *testing.T) {
+	p := ReconstitutePart("p-1", "FAB-001", "Filtro", "", "unidade", 10, 5, time.Time{}, time.Time{})
+	p.SetManufacturerCode("FAB-002")
+	if p.ManufacturerCode() != "FAB-002" || p.UpdatedAt().IsZero() {
+		t.Errorf("código %q, updatedAt %v", p.ManufacturerCode(), p.UpdatedAt())
 	}
 }

@@ -110,3 +110,14 @@ func TestService_SetDurationMin_TouchesUpdatedAt(t *testing.T) {
 		t.Error("expected UpdatedAt to be updated after SetDurationMin")
 	}
 }
+
+func TestService_SetCode(t *testing.T) {
+	s := NewService(10, "Troca de óleo", "", 120, 30)
+	if s.Code() != 10 {
+		t.Fatalf("código inicial %d", s.Code())
+	}
+	s.SetCode(11)
+	if s.Code() != 11 {
+		t.Errorf("SetCode: veio %d", s.Code())
+	}
+}
