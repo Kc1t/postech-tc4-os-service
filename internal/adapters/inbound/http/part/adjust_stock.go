@@ -18,6 +18,8 @@ import (
 // @Param       id path string true "Part ID"
 // @Param       body body commands.AdjustStockRequest true "Delta de estoque"
 // @Success     204
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /parts/{id}/stock [patch]
 func (h *PartHandler) AdjustStock(c *gin.Context) {

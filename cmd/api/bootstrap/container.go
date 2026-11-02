@@ -148,6 +148,9 @@ func GetContainer() *Container {
 
 func (c *Container) initialize() {
 	c.Config = config.Load()
+	if err := c.Config.Validate(); err != nil {
+		log.Fatalf("bootstrap: %v", err)
+	}
 	c.Logger = logger.New(c.Config.LogLevel).With("service", "os-service")
 	slog.SetDefault(c.Logger)
 	c.setupNewRelic()

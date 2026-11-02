@@ -76,5 +76,5 @@ func (r *serviceRepository) Update(ctx context.Context, s *entities.Service) err
 }
 
 func (r *serviceRepository) Delete(ctx context.Context, id string) error {
-	return mapError(conn(ctx, r.db).Delete(&pgmodel.Service{}, "id = ?", id).Error)
+	return deleteByID(conn(ctx, r.db), &pgmodel.Service{}, id)
 }

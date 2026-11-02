@@ -24,4 +24,7 @@ var (
 	// ErrInUse: o recurso é referenciado por ordens de serviço e não pode ser excluído (histórico
 	// da OS, ou peça/serviço de uma OS em andamento).
 	ErrInUse = errors.New("resource is in use by a service order")
+	// ErrInvalidID: identificador que não é UUID. O HTTP barra antes (400), mas o banco também
+	// recusa (22P02) e isso não pode virar 500 quando o id chega por outro caminho.
+	ErrInvalidID = errors.New("invalid id: must be a UUID")
 )

@@ -99,3 +99,22 @@ func TestMessagingEnabled(t *testing.T) {
 		t.Fatalf("config: %+v", cfg)
 	}
 }
+
+func TestValidate_RecusaSegredoPadraoEmProducao(t *testing.T) {
+	cases := []struct {
+		env     AppEnv
+		secret  string
+		wantErr bool
+	}{
+		{EnvProduction, DefaultJWTSecret, true},
+		{EnvProduction, "", true},
+		{EnvProduction, "segredo-forte-do-deploy", false},
+		{EnvDevelopment, DefaultJWTSecret, false},
+	}
+	for _, tc := range cases {
+		err := (&Config{AppEnv: tc.env, JWTSecret: tc.secret}).Validate()
+		if (err != nil) != tc.wantErr {
+			t.Errorf("env=%s secret=%q: err=%v, esperava erro=%v", tc.env, tc.secret, err, tc.wantErr)
+		}
+	}
+}

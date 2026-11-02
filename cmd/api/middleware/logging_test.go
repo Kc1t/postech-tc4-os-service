@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Kc1t/postech-tc4-os-service/cmd/api/middleware"
@@ -125,5 +126,27 @@ func TestLoggerFrom_FallsBackToDefault(t *testing.T) {
 
 	if middleware.LoggerFrom(c) == nil {
 		t.Fatal("esperava um logger, veio nil")
+	}
+}
+
+func TestRequestLogger_NaoLogaDocumentoDoCaminho(t *testing.T) {
+	buf := &bytes.Buffer{}
+	router := newRouter(buf)
+	router.GET("/requesters/document/:document", func(c *gin.Context) { c.Status(http.StatusOK) })
+	router.GET("/service-orders/:id", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/requesters/document/52998224725", nil))
+	if strings.Contains(buf.String(), "52998224725") {
+		t.Fatalf("o CPF do caminho chegou ao log: %s", buf.String())
+	}
+	var entry map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil || entry["path"] != "/requesters/document/:document" {
+		t.Fatalf("esperava o template da rota no path, veio %v (%v)", entry["path"], err)
+	}
+
+	buf.Reset()
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/service-orders/abc", nil))
+	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil || entry["path"] != "/service-orders/abc" || entry["route"] != "/service-orders/:id" {
+		t.Fatalf("esperava o caminho real e a rota, veio path=%v route=%v (%v)", entry["path"], entry["route"], err)
 	}
 }

@@ -55,8 +55,11 @@ var mappings = []mapping{
 	{domainerrors.ErrAccountLocked, http.StatusTooManyRequests, CodeAccountLocked},
 	{domainerrors.ErrStatusNotAllowedForRequester, http.StatusForbidden, CodeForbidden},
 	{domainerrors.ErrDocumentMismatch, http.StatusForbidden, CodeForbidden},
-	{domainerrors.ErrInvalidDocument, http.StatusUnprocessableEntity, CodeValidation},
-	{domainerrors.ErrInvalidPlate, http.StatusUnprocessableEntity, CodeValidation},
+	// Formato de entrada inválido é 400 em qualquer camada que o detecte; 422 fica para regra de
+	// negócio que a entrada bem-formada viola (estoque, veículo de outro cliente).
+	{domainerrors.ErrInvalidID, http.StatusBadRequest, CodeValidation},
+	{domainerrors.ErrInvalidDocument, http.StatusBadRequest, CodeValidation},
+	{domainerrors.ErrInvalidPlate, http.StatusBadRequest, CodeValidation},
 	{domainerrors.ErrInvalidSimulatedFailure, http.StatusBadRequest, CodeInvalidSimulateArg},
 	{domainerrors.ErrInvalidStatus, http.StatusConflict, CodeInvalidTransition},
 	{domainerrors.ErrInvalidStatusValue, http.StatusUnprocessableEntity, CodeValidation},
@@ -86,9 +89,10 @@ func HandleError(c *gin.Context, err error, msg ...string) {
 	Abort(c, status, code, message)
 }
 
-// HandleBadRequest responde 400 para corpo, parâmetro ou query inválidos.
+// HandleBadRequest responde 400 para corpo, parâmetro ou query inválidos, com a mensagem de
+// BindingMessage.
 func HandleBadRequest(c *gin.Context, err error) {
-	Abort(c, http.StatusBadRequest, CodeValidation, err.Error())
+	Abort(c, http.StatusBadRequest, CodeValidation, BindingMessage(err))
 }
 
 // Abort escreve a resposta de erro no formato padrão e interrompe a cadeia de handlers.

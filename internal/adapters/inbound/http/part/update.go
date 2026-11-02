@@ -16,6 +16,8 @@ import (
 // @Param       id path string true "Part ID"
 // @Param       body body commands.UpdatePartRequest true "Dados para atualizar"
 // @Success     200 {object} commands.PartResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /parts/{id} [put]
 func (h *PartHandler) Update(c *gin.Context) {
