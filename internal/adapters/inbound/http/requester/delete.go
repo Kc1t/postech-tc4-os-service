@@ -12,6 +12,8 @@ import (
 // @Tags        requesters
 // @Param       id path string true "Requester ID"
 // @Success     204
+// @Failure     404 {object} httputil.ErrorResponse
+// @Failure     409 {object} httputil.ErrorResponse "RESOURCE_IN_USE: referenciado por ordem de serviço"
 // @Security    BearerAuth
 // @Router      /requesters/{id} [delete]
 func (h *RequesterHandler) Delete(c *gin.Context) {

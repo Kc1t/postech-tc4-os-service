@@ -12,6 +12,8 @@ import (
 // @Tags        services
 // @Param       id path string true "Service ID"
 // @Success     204
+// @Failure     404 {object} httputil.ErrorResponse
+// @Failure     409 {object} httputil.ErrorResponse "RESOURCE_IN_USE: referenciado por ordem de serviço"
 // @Security    BearerAuth
 // @Router      /services/{id} [delete]
 func (h *ServiceHandler) Delete(c *gin.Context) {
