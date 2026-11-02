@@ -18,12 +18,15 @@ import (
 // @Param       code path int true "Codigo da OS"
 // @Param       document query string true "CPF ou CNPJ do cliente"
 // @Success     200 {object} commands.ServiceOrderResponse
+// @Failure     400 {object} httputil.ErrorResponse "código não numérico ou CPF/CNPJ ausente ou inválido"
+// @Failure     403 {object} httputil.ErrorResponse "o CPF do token não é o dono da OS"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /service-orders/code/{code} [get]
 func (h *ServiceOrderHandler) FindByCode(c *gin.Context) {
 	code, err := strconv.Atoi(c.Param("code"))
-	if err != nil {
-		httputil.HandleBadRequest(c, err)
+	if err != nil || code <= 0 {
+		httputil.Abort(c, http.StatusBadRequest, httputil.CodeValidation, "path parameter 'code' must be a positive integer")
 		return
 	}
 

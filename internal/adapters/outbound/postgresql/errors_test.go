@@ -42,3 +42,10 @@ func TestMapError_OtherError(t *testing.T) {
 		t.Fatalf("expected original error, got %v", err)
 	}
 }
+
+func TestMapError_InvalidTextRepresentation(t *testing.T) {
+	err := mapError(&pgconn.PgError{Code: "22P02"})
+	if !errors.Is(err, domainerrors.ErrInvalidID) {
+		t.Fatalf("expected ErrInvalidID, got %v", err)
+	}
+}

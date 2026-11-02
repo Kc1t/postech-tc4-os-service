@@ -110,10 +110,10 @@ func TestPartHandler_FindByID_Success(t *testing.T) {
 
 	part := entities.NewPart("FAB-001", "Filtro", "Desc", "unidade", 49.90, 10)
 	h, _, getByID, _, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "part-1").Return(part, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-333333333333").Return(part, nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/parts/part-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/parts/33333333-3333-4333-8333-333333333333", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -126,10 +126,10 @@ func TestPartHandler_FindByID_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, getByID, _, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "part-x").Return(nil, domainerrors.ErrNotFound)
+	getByID.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-3333333333ff").Return(nil, domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/parts/part-x", nil)
+	req := httptest.NewRequest(http.MethodGet, "/parts/33333333-3333-4333-8333-3333333333ff", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
@@ -180,12 +180,12 @@ func TestPartHandler_Update_Success(t *testing.T) {
 
 	part := entities.NewPart("FAB-001", "Filtro", "Desc", "unidade", 49.90, 10)
 	h, _, getByID, _, update, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "part-1").Return(part, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-333333333333").Return(part, nil)
 	update.EXPECT().Execute(gomock.Any(), part).Return(nil)
 
 	body, _ := json.Marshal(map[string]any{"name": "Novo Filtro", "price": 59.90})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/parts/part-1", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/parts/33333333-3333-4333-8333-333333333333", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -199,11 +199,11 @@ func TestPartHandler_Update_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, getByID, _, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "part-x").Return(nil, domainerrors.ErrNotFound)
+	getByID.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-3333333333ff").Return(nil, domainerrors.ErrNotFound)
 
 	body, _ := json.Marshal(map[string]any{"name": "X"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/parts/part-x", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/parts/33333333-3333-4333-8333-3333333333ff", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -218,12 +218,12 @@ func TestPartHandler_Update_UpdateFails(t *testing.T) {
 
 	part := entities.NewPart("FAB-001", "Filtro", "Desc", "unidade", 49.90, 10)
 	h, _, getByID, _, update, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "part-1").Return(part, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-333333333333").Return(part, nil)
 	update.EXPECT().Execute(gomock.Any(), part).Return(errors.New("db error"))
 
 	body, _ := json.Marshal(map[string]any{"name": "Novo Filtro"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/parts/part-1", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/parts/33333333-3333-4333-8333-333333333333", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -239,10 +239,10 @@ func TestPartHandler_Delete_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, del, _ := newHandler(ctrl)
-	del.EXPECT().Execute(gomock.Any(), "part-1").Return(nil)
+	del.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-333333333333").Return(nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/parts/part-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/parts/33333333-3333-4333-8333-333333333333", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
@@ -255,10 +255,10 @@ func TestPartHandler_Delete_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, del, _ := newHandler(ctrl)
-	del.EXPECT().Execute(gomock.Any(), "part-x").Return(domainerrors.ErrNotFound)
+	del.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-3333333333ff").Return(domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/parts/part-x", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/parts/33333333-3333-4333-8333-3333333333ff", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
@@ -273,11 +273,11 @@ func TestPartHandler_AdjustStock_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, _, adjust := newHandler(ctrl)
-	adjust.EXPECT().Execute(gomock.Any(), "part-1", 5).Return(nil)
+	adjust.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-333333333333", 5).Return(nil)
 
 	body, _ := json.Marshal(map[string]any{"delta": 5})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPatch, "/parts/part-1/stock", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPatch, "/parts/33333333-3333-4333-8333-333333333333/stock", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -293,7 +293,7 @@ func TestPartHandler_AdjustStock_BadRequest(t *testing.T) {
 	h, _, _, _, _, _, _ := newHandler(ctrl)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPatch, "/parts/part-1/stock", bytes.NewBufferString(`{}`))
+	req := httptest.NewRequest(http.MethodPatch, "/parts/33333333-3333-4333-8333-333333333333/stock", bytes.NewBufferString(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -307,11 +307,11 @@ func TestPartHandler_AdjustStock_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, _, adjust := newHandler(ctrl)
-	adjust.EXPECT().Execute(gomock.Any(), "part-x", 5).Return(domainerrors.ErrNotFound)
+	adjust.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-3333333333ff", 5).Return(domainerrors.ErrNotFound)
 
 	body, _ := json.Marshal(map[string]any{"delta": 5})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPatch, "/parts/part-x/stock", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPatch, "/parts/33333333-3333-4333-8333-3333333333ff/stock", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -325,11 +325,11 @@ func TestPartHandler_AdjustStock_InsufficientStock(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, _, adjust := newHandler(ctrl)
-	adjust.EXPECT().Execute(gomock.Any(), "part-1", -100).Return(domainerrors.ErrInsufficientStock)
+	adjust.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-333333333333", -100).Return(domainerrors.ErrInsufficientStock)
 
 	body, _ := json.Marshal(map[string]any{"delta": -100})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPatch, "/parts/part-1/stock", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPatch, "/parts/33333333-3333-4333-8333-333333333333/stock", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -343,11 +343,11 @@ func TestPartHandler_AdjustStock_InternalError(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, _, adjust := newHandler(ctrl)
-	adjust.EXPECT().Execute(gomock.Any(), "part-1", 5).Return(errors.New("unexpected"))
+	adjust.EXPECT().Execute(gomock.Any(), "33333333-3333-4333-8333-333333333333", 5).Return(errors.New("unexpected"))
 
 	body, _ := json.Marshal(map[string]any{"delta": 5})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPatch, "/parts/part-1/stock", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPatch, "/parts/33333333-3333-4333-8333-333333333333/stock", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 

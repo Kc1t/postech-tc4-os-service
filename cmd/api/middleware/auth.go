@@ -23,12 +23,13 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
+		// Só HS256 e com exp obrigatório: o mesmo critério do billing, do execution e do authorizer.
 		token, err := jwt.Parse(parts[1], func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
 			return []byte(jwtSecret), nil
-		})
+		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired())
 		if err != nil || !token.Valid {
 			unauthorized(c, "invalid or expired token")
 			return

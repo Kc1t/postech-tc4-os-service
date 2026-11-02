@@ -16,6 +16,8 @@ import (
 // @Param       id path string true "Service ID"
 // @Param       body body commands.UpdateServiceRequest true "Dados para atualizar"
 // @Success     200 {object} commands.ServiceResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /services/{id} [put]
 func (h *ServiceHandler) Update(c *gin.Context) {

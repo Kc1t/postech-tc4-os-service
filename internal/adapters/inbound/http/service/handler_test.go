@@ -108,10 +108,10 @@ func TestServiceHandler_FindByID_Success(t *testing.T) {
 
 	svc := entities.NewService(1, "Troca de óleo", "Desc", 150.0, 60)
 	h, _, getByID, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "svc-1").Return(svc, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "44444444-4444-4444-8444-444444444444").Return(svc, nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/services/svc-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/services/44444444-4444-4444-8444-444444444444", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -124,10 +124,10 @@ func TestServiceHandler_FindByID_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, getByID, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "svc-x").Return(nil, domainerrors.ErrNotFound)
+	getByID.EXPECT().Execute(gomock.Any(), "44444444-4444-4444-8444-4444444444ff").Return(nil, domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/services/svc-x", nil)
+	req := httptest.NewRequest(http.MethodGet, "/services/44444444-4444-4444-8444-4444444444ff", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
@@ -178,12 +178,12 @@ func TestServiceHandler_Update_Success(t *testing.T) {
 
 	svc := entities.NewService(1, "Troca de óleo", "Desc", 150.0, 60)
 	h, _, getByID, _, update, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "svc-1").Return(svc, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "44444444-4444-4444-8444-444444444444").Return(svc, nil)
 	update.EXPECT().Execute(gomock.Any(), svc).Return(nil)
 
 	body, _ := json.Marshal(map[string]any{"name": "Alinhamento", "price": 200.0})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/services/svc-1", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/services/44444444-4444-4444-8444-444444444444", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -197,11 +197,11 @@ func TestServiceHandler_Update_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, getByID, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "svc-x").Return(nil, domainerrors.ErrNotFound)
+	getByID.EXPECT().Execute(gomock.Any(), "44444444-4444-4444-8444-4444444444ff").Return(nil, domainerrors.ErrNotFound)
 
 	body, _ := json.Marshal(map[string]any{"name": "X"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/services/svc-x", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/services/44444444-4444-4444-8444-4444444444ff", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -216,12 +216,12 @@ func TestServiceHandler_Update_UpdateFails(t *testing.T) {
 
 	svc := entities.NewService(1, "Troca de óleo", "Desc", 150.0, 60)
 	h, _, getByID, _, update, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "svc-1").Return(svc, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "44444444-4444-4444-8444-444444444444").Return(svc, nil)
 	update.EXPECT().Execute(gomock.Any(), svc).Return(errors.New("db error"))
 
 	body, _ := json.Marshal(map[string]any{"name": "Alinhamento"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/services/svc-1", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/services/44444444-4444-4444-8444-444444444444", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -237,10 +237,10 @@ func TestServiceHandler_Delete_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, del := newHandler(ctrl)
-	del.EXPECT().Execute(gomock.Any(), "svc-1").Return(nil)
+	del.EXPECT().Execute(gomock.Any(), "44444444-4444-4444-8444-444444444444").Return(nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/services/svc-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/services/44444444-4444-4444-8444-444444444444", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
@@ -253,10 +253,10 @@ func TestServiceHandler_Delete_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, del := newHandler(ctrl)
-	del.EXPECT().Execute(gomock.Any(), "svc-x").Return(domainerrors.ErrNotFound)
+	del.EXPECT().Execute(gomock.Any(), "44444444-4444-4444-8444-4444444444ff").Return(domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/services/svc-x", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/services/44444444-4444-4444-8444-4444444444ff", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {

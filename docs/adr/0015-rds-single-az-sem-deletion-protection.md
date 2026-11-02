@@ -1,6 +1,6 @@
 # ADR-0015: RDS Single-AZ e sem deletion protection no Learner Lab
 
-- **Status:** Accepted
+- **Status:** Aceita
 - **Data:** 2026-10
 - **Decisão por:** Reservoir Devs
 
@@ -41,11 +41,11 @@ Cada desligamento está marcado no código. O `tfsec:ignore` traz o motivo ao la
 
 2. **Deletion protection ligada, como na Fase 3.** Protege contra o `destroy` por engano, que é o risco que ela existe para cobrir. Descartada porque o `destroy` aqui é rotina: com dois bancos, cada fim de sessão exigiria dois applies de desligamento antes da destruição, e um esquecimento deixaria o banco cobrando com o lab encerrado.
 
-3. **Snapshot final e retenção de 7 dias.** Preservaria os dados entre sessões. Descartado: os dados do projeto são de demonstração e voltam pelo seed. Snapshots acumulados por sessão consomem crédito sem trazer nada de volta.
+3. **Snapshot final e retenção de 7 dias.** Preservaria os dados entre sessões. Descartado porque os dados do projeto são de demonstração e voltam pelo seed. Snapshots acumulados por sessão consomem crédito sem trazer nada de volta.
 
 4. **Um RDS só, com um database por serviço.** Resolveria o custo do Multi-AZ de outro jeito. Descartado na [ADR-0012](./0012-banco-por-servico.md): o enunciado pede banco e infraestrutura próprios por serviço.
 
-5. **Aurora Serverless v2.** Já avaliada na RFC-0002: o piso de capacidade cobrado é maior que uma `db.t3.micro` ociosa.
+5. **Aurora Serverless v2.** Descartada na [RFC-0002](../rfc/0002-banco-gerenciado.md): o piso de capacidade cobrado é maior que uma `db.t3.micro` ociosa.
 
 ## Consequências
 
@@ -81,5 +81,5 @@ Nenhuma dessas configurações é aceitável em produção real. São aceitávei
 ## Referências
 
 - Implementação: [`infra/main.tf`](../../infra/main.tf) e [`infra/variables.tf`](../../infra/variables.tf) (os-service), [`postech-tc4-billing-service/infra/main.tf`](https://github.com/Kc1t/postech-tc4-billing-service/blob/main/infra/main.tf)
-- AWS — [Multi-AZ DB instance deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html)
-- AWS — [Deleting a DB instance](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_DeleteInstance.html)
+- AWS: [Multi-AZ DB instance deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html)
+- AWS: [Deleting a DB instance](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_DeleteInstance.html)

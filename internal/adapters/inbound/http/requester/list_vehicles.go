@@ -15,6 +15,7 @@ import (
 // @Produce     json
 // @Param       id path string true "ID do cliente (UUID)"
 // @Success     200 {array} commands.VehicleResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
 // @Failure     500 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /requesters/{id}/vehicles [get]

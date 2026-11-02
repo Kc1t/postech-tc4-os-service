@@ -352,3 +352,57 @@ func TestPartRepository_ReserveStock(t *testing.T) {
 		t.Fatalf("estoque = %d", partStock(t, p.ID()))
 	}
 }
+
+func TestServiceOrderRepository_ExistsActiveWithServiceEPart(t *testing.T) {
+	c, v := seedVehicle(t, "OS00020")
+	repo := NewServiceOrderRepository(testDB)
+	ctx := context.Background()
+	svcID, partID := "11111111-2222-3333-4444-555555555555", "66666666-7777-8888-9999-000000000000"
+
+	create := func(status entities.OrderStatus) {
+		t.Helper()
+		so := entities.ReconstituteServiceOrder(entities.ServiceOrderSnapshot{
+			RequesterID: c.ID(), VehicleID: v.ID(), Status: status, Version: 1,
+			Services: []entities.ServiceItem{{ServiceID: svcID, Description: "Troca de óleo", Price: 100}},
+			Parts:    []entities.PartItem{{PartID: partID, Description: "Filtro", Quantity: 1, UnitPrice: 30}},
+		})
+		if err := repo.Create(ctx, so); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { testDB.Delete(&pgmodel.ServiceOrder{}, "id = ?", so.ID()) })
+	}
+	check := func(wantSvc, wantPart bool) {
+		t.Helper()
+		gotSvc, err := repo.ExistsActiveWithService(ctx, svcID)
+		if err != nil || gotSvc != wantSvc {
+			t.Fatalf("serviço: %v %v, esperava %v", gotSvc, err, wantSvc)
+		}
+		gotPart, err := repo.ExistsActiveWithPart(ctx, partID)
+		if err != nil || gotPart != wantPart {
+			t.Fatalf("peça: %v %v, esperava %v", gotPart, err, wantPart)
+		}
+	}
+
+	check(false, false)
+	create(entities.StatusDelivered) // OS encerradas não prendem o catálogo
+	create(entities.StatusCancelled)
+	check(false, false)
+	create(entities.StatusInExecution)
+	check(true, true)
+	if other, err := repo.ExistsActiveWithService(ctx, partID); err != nil || other {
+		t.Fatalf("id de peça não pode casar com serviço: %v %v", other, err)
+	}
+}
+
+func TestVehicleRepository_DeleteComOS_DevolveErrInUse(t *testing.T) {
+	c, v := seedVehicle(t, "OS00021")
+	so := newTestOrder(c.ID(), v.ID())
+	if err := NewServiceOrderRepository(testDB).Create(context.Background(), so); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { testDB.Delete(&pgmodel.ServiceOrder{}, "id = ?", so.ID()) })
+
+	if err := NewVehicleRepository(testDB).Delete(context.Background(), v.ID()); !errors.Is(err, domainerrors.ErrInUse) {
+		t.Fatalf("veículo com OS: esperava ErrInUse, veio %v", err)
+	}
+}

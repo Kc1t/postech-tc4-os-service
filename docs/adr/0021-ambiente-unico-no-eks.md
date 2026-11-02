@@ -1,6 +1,6 @@
 # ADR-0021: Ambiente único no EKS; homologação no ambiente e2e local
 
-- **Status:** Accepted
+- **Status:** Aceita
 - **Data:** 2026-10
 - **Decisão por:** Reservoir Devs
 
@@ -40,7 +40,7 @@ Ao mesmo tempo, a Fase 4 trouxe uma forma melhor de homologar: um ambiente e2e l
 |---|---|---|
 | os, billing, execution | CI completo (lint, gosec, govulncheck, testes com cobertura, BDD no os e teste de componente no billing e no execution, SonarQube, Terraform validate, imagem com Trivy), sem deploy | o mesmo CI e deploy no EKS (`postech`) |
 | `postech-tc4-notification-lambda` | CI, sem deploy | `terraform apply` da function de produção |
-| `postech-tc4-lambda-auth` | `terraform apply` das functions `postech-tc4-staging-auth-*`, como na ADR-0010 | `terraform apply` de produção |
+| `postech-tc4-lambda-auth` | CI, sem deploy | `terraform apply` das functions de produção |
 | `postech-tc4-infra-k8s` | `terraform plan` contra o state de produção | `terraform apply` |
 
 O deploy só roda com a variável `AWS_DEPLOY_ENABLED=true`: as credenciais do lab expiram a cada sessão, e sem elas o push não deve ficar vermelho.
@@ -53,9 +53,9 @@ Um cluster só; `plan` na homolog e `apply` só na `main` para a infraestrutura 
 
 1. **Manter dois namespaces, como na ADR-0010.** Daria um homolog na mesma infraestrutura de produção. Descartado pelo custo (~US$ 0,12/hora a mais, contando só os bancos e os nós) e pela duplicação de filas e tópicos com prefixo de ambiente em três repositórios. O ganho sobre o e2e local seria testar o IAM e a rede da AWS, que o ambiente único de produção já exercita.
 
-2. **Dois namespaces compartilhando bancos e filas.** Sairia barato, mas a homologação consumiria as mesmas filas que produção: uma mensagem de teste poderia ser processada pelo serviço de produção, e vice-versa. Um banco compartilhado entre ambientes já era a consequência mais grave da ADR-0010; aqui seriam dois.
+2. **Dois namespaces compartilhando bancos e filas.** Sairia barato. Descartado porque a homologação consumiria as mesmas filas que produção: uma mensagem de teste poderia ser processada pelo serviço de produção, e vice-versa. Um banco compartilhado entre ambientes já era a consequência mais grave da ADR-0010; aqui seriam dois.
 
-3. **Ambiente efêmero por PR no EKS.** É o modelo mais completo, mas cria e destrói dois RDS a cada PR, cada um com vários minutos de provisionamento, em sessões de lab de quatro horas.
+3. **Ambiente efêmero por PR no EKS.** É o modelo mais completo. Descartado porque cria e destrói dois RDS a cada PR, cada um com vários minutos de provisionamento, em sessões de lab de quatro horas.
 
 4. **`kind` no CI para o e2e.** Rodaria a homologação a cada push. Descartado nesta fase pelo tempo de execução (três imagens, dois bancos, LocalStack e build das Lambdas) e porque o docker compose já reproduz o desenho de serviços, bancos e mensageria, que é o que o e2e verifica.
 
@@ -72,7 +72,6 @@ Um cluster só; `plan` na homolog e `apply` só na `main` para a infraestrutura 
 - **A homologação não é automática.** O `make e2e` roda na máquina de quem desenvolve, não a cada push na `homolog`. O CI da homolog garante testes, BDD, componente e qualidade de cada serviço, não a integração entre eles.
 - **O LocalStack não é a AWS.** IAM, rede do EKS, IMDS ([ADR-0016](./0016-credenciais-dos-pods-pela-labrole.md)), NLB e API Gateway só são exercitados em produção.
 - **O primeiro deploy de uma mudança na AWS já é o de produção.** O `plan` da homolog mostra o efeito na infraestrutura de cluster, mas não o exercita.
-- **O `lambda-auth` ainda trata a homolog como ambiente na nuvem.** O `envs/staging.tfvars` dele aponta para o namespace `postech-homolog`, que não existe mais. Sem a variável `OS_SERVICE_URL` apontando para o os-service de produção, o apply da homolog não encontra o NLB.
 
 Como na ADR-0010, nada disso seria aceitável em produção real: lá, homologação é um ambiente na mesma nuvem, com a mesma infraestrutura e dados próprios. Aqui é dívida deliberada, para caber no orçamento do lab.
 
@@ -81,4 +80,4 @@ Como na ADR-0010, nada disso seria aceitável em produção real: lá, homologa�
 - Ambiente e2e: [`postech-tc4-infra-k8s/local/`](https://github.com/Kc1t/postech-tc4-infra-k8s/tree/main/local)
 - Namespace e quota: [`postech-tc4-infra-k8s/k8s/namespace.yaml`](https://github.com/Kc1t/postech-tc4-infra-k8s/blob/main/k8s/namespace.yaml)
 - Pipeline: [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml), job `deploy`
-- LocalStack — [Documentation](https://docs.localstack.cloud/)
+- LocalStack: [Documentation](https://docs.localstack.cloud/)

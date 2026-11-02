@@ -14,6 +14,8 @@ import (
 // @Produce     json
 // @Param       id path string true "ServiceOrder ID"
 // @Success     200 {object} commands.ServiceOrderResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /service-orders/{id} [get]
 func (h *ServiceOrderHandler) FindByID(c *gin.Context) {

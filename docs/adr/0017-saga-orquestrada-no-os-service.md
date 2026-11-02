@@ -1,6 +1,6 @@
 # ADR-0017: Saga orquestrada, com o orquestrador dentro do os-service
 
-- **Status:** Accepted
+- **Status:** Aceita
 - **Data:** 2026-10
 - **Decisão por:** Reservoir Devs
 
@@ -37,7 +37,7 @@ Cada passo é **uma transação local**. Nas respostas, no cancelamento e na exp
 
 ### Compensação
 
-Falhas de negócio disparam a compensação: item fora do catálogo, estoque insuficiente, `BudgetCreationFailed`, `BudgetRejected`, `PaymentFailed`, `RepairRejected`, prazo vencido ou `POST /service-orders/{id}/cancel` pela equipe. O plano sai do estado da saga (`Saga.Compensate`) e vale para as etapas já concluídas, da mais recente para a mais antiga:
+Falhas de negócio disparam a compensação: diagnóstico sem serviços nem peças, item fora do catálogo, quantidade inválida, estoque insuficiente, `BudgetCreationFailed`, `BudgetRejected`, `PaymentFailed`, `RepairRejected`, prazo vencido ou `POST /service-orders/{id}/cancel` pela equipe. O plano sai do estado da saga (`Saga.Compensate`) e vale para as etapas já concluídas, da mais recente para a mais antiga:
 
 | Etapa concluída | Compensação | Onde |
 |---|---|---|
@@ -50,25 +50,25 @@ Os comandos de compensação saem todos na mesma transação, pelo outbox: não 
 
 Um pagamento aprovado **depois** do cancelamento (o prazo venceu enquanto o cliente pagava) leva a saga de volta a `compensating` e dispara o estorno.
 
-### Prazos — `ExpireSagas`
+### Prazos (`ExpireSagas`)
 
 O `BudgetCreated` grava `deadline_at = agora + SAGA_APPROVAL_TIMEOUT` (72 h), e o `BudgetApproved` grava `agora + SAGA_PAYMENT_TIMEOUT` (24 h). Um worker do os-service roda o caso de uso `ExpireSagas` a cada `SAGA_TIMEOUT_CHECK_INTERVAL` (1 min): lista até 50 sagas em `awaiting_approval` ou `awaiting_payment` com prazo vencido, trava cada uma, **revalida** o prazo (outra réplica ou uma resposta pode ter chegado antes) e compensa com o motivo "prazo de aprovação do orçamento expirado" ou "prazo de pagamento expirado".
 
 ### Demonstração de falhas
 
-Com `FAULT_INJECTION_ENABLED=true`, o header `X-Simulate-Failure: budget|payment|repair` na abertura da OS grava a falha na saga, que a repassa no comando da etapa correspondente. Desligado, o header é ignorado.
+Com `FAULT_INJECTION_ENABLED=true`, o header `X-Simulate-Failure: budget|payment|repair` na abertura da OS grava a falha na saga, que a repassa no comando da etapa correspondente; outro valor é recusado com 400 `INVALID_SIMULATE_FAILURE`. Desligado, o header é ignorado.
 
 ## Alternativas consideradas
 
-1. **Coreografia.** Cada serviço reagiria aos eventos dos outros, sem coordenador. Funciona bem para sagas curtas e lineares, que é o caso em que a literatura (Richardson, aula SAGA 2) a recomenda. Aqui o plano de compensação depende de quais etapas já aconteceram, e esse conhecimento ficaria espalhado: o billing precisaria saber se a execução foi recusada para estornar, e o os-service precisaria juntar eventos de dois serviços para saber se devolve peças. Os prazos não teriam dono, e "em que passo está a OS X" exigiria correlacionar eventos de três serviços.
+1. **Coreografia.** Cada serviço reagiria aos eventos dos outros, sem coordenador. Funciona bem para sagas curtas e lineares, que é o caso em que a literatura (Richardson, aula SAGA 2) a recomenda. Descartada porque aqui o plano de compensação depende de quais etapas já aconteceram, e esse conhecimento ficaria espalhado: o billing precisaria saber se a execução foi recusada para estornar, e o os-service precisaria juntar eventos de dois serviços para saber se devolve peças. Os prazos não teriam dono, e "em que passo está a OS X" exigiria correlacionar eventos de três serviços.
 
-2. **Orquestrador num serviço próprio (`saga-service`).** Separaria a coordenação do domínio da OS. Descartado: o orquestrador precisa mudar a OS, o histórico e o estoque a cada passo. Num serviço à parte, cada uma dessas mudanças viraria mais um comando, mais uma resposta e mais uma compensação. Dentro do os-service, é uma transação local.
+2. **Orquestrador num serviço próprio (`saga-service`).** Separaria a coordenação do domínio da OS. Descartado porque o orquestrador precisa mudar a OS, o histórico e o estoque a cada passo. Num serviço à parte, cada uma dessas mudanças viraria mais um comando, mais uma resposta e mais uma compensação. Dentro do os-service, é uma transação local.
 
 3. **AWS Step Functions.** Orquestração gerenciada, com visualização do fluxo. Descartado na [ADR-0013](./0013-mensageria-sns-sqs-dlq.md): a saga sairia do código Go e dos testes, e cada espera humana viraria um callback com task token.
 
 4. **Motor de workflow (Temporal, Camunda).** Resolve sagas longas com prazos de forma madura. Descartado pelo custo de operar um cluster a mais no Learner Lab, para uma única saga.
 
-5. **Transação distribuída (2PC).** SQS e DynamoDB não participam de XA, e travar recursos de três serviços durante dias de espera humana é inviável.
+5. **Transação distribuída (2PC).** Descartada porque SQS e DynamoDB não participam de XA, e travar recursos de três serviços durante dias de espera humana é inviável.
 
 ## Consequências
 
@@ -91,4 +91,4 @@ Com `FAULT_INJECTION_ENABLED=true`, o header `X-Simulate-Failure: budget|payment
 
 - Implementação: [`internal/application/usecase/saga/`](../../internal/application/usecase/saga/) e [`internal/domain/entities/saga.go`](../../internal/domain/entities/saga.go)
 - BDD: [`features/saga.feature`](../../features/saga.feature)
-- Chris Richardson — [Pattern: Saga](https://microservices.io/patterns/data/saga.html)
+- Chris Richardson: [Pattern: Saga](https://microservices.io/patterns/data/saga.html)

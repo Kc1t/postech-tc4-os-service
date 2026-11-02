@@ -116,7 +116,7 @@ func (r *serviceOrderRepository) Update(ctx context.Context, so *entities.Servic
 }
 
 func (r *serviceOrderRepository) Delete(ctx context.Context, id string) error {
-	return mapError(conn(ctx, r.db).Delete(&pgmodel.ServiceOrder{}, "id = ?", id).Error)
+	return deleteByID(conn(ctx, r.db), &pgmodel.ServiceOrder{}, id)
 }
 
 func (r *serviceOrderRepository) AverageExecutionTime(ctx context.Context) (time.Duration, error) {
@@ -130,4 +130,27 @@ func (r *serviceOrderRepository) AverageExecutionTime(ctx context.Context) (time
 		return 0, mapError(err)
 	}
 	return time.Duration(averageSeconds * float64(time.Second)), nil
+}
+
+// OS em andamento (nem entregue nem cancelada) cujo JSON de itens (coluna text) contém o id.
+const (
+	activeWithService = `status NOT IN ? AND COALESCE(NULLIF(services, ''), '[]')::jsonb @> jsonb_build_array(jsonb_build_object('service_id', ?::text))`
+	activeWithPart    = `status NOT IN ? AND COALESCE(NULLIF(parts, ''), '[]')::jsonb @> jsonb_build_array(jsonb_build_object('part_id', ?::text))`
+)
+
+func (r *serviceOrderRepository) existsActive(ctx context.Context, where, id string) (bool, error) {
+	var n int64
+	finals := []entities.OrderStatus{entities.StatusDelivered, entities.StatusCancelled}
+	if err := conn(ctx, r.db).Model(&pgmodel.ServiceOrder{}).Where(where, finals, id).Count(&n).Error; err != nil {
+		return false, mapError(err)
+	}
+	return n > 0, nil
+}
+
+func (r *serviceOrderRepository) ExistsActiveWithService(ctx context.Context, serviceID string) (bool, error) {
+	return r.existsActive(ctx, activeWithService, serviceID)
+}
+
+func (r *serviceOrderRepository) ExistsActiveWithPart(ctx context.Context, partID string) (bool, error) {
+	return r.existsActive(ctx, activeWithPart, partID)
 }

@@ -322,6 +322,36 @@ func (mr *MockServiceOrderRepositoryMockRecorder) Delete(ctx, id any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockServiceOrderRepository)(nil).Delete), ctx, id)
 }
 
+// ExistsActiveWithPart mocks base method.
+func (m *MockServiceOrderRepository) ExistsActiveWithPart(ctx context.Context, partID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExistsActiveWithPart", ctx, partID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExistsActiveWithPart indicates an expected call of ExistsActiveWithPart.
+func (mr *MockServiceOrderRepositoryMockRecorder) ExistsActiveWithPart(ctx, partID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistsActiveWithPart", reflect.TypeOf((*MockServiceOrderRepository)(nil).ExistsActiveWithPart), ctx, partID)
+}
+
+// ExistsActiveWithService mocks base method.
+func (m *MockServiceOrderRepository) ExistsActiveWithService(ctx context.Context, serviceID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExistsActiveWithService", ctx, serviceID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExistsActiveWithService indicates an expected call of ExistsActiveWithService.
+func (mr *MockServiceOrderRepositoryMockRecorder) ExistsActiveWithService(ctx, serviceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistsActiveWithService", reflect.TypeOf((*MockServiceOrderRepository)(nil).ExistsActiveWithService), ctx, serviceID)
+}
+
 // FindAll mocks base method.
 func (m *MockServiceOrderRepository) FindAll(ctx context.Context) ([]*entities.ServiceOrder, error) {
 	m.ctrl.T.Helper()

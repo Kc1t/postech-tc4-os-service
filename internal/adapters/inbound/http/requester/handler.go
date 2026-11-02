@@ -1,6 +1,7 @@
 package requesterhandler
 
 import (
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
 	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 	"github.com/gin-gonic/gin"
 )
@@ -36,7 +37,7 @@ func NewRequesterHandler(
 }
 
 func (h *RequesterHandler) SetupRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/requesters")
+	g := rg.Group("/requesters", httputil.UUIDParams("id"))
 	g.POST("", h.Create)
 	g.GET("", h.FindAll)
 	g.GET("/document/:document", h.FindByDocument)

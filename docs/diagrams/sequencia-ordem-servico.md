@@ -1,105 +1,134 @@
-# Diagrama de Sequência — Abertura de Ordem de Serviço
+# Diagrama de sequência: ordem de serviço e saga
 
-Da abertura da OS pela operação até a aprovação do orçamento pelo cliente autenticado por CPF.
+Da abertura da OS até a entrega, com as mensagens da saga entre os serviços. A versão da fase 3 (monolito, status alterado por `PUT`) está no [`postech-tc3-app`](https://github.com/Kc1t/postech-tc3-app/blob/main/docs/diagrams/sequencia-ordem-servico.md).
+
+## Caminho feliz
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor OP as Atendente
+    actor E as Equipe (admin)
     actor C as Cliente
-    participant GW as API Gateway
-    participant AZ as Lambda authorizer
-    participant API as workshop-api
-    participant UC as CreateServiceOrder
-    participant DB as RDS PostgreSQL
-    participant SMTP as Notificador SMTP
-    participant NR as New Relic
+    participant OS as os-service
+    participant DB as Postgres do os-service
+    participant EX as execution-service
+    participant BI as billing-service
+    participant MP as Mercado Pago
+    participant NT as Lambda notifier
 
-    rect rgb(238, 245, 255)
-    note over OP,DB: Abertura da OS — operação autenticada por e-mail e senha
-    OP->>GW: POST /api/v1/service-orders<br/>Bearer <jwt admin>
-    GW->>AZ: autoriza
-    AZ-->>GW: isAuthorized = true
-    GW->>API: HTTP_PROXY via NLB
-    API->>API: CorrelationID + RequestLogger
-    API->>API: middleware Auth + RequireRole(admin)
+    E->>OS: POST /api/v1/service-orders {requester_document, vehicle_plate}
+    OS->>OS: cliente existe? veículo é dele? (404 / 422)
+    OS->>DB: uma transação: OS received, saga awaiting_diagnosis,<br/>histórico, outbox StartDiagnosis e ServiceOrderStatusChanged
+    OS-->>E: 201 {id, code, status: received}
+    Note over OS: o relay publica o outbox
+    OS-)EX: execution.StartDiagnosis (fila execution-commands)
+    OS-)NT: os.ServiceOrderStatusChanged (tópico os-events)
+    NT-->>C: e-mail "OS recebida"
 
-    API->>UC: Execute(input)
-    UC->>DB: FindByDocument(cpf do solicitante)
-    alt solicitante inexistente
-        DB-->>UC: sem linhas
-        UC-->>OP: 404
-    else encontrado
-        DB-->>UC: requester
-        UC->>DB: FindByPlate(placa)
-        alt veículo de outro solicitante
-            UC-->>OP: 422 ErrVehicleNotFromRequester
-        else vínculo válido
-            UC->>UC: NewServiceOrder(requesterID, vehicleID)<br/>status = received
-            UC->>DB: INSERT service_orders<br/>code sequencial
-            DB-->>UC: OS criada
-            UC-->>API: service order
-            API-->>OP: 201 {id, code, status}
-        end
-    end
-    API->>NR: log JSON com correlation_id, status, latency_ms
-    end
+    E->>EX: POST /api/v1/executions/{id}/diagnosis/start
+    EX-)OS: DiagnosisStarted → OS in_diagnosis
+    E->>EX: POST /api/v1/executions/{id}/diagnosis/complete {services, parts}
+    EX-)OS: DiagnosisCompleted
+    OS->>DB: preço do catálogo, reserva das peças, OS awaiting_budget,<br/>outbox CreateBudget
+    OS-)BI: billing.CreateBudget (fila billing-commands)
+    BI-)OS: BudgetCreated → OS awaiting_approval
 
-    rect rgb(255, 248, 235)
-    note over API,SMTP: Diagnóstico e orçamento
-    OP->>API: PUT status → in_diagnosis
-    OP->>API: PUT status → awaiting_approval
-    API->>SMTP: notifica o cliente
-    SMTP-->>C: e-mail com o código da OS
-    end
-
-    rect rgb(240, 250, 240)
-    note over C,DB: Aprovação pelo cliente — protegida por CPF
-    C->>GW: POST /auth {cpf}
-    GW-->>C: 200 {access_token}
-
-    C->>GW: GET /api/v1/service-orders/code/1042<br/>Bearer <jwt client>
-    GW->>AZ: autoriza
-    AZ-->>GW: isAuthorized = true
-    GW->>API: HTTP_PROXY
-    API-->>C: 200 orçamento
-
-    C->>GW: PUT /api/v1/service-orders/code/1042/status<br/>{"status": "in_execution"}
-    GW->>AZ: autoriza
-    AZ-->>GW: isAuthorized = true
-    GW->>API: HTTP_PROXY
-    API->>API: CPF do token = requester_document?<br/>senão 403
-    API->>API: AuthorizeRequesterTransition
-    note right of API: cliente só pode ir para<br/>in_execution (aprova) ou<br/>received (recusa)
-    API->>DB: UPDATE status, started_at = now()
-    API-->>C: 204
-    API->>NR: log service_order_status_changed<br/>from_status · seconds_in_status
-    end
+    C->>BI: POST /api/v1/budgets/{id}/approve (JWT do CPF, só o dono)
+    BI-)OS: BudgetApproved → OS awaiting_payment
+    OS-)BI: billing.RequestPayment
+    BI->>MP: cria a preferência do Checkout Pro
+    BI-)OS: PaymentLinkCreated
+    C->>MP: paga
+    MP->>BI: webhook com x-signature
+    BI->>MP: consulta o pagamento (GET /v1/payments/{id})
+    BI-)OS: PaymentApproved → OS in_execution
+    OS-)EX: execution.StartRepair
+    E->>EX: POST /api/v1/executions/{id}/repair/start
+    EX-)OS: RepairStarted (grava started_at)
+    E->>EX: POST /api/v1/executions/{id}/repair/finish
+    EX-)OS: RepairFinished → OS finished, saga completed
+    E->>OS: POST /api/v1/service-orders/{id}/deliver → delivered
 ```
+
+Cada mudança de status da OS grava uma linha em `service_order_status_history` e publica `os.ServiceOrderStatusChanged`, que vira um e-mail para o cliente. A exceção é `awaiting_payment`: o evento sai no `PaymentLinkCreated`, já com o link de pagamento. Cada passo é uma transação local com o outbox; o consumidor registra o `message_id` no inbox na mesma transação.
+
+## Compensação: reparo recusado depois do pagamento
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant OS as os-service
+    participant EX as execution-service
+    participant BI as billing-service
+    participant MP as Mercado Pago
+
+    EX-)OS: RepairRejected
+    OS->>OS: uma transação: saga compensating, peças de volta ao estoque,<br/>OS cancelled com o motivo, outbox RefundPayment e CancelBudget
+    OS-)BI: billing.RefundPayment
+    OS-)BI: billing.CancelBudget
+    BI->>MP: POST /v1/payments/{id}/refunds (X-Idempotency-Key)
+    BI-)OS: PaymentRefunded
+    OS->>OS: saga cancelled (log saga_refund_confirmed)
+```
+
+A execução não recebe `CancelExecution` aqui, porque foi ela que recusou. Sem pagamento aprovado não há estorno, e a saga vai direto para `cancelled`. As outras compensações seguem o mesmo padrão, conforme a etapa em que a saga estava: tabela em [Compensações](../../README.md#compensações) no README.
 
 ## Máquina de estados da OS
 
 ```mermaid
 stateDiagram-v2
     [*] --> received
-    received --> in_diagnosis
-    in_diagnosis --> awaiting_approval
-    awaiting_approval --> in_execution: cliente aprova
-    awaiting_approval --> received: cliente recusa
-    in_execution --> finished
-    finished --> delivered
+    received --> in_diagnosis: DiagnosisStarted
+    received --> awaiting_budget: DiagnosisCompleted antes do DiagnosisStarted
+    in_diagnosis --> awaiting_budget: DiagnosisCompleted
+    awaiting_budget --> awaiting_approval: BudgetCreated
+    awaiting_approval --> awaiting_payment: BudgetApproved
+    awaiting_payment --> in_execution: PaymentApproved
+    in_execution --> finished: RepairFinished
+    finished --> delivered: POST /deliver
+    received --> cancelled
+    in_diagnosis --> cancelled
+    awaiting_budget --> cancelled
+    awaiting_approval --> cancelled
+    awaiting_payment --> cancelled
+    in_execution --> cancelled
     delivered --> [*]
+    cancelled --> [*]
 ```
 
-Transição fora deste grafo retorna `ErrInvalidStatus`. O cliente autenticado por CPF só pode iniciar as duas transições marcadas; as demais pertencem ao fluxo operacional da oficina.
+As transições ficam em `validTransitions` (`internal/domain/entities/service_order.go`). Fora delas, o domínio devolve `ErrInvalidStatus` (409). `received → awaiting_budget` existe porque o SNS/SQS não garante ordem: o `DiagnosisCompleted` pode chegar antes do `DiagnosisStarted`.
 
-## Origem das métricas dos dashboards
+## Máquina de estados da saga
 
-| Dashboard exigido | Fonte |
+```mermaid
+stateDiagram-v2
+    [*] --> awaiting_diagnosis: OS aberta, StartDiagnosis enviado
+    awaiting_diagnosis --> awaiting_budget: peças reservadas, CreateBudget enviado
+    awaiting_budget --> awaiting_approval: BudgetCreated
+    awaiting_approval --> awaiting_payment: BudgetApproved, RequestPayment enviado
+    awaiting_payment --> executing: PaymentApproved, StartRepair enviado
+    executing --> completed: RepairFinished
+    executing --> compensating: RepairRejected ou cancelamento, RefundPayment enviado
+    compensating --> cancelled: PaymentRefunded
+    cancelled --> compensating: PaymentApproved depois do cancelamento
+    awaiting_diagnosis --> cancelled: diagnóstico inválido ou cancelamento
+    awaiting_budget --> cancelled: BudgetCreationFailed ou cancelamento
+    awaiting_approval --> cancelled: BudgetRejected, prazo de 72 h ou cancelamento
+    awaiting_payment --> cancelled: PaymentFailed, prazo de 24 h ou cancelamento
+    completed --> [*]
+    cancelled --> [*]
+```
+
+Os estados ficam em `internal/domain/entities/saga.go`. Resposta que não corresponde ao estado atual é registrada no inbox e ignorada (`ErrSagaOutOfStep`).
+
+## Origem dos números do dashboard
+
+| Painel | Fonte |
 |---|---|
-| Volume diário de ordens de serviço | Evento de log `service_order_created` |
-| Tempo médio por status | Evento `service_order_status_changed`, com `from_status` e `seconds_in_status` (tempo que a OS passou no status anterior) |
-| Erros e falhas nas integrações | Evento `integration_failure`, com `integration` e `stage` — hoje, falhas do notificador SMTP |
-| Latência das APIs | Transações do APM (`nrgin`) e `latency_ms` do `RequestLogger` |
+| Funil da saga e passos por estado | logs `saga_started`, `saga_step` (com `saga_state` e `os_status`) e `saga_completed` |
+| Concluídas, compensadas e expiradas | logs `saga_completed`, `saga_compensated` (com `reason`) e `saga_expired` |
+| Estornos confirmados | log `saga_refund_confirmed` |
+| Latência e erros por serviço | transações do APM (`nrgin`) |
+| Mensageria | transações `OutboxRelay/<tipo>` e `Consume/<tipo>`, logs `message_failed` e `outbox_message_stuck` |
 
-Os eventos são logs JSON com `correlation_id`, coletados pelo `nri-bundle` e consultados por NRQL ([`docs/newrelic/`](../newrelic/)). As colunas `started_at` e `finished_at`, gravadas por `UpdateStatus` no momento exato da transição, permitem auditar o tempo de execução contra o banco.
+Os logs são JSON com o texto em `message` e `trace.id`, `saga_id`, `os_id` e `correlation_id`, enviados pelo agente do New Relic. Dashboard e alertas em Terraform no [`postech-tc4-infra-k8s/observability`](https://github.com/Kc1t/postech-tc4-infra-k8s/tree/main/observability).

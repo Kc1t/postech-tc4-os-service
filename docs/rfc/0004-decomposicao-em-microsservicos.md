@@ -111,7 +111,7 @@ A decomposição custa ~US$ 0,06/hora a mais, quase tudo do terceiro nó e do se
 |---|---|
 | Perder a consistência que a transação local dava | Saga com compensação em todas as etapas ([ADR-0017](../adr/0017-saga-orquestrada-no-os-service.md)); outbox, inbox e lock otimista ([ADR-0018](../adr/0018-outbox-inbox-e-lock-otimista.md)) |
 | Um serviço fora parar o fluxo | Comunicação assíncrona: a mensagem espera na fila. A consulta síncrona (`/details`) devolve resposta parcial, com circuit breaker ([ADR-0019](../adr/0019-api-composition-no-details.md)) |
-| Contratos divergirem entre serviços | Versão no envelope: o consumidor rejeita versão maior que a sua. `pkg/contracts` é a fonte canônica, copiada literalmente nos outros serviços |
+| Contratos divergirem entre serviços | Versão no envelope: o consumidor rejeita versão maior que a sua. `pkg/contracts` é a fonte canônica, copiada literalmente nos outros serviços, e o `make contracts` do e2e local (`postech-tc4-infra-k8s/local/check-contracts.sh`) falha se a cópia de algum dos quatro repositórios divergir |
 | Cópias do chassis divergirem | Cópia explícita e sincronizada a cada mudança. O próximo passo é um módulo Go versionado compartilhado |
 | Rastrear uma OS por três serviços | `saga_id`, `os_id` e `correlation_id` em todo log; o trace do New Relic atravessa as filas e o outbox |
 | A migração não ter sido exercitada com tráfego real | Registrado: o sistema não tinha usuários, e o corte das rotas foi feito de uma vez. O padrão foi seguido na estrutura (um passo por vez, cada um testável), não validado sob carga |

@@ -1,6 +1,6 @@
 # ADR-0019: API composition no `/details`, com resposta parcial
 
-- **Status:** Accepted
+- **Status:** Aceita
 - **Data:** 2026-10
 - **Decisão por:** Reservoir Devs
 
@@ -49,11 +49,11 @@ A equipe precisa dessa visão num lugar só: é o que mostra onde a OS está, po
 
 1. **CQRS com réplica de leitura (visão materializada no os-service).** O os-service já recebe todos os eventos do billing e do execution em `os-saga-replies`; poderia projetá-los numa tabela de leitura e responder o `/details` sem chamar ninguém. Descartado nesta fase: a projeção copiaria o modelo de dois serviços e teria de mudar a cada mudança deles, os eventos teriam de carregar o estado completo (hoje carregam o necessário para a saga) e a visão seria eventualmente consistente por definição. O `/details` é leitura de tela, de baixo volume; não justifica o custo. Fica registrado como evolução se a consulta virar caminho quente ou relatório.
 
-2. **Composição no cliente.** O front chamaria os três serviços pelo gateway. Descartado: três idas e voltas pelo gateway e pelo authorizer, e o acoplamento iria para quem consome. A API do execution só aceita `admin` e `mechanic`, então o cliente final nem teria acesso a uma das partes.
+2. **Composição no cliente.** O front chamaria os três serviços pelo gateway. Descartada porque seriam três idas e voltas pelo gateway e pelo authorizer, e o acoplamento iria para quem consome. A API do execution só aceita `admin` e `mechanic`, então o cliente final nem teria acesso a uma das partes.
 
-3. **Agregador fora dos serviços** (Lambda ou BFF atrás do API Gateway). O HTTP API do API Gateway não agrega respostas sozinho. Seria mais um componente com deploy, credencial e observabilidade próprios, para fazer o que o os-service, dono da OS, já faz.
+3. **Agregador fora dos serviços** (Lambda ou BFF atrás do API Gateway). O HTTP API do API Gateway não agrega respostas sozinho. Descartado porque seria mais um componente com deploy, credencial e observabilidade próprios, para fazer o que o os-service, dono da OS, já faz.
 
-4. **Composição que falha inteira.** Mais simples, sem campo `unavailable`. Descartado: a disponibilidade do `/details` viraria o produto da disponibilidade dos três serviços, e a parte mais útil (o estado da saga) é justamente a que não depende dos outros.
+4. **Composição que falha inteira.** Mais simples, sem campo `unavailable`. Descartada porque a disponibilidade do `/details` viraria o produto da disponibilidade dos três serviços, e a parte mais útil (o estado da saga) é justamente a que não depende dos outros.
 
 ## Consequências
 
@@ -74,4 +74,4 @@ A equipe precisa dessa visão num lugar só: é o que mostra onde a OS está, po
 ## Referências
 
 - Implementação: [`internal/application/usecase/service_order/details.go`](../../internal/application/usecase/service_order/details.go), [`internal/adapters/outbound/services/client.go`](../../internal/adapters/outbound/services/client.go), [`pkg/httpclient/httpclient.go`](../../pkg/httpclient/httpclient.go)
-- Chris Richardson — [Pattern: API Composition](https://microservices.io/patterns/data/api-composition.html) e [Pattern: CQRS](https://microservices.io/patterns/data/cqrs.html)
+- Chris Richardson: [Pattern: API Composition](https://microservices.io/patterns/data/api-composition.html) e [Pattern: CQRS](https://microservices.io/patterns/data/cqrs.html)

@@ -1,4 +1,4 @@
-// Modelo de dados - postech-tc3-app
+// Modelo de dados - postech-tc4-os-service (fase 4: banco próprio do serviço, ADR-0012)
 // https://dbdiagram.io/d para visualizar
 //
 // Gerado a partir dos modelos GORM em internal/adapters/outbound/postgresql/model.
@@ -83,11 +83,13 @@ Table service_orders {
   code int [not null, unique, increment, note: 'codigo publico da OS']
   requester_id uuid [not null, ref: > requesters.id, note: 'ON DELETE RESTRICT']
   vehicle_id uuid [not null, ref: > vehicles.id, note: 'ON DELETE RESTRICT']
-  status varchar [not null, note: 'received | in_diagnosis | awaiting_approval | in_execution | finished | delivered']
-  services jsonb [note: 'snapshot: [{service_id, description, price}]']
-  parts jsonb [note: 'snapshot: [{part_id, description, quantity, unit_price}]']
+  status varchar [not null, note: 'received | in_diagnosis | awaiting_budget | awaiting_approval | awaiting_payment | in_execution | finished | delivered | cancelled']
+  services text [note: 'JSON (serializer do GORM): [{service_id, description, price}]']
+  parts text [note: 'JSON (serializer do GORM): [{part_id, description, quantity, unit_price}]']
   total_amount numeric [not null]
   notes text
+  cancel_reason text
+  version int [not null, default: 1, note: 'lock otimista (ADR-0018)']
   created_at timestamp
   updated_at timestamp
   started_at timestamp [null, note: 'gravado na entrada em in_execution']
@@ -95,5 +97,78 @@ Table service_orders {
 
   indexes {
     requester_id
+    status
+  }
+}
+
+Table saga_instances {
+  id uuid [pk]
+  os_id uuid [not null, unique, ref: - service_orders.id]
+  state varchar [not null, note: 'awaiting_diagnosis | awaiting_budget | awaiting_approval | awaiting_payment | executing | completed | compensating | cancelled']
+  budget_id varchar
+  payment_id varchar
+  checkout_url varchar
+  payment_approved boolean [not null, default: false]
+  reservations text [note: 'JSON: peças reservadas, devolvidas na compensação']
+  simulate_failure varchar [note: 'budget | payment | repair (FAULT_INJECTION_ENABLED)']
+  deadline_at timestamp [null, note: 'prazo da etapa; vencido, a saga compensa']
+  failure_reason text
+  version int [not null, default: 1, note: 'lock otimista']
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    state
+    deadline_at
+  }
+}
+
+Table service_order_status_history {
+  id uuid [pk, default: `gen_random_uuid()`]
+  os_id uuid [not null, ref: > service_orders.id]
+  from_status varchar [not null]
+  to_status varchar [not null]
+  actor varchar [not null]
+  reason text
+  message_id varchar [note: 'mensagem da saga que causou a transição, se houver']
+  created_at timestamp [not null]
+
+  indexes {
+    os_id
+    created_at
+  }
+}
+
+Table outbox_messages {
+  id uuid [pk]
+  destination_kind varchar [not null, note: 'topic | queue']
+  destination varchar [not null]
+  type varchar [not null]
+  saga_id varchar
+  body text [not null, note: 'envelope JSON do pkg/contracts']
+  trace_headers text [note: 'JSON: headers W3C/New Relic do trace']
+  created_at timestamp [not null]
+  published_at timestamp [null]
+  next_attempt_at timestamp [null, note: 'backoff exponencial até 5 min']
+  attempts int [not null, default: 0, note: 'a partir de 10: outbox_message_stuck']
+  last_error text
+
+  indexes {
+    type
+    saga_id
+    created_at
+    published_at
+    next_attempt_at
+  }
+}
+
+Table processed_messages {
+  message_id varchar [pk]
+  consumer varchar [pk]
+  type varchar [not null]
+  processed_at timestamp [not null, note: 'inbox idempotente; limpeza depois da retenção das DLQs']
+
+  indexes {
+    processed_at
   }
 }

@@ -1,30 +1,33 @@
 # Diagramas
 
-Todos em Mermaid embutido em Markdown: renderizam direto no GitHub, ficam versionados junto com o código e aparecem no diff quando a arquitetura muda.
+Diagramas da fase 4. Quase todos são Mermaid embutido em Markdown: renderizam direto no GitHub, ficam versionados com o código e aparecem no diff quando a arquitetura muda. As versões da fase 3 (monolito) ficam no repositório [`postech-tc3-app`](https://github.com/Kc1t/postech-tc3-app/tree/main/docs/diagrams).
 
-## Estrutura
+## Visão geral
 
 | Documento | O que responde |
 |---|---|
-| [`componentes.md`](./componentes.md) | Como as peças se encaixam na nuvem — APIs, banco, monitoramento e fronteiras de repositório |
-| [`roteamento.md`](./roteamento.md) | Por onde uma requisição passa, quem a barra e onde cada código de erro nasce |
-| [`pipelines.md`](./pipelines.md) | O que cada um dos quatro pipelines faz, e quais secrets cada repositório precisa |
+| [`arquitetura-fase4.svg`](./arquitetura-fase4.svg) | Diagrama geral do documento de entrega: microsserviços, bancos e comunicação |
+| [`componentes.md`](./componentes.md) | Como as peças se encaixam na AWS, quem fala com quem e o que cada repositório provisiona |
+| [`roteamento.md`](./roteamento.md) | Por onde uma requisição passa, quem a barra e onde nasce cada código de resposta |
+| [`pipelines.md`](./pipelines.md) | O que cada um dos seis pipelines faz, a ordem do primeiro deploy e os secrets de cada repositório |
 
 ## Fluxos
 
 | Documento | O que responde |
 |---|---|
-| [`sequencia-autenticacao.md`](./sequencia-autenticacao.md) | Como o CPF vira JWT e como esse token é aceito numa rota protegida |
-| [`sequencia-ordem-servico.md`](./sequencia-ordem-servico.md) | Da abertura da OS até a aprovação do orçamento pelo cliente, com a máquina de estados |
+| [`sequencia-ordem-servico.md`](./sequencia-ordem-servico.md) | A saga da OS da abertura à entrega, uma compensação com estorno e as máquinas de estado da OS e da saga |
+| [`sequencia-autenticacao.md`](./sequencia-autenticacao.md) | Como o CPF vira JWT e como o token é aceito numa rota protegida |
+
+A arquitetura interna do os-service (hexagonal) está no [README](../../README.md#arquitetura-do-serviço), e as camadas de autenticação em [`../SEGURANCA.md`](../SEGURANCA.md).
 
 ## Dados
 
 | Documento | O que responde |
 |---|---|
-| [`../MODELAGEM_DE_DADOS.md`](../MODELAGEM_DE_DADOS.md) | Diagrama ER, justificativa formal do banco e explicação dos relacionamentos |
-| [`../database-model.dbml`](../database-model.dbml) | O mesmo modelo em DBML, para <https://dbdiagram.io/d> |
-| [`../documentation-diagram.drawio`](../documentation-diagram.drawio) | Diagrama das Fases 1 e 2, mantido como referência histórica |
+| [`../MODELAGEM_DE_DADOS.md`](../MODELAGEM_DE_DADOS.md) | Diagrama ER do banco do os-service, justificativa e relacionamentos |
+| [`../database-model.dbml`](../database-model.dbml) | Modelo em DBML das tabelas de cadastro e da OS, para <https://dbdiagram.io/d>; as tabelas da saga, do outbox e do inbox estão só na modelagem |
+| [`../documentation-diagram.drawio`](../documentation-diagram.drawio) | Diagrama das fases 1 e 2, mantido como referência histórica |
 
 ## Por onde começar
 
-Quem está chegando agora: `componentes.md` para a visão geral, depois `roteamento.md` para entender as camadas de proteção, e `sequencia-autenticacao.md` para o fluxo que é o coração da Fase 3.
+`arquitetura-fase4.svg` para a visão geral, `sequencia-ordem-servico.md` para a saga e `roteamento.md` para as camadas de proteção.

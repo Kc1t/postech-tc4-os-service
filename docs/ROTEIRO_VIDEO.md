@@ -2,6 +2,8 @@
 
 Limite de **15 minutos**. O enunciado lista seis itens obrigatórios; o roteiro abaixo cobre todos com folga de tempo.
 
+> **Roteiro da fase 3, mantido como histórico.** O roteiro do vídeo atual é o [`ROTEIRO_VIDEO_FASE4.md`](ROTEIRO_VIDEO_FASE4.md).
+
 | Item exigido | Bloco |
 |---|---|
 | Autenticação com CPF | 3 |

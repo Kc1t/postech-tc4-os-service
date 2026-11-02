@@ -1,6 +1,7 @@
 package parthandler
 
 import (
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
 	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 	"github.com/gin-gonic/gin"
 )
@@ -33,7 +34,7 @@ func NewPartHandler(
 }
 
 func (h *PartHandler) SetupRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/parts")
+	g := rg.Group("/parts", httputil.UUIDParams("id"))
 	g.POST("", h.Create)
 	g.GET("", h.FindAll)
 	g.GET("/:id", h.FindByID)

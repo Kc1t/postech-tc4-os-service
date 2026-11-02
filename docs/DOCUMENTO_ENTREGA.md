@@ -3,6 +3,8 @@
 
 **Grupo:** Reservoir Devs · **Pós-Tech FIAP — SOAT (15SOAT)** · **Data:** 2026-05-05
 
+> **Registro da fase 1 (monolito), mantido como histórico.** Caminhos, rotas e repositórios citados aqui são os daquela entrega. A arquitetura atual está no [README](../README.md) e no [documento de entrega da fase 4](DOCUMENTO_ENTREGA_FASE4.md).
+
 ---
 
 ## 1. Grupo
