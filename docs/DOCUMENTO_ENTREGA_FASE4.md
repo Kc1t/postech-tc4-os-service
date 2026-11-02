@@ -125,11 +125,11 @@ A divisão segue as **capacidades de negócio** do enunciado (atendimento, cobra
 
 | Repositório | Cobertura (`go test`) | SonarQube | Evidência (resumo de cada execução) |
 |---|---|---|---|
-| os-service | 86,3% | 83,6%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-os-service/actions/workflows/ci.yml) |
-| billing-service | 95,7% | 94,7%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-billing-service/actions/workflows/ci.yml) |
-| execution-service | 95,6% | 95,3%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-execution-service/actions/workflows/ci.yml) |
-| lambda-auth | 91,4% | 90,6%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-lambda-auth/actions/workflows/ci.yml) |
-| notification-lambda | 92,0% | 89,0%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-notification-lambda/actions/workflows/ci.yml) |
+| os-service | 91,9% | 92,6%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-os-service/actions/workflows/ci.yml) |
+| billing-service | 95,8% | 96,5%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-billing-service/actions/workflows/ci.yml) |
+| execution-service | 95,8% | 96,8%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-execution-service/actions/workflows/ci.yml) |
+| lambda-auth | 91,4% | 92,6%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-lambda-auth/actions/workflows/ci.yml) |
+| notification-lambda | 92,0% | 92,7%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-notification-lambda/actions/workflows/ci.yml) |
 
 Em todos: 0 bugs, 0 vulnerabilidades, 0 code smells e 0% de duplicação. O quality gate é próprio (cobertura ≥ 80%, duplicação ≤ 3% e nota A em confiabilidade, segurança e manutenibilidade), e cada pipeline também roda golangci-lint, gosec, govulncheck e tfsec; os três serviços ainda passam a imagem pelo Trivy e os manifestos pelo kubeconform (strict, schema do Kubernetes 1.35). Cada execução do CI publica no resumo do job a cobertura do `go test` e a tabela do SonarQube.
 

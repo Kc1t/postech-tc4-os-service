@@ -21,7 +21,7 @@ Tech Challenge Fase 4, FIAP Pós Tech SOAT. O monolito da fase 3 foi dividido em
 | Saga com compensação, escolha justificada | [Saga orquestrada](#saga-orquestrada) e [ADR-0017](docs/adr/0017-saga-orquestrada-no-os-service.md) |
 | Comunicação síncrona e assíncrona | [Comunicação](#comunicação), [AsyncAPI](docs/asyncapi/asyncapi.yaml) |
 | Nenhum acesso ao banco de outro serviço | a composição do `/details` usa REST; a Lambda issuer consulta `GET /internal/requesters/{document}` em vez de abrir o banco |
-| Testes unitários, BDD e cobertura ≥ 80% | [Testes e cobertura](#testes-e-cobertura): **86,3%**, com o resultado de cada execução no [CI](https://github.com/Kc1t/postech-tc4-os-service/actions/workflows/ci.yml) |
+| Testes unitários, BDD e cobertura ≥ 80% | [Testes e cobertura](#testes-e-cobertura): **91,9%** no `go test` e **92,6%** no SonarQube, com o resultado de cada execução no [CI](https://github.com/Kc1t/postech-tc4-os-service/actions/workflows/ci.yml) |
 | SonarQube no CI | job `sonarqube` do [CI](.github/workflows/ci.yml), quality gate próprio |
 | CI/CD com deploy em Kubernetes | [CI/CD](#cicd) |
 | Swagger e Postman | [`docs/swagger.yaml`](docs/swagger.yaml) e [`postman_collection.json`](postman_collection.json), com teste em toda requisição ([como rodar](#collection-postman)) |
@@ -223,7 +223,21 @@ Modelo de ameaça, segredos, dados pessoais, testes de cada controle e limitaç�
 | Contrato | mensagens produzidas e consumidas validadas contra os JSON Schemas de `pkg/contracts` | `make test` |
 | Ponta a ponta | os três serviços, as Lambdas no LocalStack e o Mailpit: caminho feliz e três compensações | `make all` em [`postech-tc4-infra-k8s/local`](https://github.com/Kc1t/postech-tc4-infra-k8s/tree/main/local) |
 
-**Cobertura: 86,3%** no `go test -coverprofile` (`make cover`, exclui `cmd/`, `docs/`, mocks e `scripts/`) e **83,6% no SonarQube**, com quality gate aprovado: 0 bugs, 0 vulnerabilidades, 0 code smells e 0% de duplicação. O CI reprova abaixo de 80%.
+**Cobertura: 91,9%** no `go test -coverprofile` (`make cover`, exclui `cmd/`, `docs/`, mocks e `scripts/`) e **92,6% no SonarQube**, com quality gate aprovado: 0 bugs, 0 vulnerabilidades, 0 code smells e 0% de duplicação. O CI reprova abaixo de 80%.
+
+Cobertura por pacote (`make cover`, mesma medição do CI):
+
+| Pacote | Cobertura |
+|---|---|
+| domínio (`internal/domain/entities`) | 98,3% |
+| orquestrador da saga (`usecase/saga`) | 85,4%; os cenários de `features/saga.feature` rodam à parte (`make bdd`) e não entram nesse número |
+| demais casos de uso | `service_order`, `part`, `requester` e `service` 100%, `vehicle` 95,0%, `auth` 86,1% |
+| handlers HTTP | 88,5% a 100%; erro padronizado, bind, sessão e DTOs 100% |
+| adapter Postgres (repositórios, unit of work, migrations) | 89,9%; os mapeamentos de `postgresql/model` (67,5% no pacote) são exercidos pelos testes de repositório, que ficam em outro pacote |
+| clientes HTTP do billing e do execution (`outbound/services`) | 91,7% |
+| chassis `pkg/` | `contracts` 93,5%, `httpclient` 94,9%, `inbox` 93,3%, `messaging` 94,2%, `outbox` 88% a 92%, `hasher` 83,3%, `awsx` e `logger` 80%, `env` e `observability` 100% |
+
+Os testes de banco rodam em série (`-p 1`), porque os pacotes dividem o mesmo Postgres de teste. O total varia um ou dois décimos entre execuções porque parte dos ramos do `pkg/outbox` depende do tempo do relay.
 
 Evidência: cada execução do [workflow de CI](https://github.com/Kc1t/postech-tc4-os-service/actions/workflows/ci.yml) publica no resumo do job a cobertura do `go test` ("Cobertura do os-service") e a tabela do SonarQube com o status do gate, cobertura, bugs, vulnerabilidades, code smells, hotspots e duplicação. Abra a execução mais recente da `main` e veja o *Summary*.
 
