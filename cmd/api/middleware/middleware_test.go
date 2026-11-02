@@ -120,6 +120,58 @@ func TestAuth_WrongSecret(t *testing.T) {
 	}
 }
 
+func TestAuth_RecusaTokenSemExpOuForaDoHS256(t *testing.T) {
+	r := gin.New()
+	r.Use(Auth("secret"))
+	r.GET("/", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	semExp, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "user-1", "role": "admin"}).SignedString([]byte("secret"))
+	hs512, _ := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
+		"sub": "user-1", "role": "admin", "exp": time.Now().Add(time.Hour).Unix(),
+	}).SignedString([]byte("secret"))
+
+	for name, tok := range map[string]string{"sem exp": semExp, "HS512": hs512} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("%s: expected 401, got %d", name, w.Code)
+		}
+	}
+}
+
+func TestRequireRole(t *testing.T) {
+	cases := []struct {
+		name string
+		role any
+		want int
+	}{
+		{"admin", "admin", http.StatusOK},
+		{"cliente na rota da equipe", "client", http.StatusForbidden},
+		{"sem papel", nil, http.StatusForbidden},
+		{"papel de outro tipo", 42, http.StatusForbidden},
+	}
+	for _, tc := range cases {
+		r := gin.New()
+		r.Use(func(c *gin.Context) {
+			if tc.role != nil {
+				c.Set("user_role", tc.role)
+			}
+			c.Next()
+		})
+		r.Use(RequireRole("admin"))
+		r.POST("/auth/register", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/auth/register", nil))
+		if w.Code != tc.want {
+			t.Errorf("%s: expected %d, got %d", tc.name, tc.want, w.Code)
+		}
+	}
+}
+
 // --- CORS middleware ---
 
 func TestCORS_Allowlist(t *testing.T) {

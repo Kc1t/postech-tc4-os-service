@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Kc1t/postech-tc4-os-service/pkg/env"
@@ -57,6 +58,21 @@ type Config struct {
 
 // MessagingEnabled indica se os workers de mensageria (relay do outbox, consumidor das
 // respostas da saga e verificação de prazos) devem rodar.
+// DefaultJWTSecret só serve para desenvolvimento; Validate o recusa em produção.
+const DefaultJWTSecret = "change-me-in-production"
+
+// Validate recusa configuração insegura em produção, com a mesma regra do billing e do execution:
+// sem JWT_SECRET próprio, qualquer um que leia este repositório assinaria tokens válidos.
+func (c *Config) Validate() error {
+	if c.AppEnv != EnvProduction {
+		return nil
+	}
+	if c.JWTSecret == "" || c.JWTSecret == DefaultJWTSecret {
+		return errors.New("JWT_SECRET vazio ou padrão não pode ser usado em produção")
+	}
+	return nil
+}
+
 func (c *Config) MessagingEnabled() bool {
 	return c.SagaRepliesQueueURL != "" && c.BillingCommandsQueueURL != "" &&
 		c.ExecutionCommandsQueueURL != "" && c.OSEventsTopicARN != ""
@@ -73,7 +89,7 @@ func Load() *Config {
 		NewRelicLicenseKey: env.GetOrDefault("NEW_RELIC_LICENSE_KEY", ""),
 		PostgresDSN:        env.GetOrDefault("POSTGRES_DSN", "postgres://postgres:postgres@localhost:5432/workshop?sslmode=disable"),
 
-		JWTSecret:           env.GetOrDefault("JWT_SECRET", "change-me-in-production"),
+		JWTSecret:           env.GetOrDefault("JWT_SECRET", DefaultJWTSecret),
 		AccessTokenExpMin:   env.GetIntOrDefault("ACCESS_TOKEN_EXP_MIN", 15),
 		RefreshTokenExpDays: env.GetIntOrDefault("REFRESH_TOKEN_EXP_DAYS", 7),
 		BcryptCost:          env.GetIntOrDefault("BCRYPT_COST", 12),

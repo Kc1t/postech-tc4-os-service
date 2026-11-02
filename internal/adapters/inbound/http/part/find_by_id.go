@@ -14,6 +14,8 @@ import (
 // @Produce     json
 // @Param       id path string true "Part ID"
 // @Success     200 {object} commands.PartResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /parts/{id} [get]
 func (h *PartHandler) FindByID(c *gin.Context) {

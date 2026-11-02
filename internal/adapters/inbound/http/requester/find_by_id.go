@@ -14,6 +14,8 @@ import (
 // @Produce     json
 // @Param       id path string true "Requester ID"
 // @Success     200 {object} commands.RequesterResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /requesters/{id} [get]
 func (h *RequesterHandler) FindByID(c *gin.Context) {

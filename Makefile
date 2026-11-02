@@ -6,7 +6,7 @@ COVER_PKGS=$$(go list ./... | grep -v -E '/cmd/|/docs|/mocks|/scripts')
 TEST_DB_ENV=TEST_DB_HOST=localhost TEST_DB_PORT=55432 TEST_DB_USER=test TEST_DB_PASSWORD=test TEST_DB_NAME=testdb
 
 help:
-	@echo "run | build | up | down | logs | swagger | asyncapi | mocks | test-db | test | cover | lint | tidy"
+	@echo "run | build | up | down | logs | swagger | asyncapi | mocks | test-db | test | cover | bdd | lint | tidy"
 
 run:
 	go run $(MAIN)

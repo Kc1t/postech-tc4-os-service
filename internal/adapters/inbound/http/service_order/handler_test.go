@@ -187,10 +187,10 @@ func TestServiceOrderHandler_FindByID_Success(t *testing.T) {
 
 	m := newHandler(ctrl)
 	so := entities.NewServiceOrder("cust-id", "veh-id")
-	m.getByID.EXPECT().Execute(gomock.Any(), "so-1").Return(so, nil)
+	m.getByID.EXPECT().Execute(gomock.Any(), "22222222-2222-4222-8222-222222222221").Return(so, nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/service-orders/so-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/service-orders/22222222-2222-4222-8222-222222222221", nil)
 	newTestRouter(m.handler).ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -203,10 +203,10 @@ func TestServiceOrderHandler_FindByID_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	m := newHandler(ctrl)
-	m.getByID.EXPECT().Execute(gomock.Any(), "so-x").Return(nil, domainerrors.ErrNotFound)
+	m.getByID.EXPECT().Execute(gomock.Any(), "22222222-2222-4222-8222-2222222222ff").Return(nil, domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/service-orders/so-x", nil)
+	req := httptest.NewRequest(http.MethodGet, "/service-orders/22222222-2222-4222-8222-2222222222ff", nil)
 	newTestRouter(m.handler).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
@@ -309,12 +309,41 @@ func TestServiceOrderHandler_FindByCode_CodigoInvalido(t *testing.T) {
 
 	m := newHandler(ctrl)
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/service-orders/code/abc?document=52998224725", nil)
-	newTestRouter(m.handler).ServeHTTP(w, req)
+	for _, code := range []string{"abc", "-1", "0", "1.5"} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/service-orders/code/"+code+"?document=52998224725", nil)
+		newTestRouter(m.handler).ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", w.Code)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("%s: expected 400, got %d", code, w.Code)
+		}
+		if strings.Contains(w.Body.String(), "strconv") {
+			t.Fatalf("%s: a mensagem não pode expor o erro interno: %s", code, w.Body.String())
+		}
+	}
+}
+
+func TestServiceOrderHandler_IDQueNaoEUUID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Sem EXPECT nos casos de uso: o id inválido para antes deles.
+	m := newHandler(ctrl)
+	cases := []struct{ method, path string }{
+		{http.MethodGet, "/service-orders/nao-e-uuid"},
+		{http.MethodGet, "/service-orders/nao-e-uuid/details"},
+		{http.MethodGet, "/service-orders/nao-e-uuid/history"},
+		{http.MethodPost, "/service-orders/nao-e-uuid/cancel"},
+		{http.MethodPost, "/service-orders/nao-e-uuid/deliver"},
+	}
+	for _, tc := range cases {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(tc.method, tc.path, nil)
+		newTestRouter(m.handler).ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("%s %s: expected 400, got %d", tc.method, tc.path, w.Code)
+		}
 	}
 }
 
@@ -413,9 +442,9 @@ func TestServiceOrderHandler_Cancel(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			m := newHandler(ctrl)
 			if tc.status != http.StatusBadRequest {
-				m.cancel.EXPECT().Execute(gomock.Any(), "os-1", gomock.Any()).Return(tc.err)
+				m.cancel.EXPECT().Execute(gomock.Any(), "22222222-2222-4222-8222-222222222222", gomock.Any()).Return(tc.err)
 			}
-			req := httptest.NewRequest(http.MethodPost, "/service-orders/os-1/cancel", strings.NewReader(tc.body))
+			req := httptest.NewRequest(http.MethodPost, "/service-orders/22222222-2222-4222-8222-222222222222/cancel", strings.NewReader(tc.body))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			newTestRouter(m.handler).ServeHTTP(w, req)
@@ -436,9 +465,9 @@ func TestServiceOrderHandler_Deliver(t *testing.T) {
 	} {
 		ctrl := gomock.NewController(t)
 		m := newHandler(ctrl)
-		m.deliver.EXPECT().Execute(gomock.Any(), "os-1").Return(tc.err)
+		m.deliver.EXPECT().Execute(gomock.Any(), "22222222-2222-4222-8222-222222222222").Return(tc.err)
 		w := httptest.NewRecorder()
-		newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/service-orders/os-1/deliver", nil))
+		newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/service-orders/22222222-2222-4222-8222-222222222222/deliver", nil))
 		if w.Code != tc.status {
 			t.Fatalf("esperava %d, veio %d", tc.status, w.Code)
 		}
@@ -449,21 +478,21 @@ func TestServiceOrderHandler_History(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	m := newHandler(ctrl)
 	at := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
-	m.history.EXPECT().Execute(gomock.Any(), "os-1").Return([]*entities.StatusHistoryEntry{
+	m.history.EXPECT().Execute(gomock.Any(), "22222222-2222-4222-8222-222222222222").Return([]*entities.StatusHistoryEntry{
 		{To: entities.StatusReceived, Actor: entities.ActorStaff, CreatedAt: at},
 		{From: entities.StatusReceived, To: entities.StatusInDiagnosis, Actor: entities.ActorSaga, MessageID: "m1", CreatedAt: at},
 	}, nil)
 	w := httptest.NewRecorder()
-	newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/service-orders/os-1/history", nil))
+	newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/service-orders/22222222-2222-4222-8222-222222222222/history", nil))
 	var got []map[string]any
 	_ = json.Unmarshal(w.Body.Bytes(), &got)
 	if w.Code != http.StatusOK || len(got) != 2 || got[1]["from"] != "received" || got[1]["at"] != "2026-01-02T03:04:05Z" {
 		t.Fatalf("%d %s", w.Code, w.Body.String())
 	}
 
-	m.history.EXPECT().Execute(gomock.Any(), "x").Return(nil, domainerrors.ErrNotFound)
+	m.history.EXPECT().Execute(gomock.Any(), "22222222-2222-4222-8222-2222222222fe").Return(nil, domainerrors.ErrNotFound)
 	w = httptest.NewRecorder()
-	newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/service-orders/x/history", nil))
+	newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/service-orders/22222222-2222-4222-8222-2222222222fe/history", nil))
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("esperava 404, veio %d", w.Code)
 	}
@@ -473,14 +502,14 @@ func TestServiceOrderHandler_Details(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	m := newHandler(ctrl)
 	deadline := time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC)
-	m.details.EXPECT().Execute(gomock.Any(), "os-1").Return(&ports.ServiceOrderDetails{
+	m.details.EXPECT().Execute(gomock.Any(), "22222222-2222-4222-8222-222222222222").Return(&ports.ServiceOrderDetails{
 		Order:       entities.NewServiceOrder("c", "v"),
 		Saga:        &entities.Saga{ID: "s1", State: entities.SagaAwaitingApproval, BudgetID: "b1", DeadlineAt: &deadline},
 		Budget:      json.RawMessage(`{"id":"b1","status":"pending_approval"}`),
 		Unavailable: []string{"execution"},
 	}, nil)
 	w := httptest.NewRecorder()
-	newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/service-orders/os-1/details", nil))
+	newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/service-orders/22222222-2222-4222-8222-222222222222/details", nil))
 	var got struct {
 		Saga        map[string]any `json:"saga"`
 		Budget      map[string]any `json:"budget"`
@@ -496,9 +525,9 @@ func TestServiceOrderHandler_Details(t *testing.T) {
 		t.Fatalf("composição inesperada: %s", w.Body.String())
 	}
 
-	m.details.EXPECT().Execute(gomock.Any(), "x").Return(nil, domainerrors.ErrNotFound)
+	m.details.EXPECT().Execute(gomock.Any(), "22222222-2222-4222-8222-2222222222fe").Return(nil, domainerrors.ErrNotFound)
 	w = httptest.NewRecorder()
-	newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/service-orders/x/details", nil))
+	newTestRouter(m.handler).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/service-orders/22222222-2222-4222-8222-2222222222fe/details", nil))
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("esperava 404, veio %d", w.Code)
 	}

@@ -16,6 +16,8 @@ import (
 // @Produce     json
 // @Param       document query string true "CPF ou CNPJ do cliente"
 // @Success     200 {array} commands.ServiceOrderResponse
+// @Failure     400 {object} httputil.ErrorResponse "CPF/CNPJ ausente ou inválido"
+// @Failure     403 {object} httputil.ErrorResponse "o CPF do token não é o do filtro"
 // @Security    BearerAuth
 // @Router      /service-orders/requester [get]
 func (h *ServiceOrderHandler) FindByDocument(c *gin.Context) {

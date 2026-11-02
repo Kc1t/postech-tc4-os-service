@@ -18,6 +18,7 @@ import (
 // @Param       id   path string                      true  "ServiceOrder ID"
 // @Param       body body commands.CancelServiceOrderRequest false "Motivo"
 // @Success     204
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
 // @Failure     404 {object} httputil.ErrorResponse
 // @Failure     409 {object} httputil.ErrorResponse
 // @Security    BearerAuth
@@ -43,6 +44,7 @@ func (h *ServiceOrderHandler) Cancel(c *gin.Context) {
 // @Tags        service-orders
 // @Param       id path string true "ServiceOrder ID"
 // @Success     204
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
 // @Failure     404 {object} httputil.ErrorResponse
 // @Failure     409 {object} httputil.ErrorResponse
 // @Security    BearerAuth
@@ -61,6 +63,7 @@ func (h *ServiceOrderHandler) Deliver(c *gin.Context) {
 // @Produce     json
 // @Param       id path string true "ServiceOrder ID"
 // @Success     200 {array} commands.StatusHistoryResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
 // @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /service-orders/{id}/history [get]
@@ -82,6 +85,7 @@ func (h *ServiceOrderHandler) History(c *gin.Context) {
 // @Produce     json
 // @Param       id path string true "ServiceOrder ID"
 // @Success     200 {object} commands.ServiceOrderDetailsResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
 // @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /service-orders/{id}/details [get]

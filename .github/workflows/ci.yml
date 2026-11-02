@@ -19,6 +19,10 @@ env:
   PROJECT: postech-tc4
   NAMESPACE: postech
   TF_VERSION: 1.9.8
+  TFSEC_VERSION: v1.28.14
+  # Versão do Kubernetes do EKS (cluster_version no postech-tc4-infra-k8s).
+  K8S_VERSION: 1.35.0
+  KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.6.7@sha256:0925177fb05b44ce18574076141b5c3d83235e1904d3f952182ac99ddc45762c
   GOLANGCI_LINT_VERSION: v2.15.0
   GOSEC_VERSION: v2.30.0
   SWAG_VERSION: v1.16.3
@@ -162,9 +166,29 @@ jobs:
       - run: terraform init -backend=false -input=false
       - run: terraform validate
 
+      # Versão fixa e token do job: sem token, o download do tfsec pela API do GitHub esbarra no
+      # limite por IP do runner (60 requisições por hora) e derruba o job.
       - uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: infra
+          version: ${{ env.TFSEC_VERSION }}
+          github_token: ${{ github.token }}
+
+  manifests:
+    name: Manifestos K8s (kubeconform)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Os placeholders que o deploy troca (imagem, namespace, região...) recebem um valor de
+      # exemplo, e todos os manifestos são validados em modo strict contra o schema do Kubernetes.
+      - name: Validar contra o schema do Kubernetes ${{ env.K8S_VERSION }}
+        run: |
+          mkdir rendered
+          cp k8s/*.yaml rendered/
+          sed -E -i 's/[A-Z_]+_PLACEHOLDER/placeholder/g' rendered/*.yaml
+          docker run --rm -v "$PWD/rendered:/manifests:ro" "$KUBECONFORM_IMAGE" \
+            -strict -summary -kubernetes-version "$K8S_VERSION" /manifests
 
   image:
     name: Imagem (build e Trivy)
@@ -196,7 +220,7 @@ jobs:
   # Lab expiram a cada sessão, e sem elas o push não deve ficar vermelho.
   deploy:
     name: Deploy no EKS
-    needs: [quality, tests, bdd, sonarqube, terraform, image]
+    needs: [quality, tests, bdd, sonarqube, terraform, image, manifests]
     if: github.event_name != 'pull_request' && github.ref_name == 'main' && vars.AWS_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: prod

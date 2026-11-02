@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,7 +50,7 @@ func TestVehicleHandler_Create_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	vehicle, _ := entities.NewVehicle("cust-1", "ABC1234", "Toyota", "Corolla", 2020)
+	vehicle, _ := entities.NewVehicle("11111111-1111-4111-8111-111111111111", "ABC1234", "Toyota", "Corolla", 2020)
 	h, create, _, _, _, _ := newHandler(ctrl)
 	create.EXPECT().Execute(gomock.Any(), gomock.Any()).Return(vehicle, nil)
 
@@ -101,6 +102,27 @@ func TestVehicleHandler_Create_DocumentoInvalido(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestVehicleHandler_Create_PlacaInvalidaDevolve400(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	h, create, _, _, _, _ := newHandler(ctrl)
+	create.EXPECT().Execute(gomock.Any(), gomock.Any()).Return(nil, domainerrors.ErrInvalidPlate)
+
+	body, _ := json.Marshal(map[string]any{
+		"requester_document": "52998224725",
+		"plate":              "AB-12", "brand": "Fiat", "model": "Argo", "year": 2022,
+	})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/vehicles", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	newTestRouter(h).ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "VALIDATION_ERROR") {
+		t.Fatalf("expected 400 VALIDATION_ERROR, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -174,12 +196,12 @@ func TestVehicleHandler_FindByID_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	now := time.Now()
-	vehicle := entities.ReconstituteVehicle("veh-1", "cust-1", "ABC1234", "Toyota", "Corolla", 2020, now, now)
+	vehicle := entities.ReconstituteVehicle("55555555-5555-4555-8555-555555555555", "11111111-1111-4111-8111-111111111111", "ABC1234", "Toyota", "Corolla", 2020, now, now)
 	h, _, getByID, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "veh-1").Return(vehicle, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "55555555-5555-4555-8555-555555555555").Return(vehicle, nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/vehicles/veh-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/vehicles/55555555-5555-4555-8555-555555555555", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -192,10 +214,10 @@ func TestVehicleHandler_FindByID_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, getByID, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "veh-x").Return(nil, domainerrors.ErrNotFound)
+	getByID.EXPECT().Execute(gomock.Any(), "55555555-5555-4555-8555-5555555555ff").Return(nil, domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/vehicles/veh-x", nil)
+	req := httptest.NewRequest(http.MethodGet, "/vehicles/55555555-5555-4555-8555-5555555555ff", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
@@ -210,7 +232,7 @@ func TestVehicleHandler_FindAll_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	now := time.Now()
-	vehicles := []*entities.Vehicle{entities.ReconstituteVehicle("", "cust-1", "ABC1234", "Toyota", "Corolla", 2020, now, now)}
+	vehicles := []*entities.Vehicle{entities.ReconstituteVehicle("", "11111111-1111-4111-8111-111111111111", "ABC1234", "Toyota", "Corolla", 2020, now, now)}
 	h, _, _, list, _, _ := newHandler(ctrl)
 	list.EXPECT().Execute(gomock.Any()).Return(vehicles, nil)
 
@@ -246,14 +268,14 @@ func TestVehicleHandler_Update_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	now := time.Now()
-	vehicle := entities.ReconstituteVehicle("veh-1", "cust-1", "ABC1234", "Toyota", "Corolla", 2020, now, now)
+	vehicle := entities.ReconstituteVehicle("55555555-5555-4555-8555-555555555555", "11111111-1111-4111-8111-111111111111", "ABC1234", "Toyota", "Corolla", 2020, now, now)
 	h, _, getByID, _, update, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "veh-1").Return(vehicle, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "55555555-5555-4555-8555-555555555555").Return(vehicle, nil)
 	update.EXPECT().Execute(gomock.Any(), vehicle).Return(nil)
 
 	body, _ := json.Marshal(map[string]any{"brand": "Honda"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/vehicles/veh-1", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/vehicles/55555555-5555-4555-8555-555555555555", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -267,11 +289,11 @@ func TestVehicleHandler_Update_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, getByID, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "veh-x").Return(nil, domainerrors.ErrNotFound)
+	getByID.EXPECT().Execute(gomock.Any(), "55555555-5555-4555-8555-5555555555ff").Return(nil, domainerrors.ErrNotFound)
 
 	body, _ := json.Marshal(map[string]any{"brand": "Honda"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/vehicles/veh-x", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/vehicles/55555555-5555-4555-8555-5555555555ff", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -285,14 +307,14 @@ func TestVehicleHandler_Update_UpdateFails(t *testing.T) {
 	defer ctrl.Finish()
 
 	now := time.Now()
-	vehicle := entities.ReconstituteVehicle("veh-1", "cust-1", "ABC1234", "Toyota", "Corolla", 2020, now, now)
+	vehicle := entities.ReconstituteVehicle("55555555-5555-4555-8555-555555555555", "11111111-1111-4111-8111-111111111111", "ABC1234", "Toyota", "Corolla", 2020, now, now)
 	h, _, getByID, _, update, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "veh-1").Return(vehicle, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "55555555-5555-4555-8555-555555555555").Return(vehicle, nil)
 	update.EXPECT().Execute(gomock.Any(), vehicle).Return(errors.New("db error"))
 
 	body, _ := json.Marshal(map[string]any{"brand": "Honda"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/vehicles/veh-1", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/vehicles/55555555-5555-4555-8555-555555555555", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -308,10 +330,10 @@ func TestVehicleHandler_Delete_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, del := newHandler(ctrl)
-	del.EXPECT().Execute(gomock.Any(), "veh-1").Return(nil)
+	del.EXPECT().Execute(gomock.Any(), "55555555-5555-4555-8555-555555555555").Return(nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/vehicles/veh-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/vehicles/55555555-5555-4555-8555-555555555555", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
@@ -324,10 +346,10 @@ func TestVehicleHandler_Delete_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, del := newHandler(ctrl)
-	del.EXPECT().Execute(gomock.Any(), "veh-x").Return(domainerrors.ErrNotFound)
+	del.EXPECT().Execute(gomock.Any(), "55555555-5555-4555-8555-5555555555ff").Return(domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/vehicles/veh-x", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/vehicles/55555555-5555-4555-8555-5555555555ff", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
