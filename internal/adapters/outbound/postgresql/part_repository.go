@@ -77,7 +77,7 @@ func (r *partRepository) Update(ctx context.Context, p *entities.Part) error {
 }
 
 func (r *partRepository) Delete(ctx context.Context, id string) error {
-	return mapError(conn(ctx, r.db).Delete(&pgmodel.Part{}, "id = ?", id).Error)
+	return deleteByID(conn(ctx, r.db), &pgmodel.Part{}, id)
 }
 
 func (r *partRepository) UpdateStock(ctx context.Context, id string, delta int) error {

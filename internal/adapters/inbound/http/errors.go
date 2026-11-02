@@ -36,6 +36,7 @@ const (
 	CodeInternal           = "INTERNAL_ERROR"
 	CodeUnprocessable      = "UNPROCESSABLE_ENTITY"
 	CodeInvalidSimulateArg = "INVALID_SIMULATE_FAILURE"
+	CodeInUse              = "RESOURCE_IN_USE"
 )
 
 type mapping struct {
@@ -47,14 +48,18 @@ type mapping struct {
 var mappings = []mapping{
 	{domainerrors.ErrNotFound, http.StatusNotFound, CodeNotFound},
 	{domainerrors.ErrAlreadyExists, http.StatusConflict, CodeAlreadyExists},
+	{domainerrors.ErrInUse, http.StatusConflict, CodeInUse},
 	{domainerrors.ErrConcurrentUpdate, http.StatusConflict, CodeConcurrentUpdate},
 	{domainerrors.ErrInvalidCredentials, http.StatusUnauthorized, CodeUnauthorized},
 	{domainerrors.ErrInvalidRefreshToken, http.StatusUnauthorized, CodeUnauthorized},
 	{domainerrors.ErrAccountLocked, http.StatusTooManyRequests, CodeAccountLocked},
 	{domainerrors.ErrStatusNotAllowedForRequester, http.StatusForbidden, CodeForbidden},
 	{domainerrors.ErrDocumentMismatch, http.StatusForbidden, CodeForbidden},
-	{domainerrors.ErrInvalidDocument, http.StatusUnprocessableEntity, CodeValidation},
-	{domainerrors.ErrInvalidPlate, http.StatusUnprocessableEntity, CodeValidation},
+	// Formato de entrada inválido é 400 em qualquer camada que o detecte; 422 fica para regra de
+	// negócio que a entrada bem-formada viola (estoque, veículo de outro cliente).
+	{domainerrors.ErrInvalidID, http.StatusBadRequest, CodeValidation},
+	{domainerrors.ErrInvalidDocument, http.StatusBadRequest, CodeValidation},
+	{domainerrors.ErrInvalidPlate, http.StatusBadRequest, CodeValidation},
 	{domainerrors.ErrInvalidSimulatedFailure, http.StatusBadRequest, CodeInvalidSimulateArg},
 	{domainerrors.ErrInvalidStatus, http.StatusConflict, CodeInvalidTransition},
 	{domainerrors.ErrInvalidStatusValue, http.StatusUnprocessableEntity, CodeValidation},
@@ -84,9 +89,10 @@ func HandleError(c *gin.Context, err error, msg ...string) {
 	Abort(c, status, code, message)
 }
 
-// HandleBadRequest responde 400 para corpo, parâmetro ou query inválidos.
+// HandleBadRequest responde 400 para corpo, parâmetro ou query inválidos, com a mensagem de
+// BindingMessage.
 func HandleBadRequest(c *gin.Context, err error) {
-	Abort(c, http.StatusBadRequest, CodeValidation, err.Error())
+	Abort(c, http.StatusBadRequest, CodeValidation, BindingMessage(err))
 }
 
 // Abort escreve a resposta de erro no formato padrão e interrompe a cadeia de handlers.

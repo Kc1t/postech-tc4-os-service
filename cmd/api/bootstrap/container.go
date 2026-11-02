@@ -148,6 +148,9 @@ func GetContainer() *Container {
 
 func (c *Container) initialize() {
 	c.Config = config.Load()
+	if err := c.Config.Validate(); err != nil {
+		log.Fatalf("bootstrap: %v", err)
+	}
 	c.Logger = logger.New(c.Config.LogLevel).With("service", "os-service")
 	slog.SetDefault(c.Logger)
 	c.setupNewRelic()
@@ -320,14 +323,14 @@ func (c *Container) setupUseCases() {
 	c.GetService = serviceuc.NewGetService(c.ServiceRepo)
 	c.ListServices = serviceuc.NewListServices(c.ServiceRepo)
 	c.UpdateService = serviceuc.NewUpdateService(c.ServiceRepo)
-	c.DeleteService = serviceuc.NewDeleteService(c.ServiceRepo)
+	c.DeleteService = serviceuc.NewDeleteService(c.ServiceRepo, c.ServiceOrderRepo)
 
 	// Part
 	c.CreatePart = partuc.NewCreatePart(c.PartRepo)
 	c.GetPart = partuc.NewGetPart(c.PartRepo)
 	c.ListParts = partuc.NewListParts(c.PartRepo)
 	c.UpdatePart = partuc.NewUpdatePart(c.PartRepo)
-	c.DeletePart = partuc.NewDeletePart(c.PartRepo)
+	c.DeletePart = partuc.NewDeletePart(c.PartRepo, c.ServiceOrderRepo)
 	c.AdjustPartStock = partuc.NewAdjustPartStock(c.PartRepo)
 }
 

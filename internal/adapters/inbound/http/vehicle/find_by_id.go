@@ -13,6 +13,8 @@ import (
 // @Tags        vehicles
 // @Produce     json
 // @Param       id path string true "Vehicle ID"
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /vehicles/{id} [get]
 func (h *VehicleHandler) FindByID(c *gin.Context) {

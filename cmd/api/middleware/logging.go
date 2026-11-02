@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/Kc1t/postech-tc4-os-service/pkg/logger"
@@ -44,7 +45,8 @@ func RequestLogger(base *slog.Logger, skipPaths ...string) gin.HandlerFunc {
 		requestLogger := base.With(
 			slog.String(correlationCtxKey, CorrelationIDFrom(c)),
 			slog.String("method", c.Request.Method),
-			slog.String("path", c.Request.URL.Path),
+			slog.String("path", loggedPath(c)),
+			slog.String("route", c.FullPath()),
 		)
 		c.Set(loggerCtxKey, requestLogger)
 		c.Request = c.Request.WithContext(logger.ContextWith(c.Request.Context(), requestLogger))
@@ -100,4 +102,14 @@ func newCorrelationID() string {
 	}
 
 	return hex.EncodeToString(b)
+}
+
+// loggedPath devolve o caminho para o log de acesso. Nas rotas com CPF/CNPJ no caminho
+// (/requesters/document/:document e /internal/requesters/:document) vai o template da rota, para o
+// documento não chegar inteiro ao log (LGPD); nas demais, o caminho real, com os ids.
+func loggedPath(c *gin.Context) string {
+	if route := c.FullPath(); strings.Contains(route, ":document") {
+		return route
+	}
+	return c.Request.URL.Path
 }

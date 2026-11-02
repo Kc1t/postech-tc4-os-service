@@ -1,6 +1,7 @@
 package servicehandler
 
 import (
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
 	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 	"github.com/gin-gonic/gin"
 )
@@ -30,7 +31,7 @@ func NewServiceHandler(
 }
 
 func (h *ServiceHandler) SetupRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/services")
+	g := rg.Group("/services", httputil.UUIDParams("id"))
 	g.POST("", h.Create)
 	g.GET("", h.FindAll)
 	g.GET("/:id", h.FindByID)

@@ -37,7 +37,6 @@ func Setup(router *gin.Engine, c *bootstrap.Container) {
 
 	// Rotas publicas
 	auth := prefix.Group("/auth")
-	auth.POST("/register", c.AuthHandler.Register)
 	auth.POST("/login", c.AuthHandler.Login)
 	auth.POST("/refresh", c.AuthHandler.Refresh)
 
@@ -54,6 +53,10 @@ func Setup(router *gin.Engine, c *bootstrap.Container) {
 	admin := prefix.Group("/")
 	admin.Use(middleware.Auth(c.Config.JWTSecret))
 	admin.Use(middleware.RequireRole(string(entities.RoleAdmin)))
+
+	// Só a equipe cadastra outro usuário da equipe: a rota passa pelo gateway sem authorizer
+	// (POST /api/v1/auth/{proxy+}), então a barreira é o JWT de admin validado aqui.
+	admin.POST("/auth/register", c.AuthHandler.Register)
 
 	c.RequesterHandler.SetupRoutes(admin)
 	c.VehicleHandler.SetupRoutes(admin)

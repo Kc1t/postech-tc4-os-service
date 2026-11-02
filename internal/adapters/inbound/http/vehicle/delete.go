@@ -12,6 +12,9 @@ import (
 // @Tags        vehicles
 // @Param       id path string true "Vehicle ID"
 // @Success     204
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID"
+// @Failure     404 {object} httputil.ErrorResponse
+// @Failure     409 {object} httputil.ErrorResponse "RESOURCE_IN_USE: referenciado por ordem de serviço"
 // @Security    BearerAuth
 // @Router      /vehicles/{id} [delete]
 func (h *VehicleHandler) Delete(c *gin.Context) {

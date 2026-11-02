@@ -1,6 +1,7 @@
 package serviceorderhandler
 
 import (
+	httputil "github.com/Kc1t/postech-tc4-os-service/internal/adapters/inbound/http"
 	"github.com/Kc1t/postech-tc4-os-service/internal/ports"
 	"github.com/gin-gonic/gin"
 )
@@ -27,7 +28,7 @@ func NewServiceOrderHandler(d Deps) *ServiceOrderHandler { return &ServiceOrderH
 // As etapas entre a abertura e a finalização são dirigidas pela saga: o diagnóstico e o
 // reparo acontecem no execution-service, orçamento e pagamento no billing-service.
 func (h *ServiceOrderHandler) SetupRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/service-orders")
+	g := rg.Group("/service-orders", httputil.UUIDParams("id"))
 	g.POST("", h.Create)
 	g.GET("", h.FindAll)
 	g.GET("/metrics/execution-time", h.AverageExecutionTime)

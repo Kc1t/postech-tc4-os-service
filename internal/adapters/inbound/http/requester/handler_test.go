@@ -115,10 +115,10 @@ func TestRequesterHandler_FindByID_Success(t *testing.T) {
 
 	requester := entities.ReconstituteRequester("", "João", "123", "j@j.com", "11999", time.Now(), time.Now())
 	h, _, getByID, _, _, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "cust-1").Return(requester, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-111111111111").Return(requester, nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/requesters/cust-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/requesters/11111111-1111-4111-8111-111111111111", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -131,10 +131,10 @@ func TestRequesterHandler_FindByID_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, getByID, _, _, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "cust-x").Return(nil, domainerrors.ErrNotFound)
+	getByID.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-1111111111ff").Return(nil, domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/requesters/cust-x", nil)
+	req := httptest.NewRequest(http.MethodGet, "/requesters/11111111-1111-4111-8111-1111111111ff", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
@@ -148,12 +148,13 @@ func TestRequesterHandler_FindByDocument_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	requester := entities.ReconstituteRequester("", "João", "12345678901", "j@j.com", "11999", time.Now(), time.Now())
+	requester := entities.ReconstituteRequester("", "João", "52998224725", "j@j.com", "11999", time.Now(), time.Now())
 	h, _, _, getByDoc, _, _, _, _ := newHandler(ctrl)
-	getByDoc.EXPECT().Execute(gomock.Any(), "12345678901").Return(requester, nil)
+	// O CPF formatado chega ao caso de uso só com dígitos.
+	getByDoc.EXPECT().Execute(gomock.Any(), "52998224725").Return(requester, nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/requesters/document/12345678901", nil)
+	req := httptest.NewRequest(http.MethodGet, "/requesters/document/529.982.247-25", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -166,14 +167,55 @@ func TestRequesterHandler_FindByDocument_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, getByDoc, _, _, _, _ := newHandler(ctrl)
-	getByDoc.EXPECT().Execute(gomock.Any(), "00000000000").Return(nil, domainerrors.ErrNotFound)
+	getByDoc.EXPECT().Execute(gomock.Any(), "11144477735").Return(nil, domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/requesters/document/00000000000", nil)
+	req := httptest.NewRequest(http.MethodGet, "/requesters/document/11144477735", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestRequesterHandler_FindByDocument_InvalidDocument(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Sem EXPECT: documento inválido não pode chegar ao caso de uso.
+	h, _, _, _, _, _, _, _ := newHandler(ctrl)
+
+	for _, doc := range []string{"123", "00000000000", "12345678901", "abc"} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/requesters/document/"+doc, nil)
+		newTestRouter(h).ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("%s: expected 400, got %d", doc, w.Code)
+		}
+	}
+}
+
+func TestRequesterHandler_InvalidUUID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Sem EXPECT: id que não é UUID para no middleware, antes do caso de uso e do banco.
+	h, _, _, _, _, _, _, _ := newHandler(ctrl)
+	cases := []struct{ method, path string }{
+		{http.MethodGet, "/requesters/nao-e-uuid"},
+		{http.MethodGet, "/requesters/nao-e-uuid/vehicles"},
+		{http.MethodPut, "/requesters/nao-e-uuid"},
+		{http.MethodDelete, "/requesters/nao-e-uuid"},
+	}
+	for _, tc := range cases {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(tc.method, tc.path, bytes.NewBufferString(`{}`))
+		newTestRouter(h).ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("%s %s: expected 400, got %d", tc.method, tc.path, w.Code)
+		}
 	}
 }
 
@@ -220,12 +262,12 @@ func TestRequesterHandler_Update_Success(t *testing.T) {
 
 	requester := entities.ReconstituteRequester("", "João", "123", "j@j.com", "11999", time.Now(), time.Now())
 	h, _, getByID, _, _, update, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "cust-1").Return(requester, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-111111111111").Return(requester, nil)
 	update.EXPECT().Execute(gomock.Any(), requester).Return(nil)
 
 	body, _ := json.Marshal(map[string]string{"name": "João Novo"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/requesters/cust-1", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/requesters/11111111-1111-4111-8111-111111111111", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -239,11 +281,11 @@ func TestRequesterHandler_Update_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, getByID, _, _, _, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "cust-x").Return(nil, domainerrors.ErrNotFound)
+	getByID.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-1111111111ff").Return(nil, domainerrors.ErrNotFound)
 
 	body, _ := json.Marshal(map[string]string{"name": "Novo"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/requesters/cust-x", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/requesters/11111111-1111-4111-8111-1111111111ff", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -259,7 +301,7 @@ func TestRequesterHandler_Update_BadRequest(t *testing.T) {
 	h, _, _, _, _, _, _, _ := newHandler(ctrl)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/requesters/cust-1", bytes.NewBufferString(`invalid`))
+	req := httptest.NewRequest(http.MethodPut, "/requesters/11111111-1111-4111-8111-111111111111", bytes.NewBufferString(`invalid`))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -274,12 +316,12 @@ func TestRequesterHandler_Update_UpdateFails(t *testing.T) {
 
 	requester := entities.ReconstituteRequester("", "João", "123", "j@j.com", "11999", time.Now(), time.Now())
 	h, _, getByID, _, _, update, _, _ := newHandler(ctrl)
-	getByID.EXPECT().Execute(gomock.Any(), "cust-1").Return(requester, nil)
+	getByID.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-111111111111").Return(requester, nil)
 	update.EXPECT().Execute(gomock.Any(), requester).Return(errors.New("db error"))
 
 	body, _ := json.Marshal(map[string]string{"name": "João Novo"})
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPut, "/requesters/cust-1", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, "/requesters/11111111-1111-4111-8111-111111111111", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	newTestRouter(h).ServeHTTP(w, req)
 
@@ -295,10 +337,10 @@ func TestRequesterHandler_Delete_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, _, del, _ := newHandler(ctrl)
-	del.EXPECT().Execute(gomock.Any(), "cust-1").Return(nil)
+	del.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-111111111111").Return(nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/requesters/cust-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/requesters/11111111-1111-4111-8111-111111111111", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
@@ -311,10 +353,10 @@ func TestRequesterHandler_Delete_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, _, del, _ := newHandler(ctrl)
-	del.EXPECT().Execute(gomock.Any(), "cust-x").Return(domainerrors.ErrNotFound)
+	del.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-1111111111ff").Return(domainerrors.ErrNotFound)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/requesters/cust-x", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/requesters/11111111-1111-4111-8111-1111111111ff", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
@@ -330,12 +372,12 @@ func TestRequesterHandler_ListVehicles_Success(t *testing.T) {
 
 	h, _, _, _, _, _, _, listVehicles := newHandler(ctrl)
 	now := time.Now()
-	v1 := entities.ReconstituteVehicle("v1", "cust-1", "ABC1234", "Fiat", "Strada", 2021, now, now)
-	v2 := entities.ReconstituteVehicle("v2", "cust-1", "XYZ9A88", "VW", "Gol", 2019, now, now)
-	listVehicles.EXPECT().Execute(gomock.Any(), "cust-1").Return([]*entities.Vehicle{v1, v2}, nil)
+	v1 := entities.ReconstituteVehicle("v1", "11111111-1111-4111-8111-111111111111", "ABC1234", "Fiat", "Strada", 2021, now, now)
+	v2 := entities.ReconstituteVehicle("v2", "11111111-1111-4111-8111-111111111111", "XYZ9A88", "VW", "Gol", 2019, now, now)
+	listVehicles.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-111111111111").Return([]*entities.Vehicle{v1, v2}, nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/requesters/cust-1/vehicles", nil)
+	req := httptest.NewRequest(http.MethodGet, "/requesters/11111111-1111-4111-8111-111111111111/vehicles", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -356,10 +398,10 @@ func TestRequesterHandler_ListVehicles_Empty(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, _, _, listVehicles := newHandler(ctrl)
-	listVehicles.EXPECT().Execute(gomock.Any(), "cust-sem-veh").Return([]*entities.Vehicle{}, nil)
+	listVehicles.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-111111111100").Return([]*entities.Vehicle{}, nil)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/requesters/cust-sem-veh/vehicles", nil)
+	req := httptest.NewRequest(http.MethodGet, "/requesters/11111111-1111-4111-8111-111111111100/vehicles", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -375,10 +417,10 @@ func TestRequesterHandler_ListVehicles_RepoError(t *testing.T) {
 	defer ctrl.Finish()
 
 	h, _, _, _, _, _, _, listVehicles := newHandler(ctrl)
-	listVehicles.EXPECT().Execute(gomock.Any(), "cust-1").Return(nil, errors.New("db unavailable"))
+	listVehicles.EXPECT().Execute(gomock.Any(), "11111111-1111-4111-8111-111111111111").Return(nil, errors.New("db unavailable"))
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/requesters/cust-1/vehicles", nil)
+	req := httptest.NewRequest(http.MethodGet, "/requesters/11111111-1111-4111-8111-111111111111/vehicles", nil)
 	newTestRouter(h).ServeHTTP(w, req)
 
 	if w.Code != http.StatusInternalServerError {

@@ -16,6 +16,8 @@ import (
 // @Param       id path string true "Vehicle ID"
 // @Param       body body commands.UpdateVehicleRequest true "Dados para atualizar"
 // @Success     200 {object} commands.VehicleResponse
+// @Failure     400 {object} httputil.ErrorResponse "id não é UUID, corpo ou placa inválidos"
+// @Failure     404 {object} httputil.ErrorResponse
 // @Security    BearerAuth
 // @Router      /vehicles/{id} [put]
 func (h *VehicleHandler) Update(c *gin.Context) {
