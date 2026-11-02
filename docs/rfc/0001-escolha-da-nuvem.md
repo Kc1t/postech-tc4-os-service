@@ -1,9 +1,11 @@
 # RFC-0001: Escolha da nuvem
 
-- **Status:** Aceita
+- **Status:** Aceita, revisada em 2026-10
 - **Data:** 2026-09
 - **Autor:** Reservoir Devs
-- **Decisão relacionada:** consolidada em ADR quando estabilizar
+- **Decisões relacionadas:** [ADR-0010](../adr/0010-cluster-unico-dois-namespaces.md), [ADR-0021](../adr/0021-ambiente-unico-no-eks.md)
+
+> **Revisão na fase 4:** a AWS continua sendo o provedor único, pelos mesmos motivos. O custo da fase 4 (três nós, dois RDS, DynamoDB e mensageria) está na [RFC-0004](0004-decomposicao-em-microsservicos.md#impacto-no-custo): ~US$ 0,27/hora. Dois pontos daqui mudaram: os dois namespaces viraram um ambiente só ([ADR-0021](../adr/0021-ambiente-unico-no-eks.md)), e a Lambda deixou de receber a string de conexão do banco, porque saiu da VPC e consulta o os-service ([ADR-0014](../adr/0014-lambdas-fora-da-vpc.md)). As credenciais do lab passaram a ser propagadas por `scripts/setup-github.sh aws` no `postech-tc4-infra-k8s`.
 
 ## Resumo
 
@@ -11,12 +13,12 @@ Propõe manter a **AWS** como provedor único para a Fase 3, apesar de o control
 
 ## Motivação
 
-O enunciado dá **livre escolha de nuvem**, exigindo apenas API Gateway, function serverless, banco gerenciado, cluster Kubernetes e Terraform. A escolha precisa ser justificada formalmente, e o momento de revisá-la é agora — antes de existir qualquer state de Terraform aplicado.
+O enunciado dá **livre escolha de nuvem**, exigindo apenas API Gateway, function serverless, banco gerenciado, cluster Kubernetes e Terraform. A escolha precisa ser justificada formalmente, e o momento de revisá-la é antes de existir qualquer state de Terraform aplicado.
 
 Duas forças puxam em direções opostas:
 
 - **Custo:** o control plane do EKS custa US$ 73/mês. AKS oferece control plane gratuito no tier Free; GKE dá crédito mensal de US$ 74,40 que cobre um cluster zonal. Sair da AWS zeraria essa linha.
-- **Coerência:** o módulo de Desenvolvimento Serverless da fase é integralmente AWS — Lambda, SAM, API Gateway e Cognito. As Fases 1 e 2 já entregaram Terraform de EKS e RDS.
+- **Coerência:** o módulo de Desenvolvimento Serverless da fase é integralmente AWS: Lambda, SAM, API Gateway e Cognito. As Fases 1 e 2 já entregaram Terraform de EKS e RDS.
 
 ## Proposta
 
@@ -47,9 +49,9 @@ Manter **AWS**, região `us-east-1`, com:
 | Crédito mensal cobre um cluster zonal | Nenhum conteúdo da fase usa GCP |
 | US$ 300 por 90 dias | Mesma reescrita completa da Azure |
 
-### Arquitetura híbrida — cluster em AKS, Lambda na AWS
+### Arquitetura híbrida: cluster em AKS, Lambda na AWS
 
-Economizaria os US$ 73 mantendo o alinhamento do módulo serverless. Rejeitada: a latência e a complexidade de rede entre o gateway da AWS e um cluster no Azure não se pagam, e a justificativa de escolha de nuvem — item explicitamente cobrado — ficaria incoerente com duas nuvens em produção.
+Economizaria os US$ 73 mantendo o alinhamento do módulo serverless. Rejeitada: a latência e a complexidade de rede entre o gateway da AWS e um cluster no Azure não se pagam, e a justificativa de escolha de nuvem, item explicitamente cobrado, ficaria incoerente com duas nuvens em produção.
 
 ## Justificativa da decisão
 
@@ -57,7 +59,7 @@ Economizaria os US$ 73 mantendo o alinhamento do módulo serverless. Rejeitada: 
 
 2. **O crédito disponível é da AWS.** O Learner Lab dá US$ 100 por aluno em conta AWS. Migrar para Azure ou GCP significaria não usar o crédito que já existe e depender de trial com cartão de crédito.
 
-3. **A fase é majoritariamente AWS no que importa para a entrega.** A autenticação serverless — item mais pesado da avaliação — é ensinada com Lambda, SAM e Cognito. Sair da AWS descolaria a entrega do conteúdo.
+3. **A fase é majoritariamente AWS no que importa para a entrega.** A autenticação serverless, item mais pesado da avaliação, é ensinada com Lambda, SAM e Cognito. Sair da AWS descolaria a entrega do conteúdo.
 
 4. **Continuidade de Fases 1 e 2.** Existe Terraform de EKS e RDS funcionando, e pipeline de deploy no EKS já validado. Esse é capital que se perde inteiro numa migração.
 
@@ -78,9 +80,9 @@ Estimativa `us-east-1`, um ambiente, on-demand:
 
 Medidas de contenção adotadas:
 
-- Um cluster com dois namespaces em vez de dois clusters (ADR-0010) — corta 50%.
-- Sem NAT Gateway: a Lambda recebe a string de conexão por variável de ambiente em vez de consultar o Secrets Manager em runtime — evita US$ 32,85/mês fixos.
-- Versão do EKS mantida em suporte padrão. A 1.31 estava em *extended support*, cobrado a US$ 0,60/hora — **seis vezes** o valor normal. Corrigido para 1.35, com suporte padrão até 27/03/2027.
+- Um cluster com dois namespaces em vez de dois clusters ([ADR-0010](../adr/0010-cluster-unico-dois-namespaces.md)): corta 50%.
+- Sem NAT Gateway: a Lambda recebe a string de conexão por variável de ambiente em vez de consultar o Secrets Manager em runtime, o que evita US$ 32,85/mês fixos.
+- Versão do EKS mantida em suporte padrão. A 1.31 estava em *extended support*, cobrado a US$ 0,60/hora, **seis vezes** o valor normal. Corrigido para 1.35, com suporte padrão até 27/03/2027.
 
 ## Riscos
 
@@ -88,7 +90,7 @@ Medidas de contenção adotadas:
 |---|---|
 | Crédito do Learner Lab acabar antes da entrega | Destruir a infraestrutura ao fim de cada sessão; monitorar o consumo no painel do lab |
 | Sessão de 4 h do lab derrubar recursos no meio de um `apply` de EKS (~15 min) | Iniciar `apply` no começo da sessão, nunca no fim |
-| Credencial temporária expirar e quebrar os pipelines | `scripts/sync-aws-secrets.sh` propaga a credencial nova para os quatro repositórios |
+| Credencial temporária expirar e quebrar os pipelines | `scripts/sync-aws-secrets.sh` propaga a credencial nova para os quatro repositórios (na fase 4, `scripts/setup-github.sh aws` para os seis) |
 | Cluster esquecido ligado | Verificação no encerramento de cada sessão; é o maior risco de consumo do crédito |
 
 ## Questões em aberto

@@ -1,262 +1,142 @@
 # Roteamento
 
-Toda requisição atravessa duas malhas de decisão: primeiro o **API Gateway**, que escolhe o destino e decide se chama o authorizer; depois o **roteador da aplicação**, que escolhe o grupo de middlewares. Este documento desenha as duas.
+Toda requisição externa passa por duas decisões: o **API Gateway** escolhe o serviço e decide se chama o authorizer; depois o **roteador do serviço** escolhe o grupo de middlewares. Este documento desenha as duas para a fase 4, com o os-service como exemplo do lado do serviço. A versão da fase 3 (um backend só) está no [`postech-tc3-app`](https://github.com/Kc1t/postech-tc3-app/blob/main/docs/diagrams/roteamento.md).
 
----
-
-## 1. Visão geral — o caminho de uma requisição
+## 1. O caminho de uma requisição
 
 ```mermaid
 flowchart LR
     req(["Requisição"]) --> gw{{"API Gateway<br/>casamento de rota"}}
 
-    gw -->|"POST /auth"| iss["Lambda issuer"]
-    gw -->|"aberta"| app1["Aplicação"]
-    gw -->|"protegida"| az{{"Lambda authorizer"}}
+    gw -->|"POST /auth"| iss["Lambda auth-issuer"]
+    gw -->|"rota aberta"| nlb["NLB do serviço"]
+    gw -->|"rota protegida"| az{{"Lambda auth-authorizer"}}
+    gw -->|"sem rota"| r404(["404"])
 
-    az -->|"isAuthorized: false"| r401(["401"])
-    az -->|"isAuthorized: true"| app2["Aplicação"]
+    az -->|"isAuthorized: false"| r403(["403"])
+    az -->|"isAuthorized: true"| nlb
 
-    iss --> db[("RDS")]
-    app1 --> mw{{"middlewares<br/>da aplicação"}}
-    app2 --> mw
-    mw --> h["handler"]
-    h --> db
+    iss -->|"GET /internal/requesters/{document}"| os
+    nlb --> os["os-service"] & bi["billing-service"] & ex["execution-service"]
+    os & bi & ex --> mw{{"middlewares do serviço<br/>JWT de novo, papel, posse"}}
 
-    style r401 fill:#ffe4e1,stroke:#c66
+    style r403 fill:#ffe4e1,stroke:#c66
+    style r404 fill:#ffe4e1,stroke:#c66
     style az fill:#fff4e0,stroke:#d90
     style gw fill:#e8f0fe,stroke:#4a7
 ```
 
-O ponto que costuma passar despercebido: **passar pelo authorizer não dispensa os middlewares da aplicação**. São duas decisões independentes sobre o mesmo token, e a segunda ainda checa papel e posse do documento. Justificativa em [ADR-0007](../adr/0007-api-gateway-comunicacao.md).
+Passar pelo authorizer não dispensa os middlewares do serviço. São duas decisões independentes sobre o mesmo token, e a segunda ainda confere papel e posse. O NLB de cada serviço é público, então essa segunda validação também cobre quem chama o NLB direto ([ADR-0007](../adr/0007-api-gateway-comunicacao.md)).
 
----
+## 2. Rotas do API Gateway
 
-## 2. Roteamento no API Gateway
+Declaradas em [`postech-tc4-infra-k8s/api_gateway.tf`](https://github.com/Kc1t/postech-tc4-infra-k8s/blob/main/api_gateway.tf). A integração com os serviços é `HTTP_PROXY` para o NLB do Service `<serviço>-public`, com o caminho original repassado inteiro e timeout de 10 s.
 
-O API Gateway v2 resolve por **especificidade**: a rota mais específica vence, e `$default` é o último recurso. A ordem abaixo é a de avaliação efetiva.
+| Rota | Destino | Authorizer |
+|---|---|---|
+| `POST /auth` | Lambda auth-issuer | não (limite próprio: 10 req/s, rajada de 20) |
+| `GET /health` | os-service | não |
+| `POST /api/v1/auth/{proxy+}` | os-service (login, refresh, logout e register da equipe) | não; o logout e o register exigem JWT no serviço, e o register, papel `admin` |
+| `ANY /api/v1/service-orders` e `/{proxy+}` | os-service | sim |
+| `ANY /api/v1/requesters`, `/vehicles`, `/services`, `/parts` e `/{proxy+}` de cada um | os-service | sim |
+| `ANY /api/v1/budgets/{proxy+}` | billing-service | sim |
+| `ANY /api/v1/payments/{proxy+}` | billing-service | sim |
+| `POST /api/v1/webhooks/mercadopago` | billing-service | não (a autenticidade vem da assinatura `x-signature`) |
+| `GET /fake-checkout/{proxy+}` | billing-service | não (página do gateway fake de pagamento) |
+| `ANY /api/v1/executions/{proxy+}` | execution-service | sim |
+
+- O stage `$default` limita a 100 req/s com rajada de 200 e grava access log no CloudWatch.
+- O authorizer é do tipo `REQUEST`, com resposta simples e cache desligado. Sem o header `Authorization` o gateway responde 401 sem chamar a Lambda; com token recusado, 403.
+- Uma rota protegida só é criada quando o authorizer existe, e as rotas de um serviço só são criadas quando o NLB dele existe. O Terraform acha as Lambdas pelo nome e os NLBs pela tag `kubernetes.io/service-name`, sem valores copiados à mão entre repositórios.
+- `/internal/*` não tem rota no gateway.
+
+## 3. Roteamento no os-service
 
 ```mermaid
 flowchart TD
-    in(["Requisição no gateway"]) --> m1{"POST /auth ?"}
+    pod(["requisição no pod"]) --> base["Recovery · nrgin · CorrelationID · RequestLogger · CORS"]
+    base --> grp{{"grupo da rota"}}
 
-    m1 -->|sim| issuer["AWS_PROXY → Lambda issuer<br/><b>sem authorizer</b>"]
-    m1 -->|não| m2{"POST /api/v1/auth/{proxy+} ?"}
+    grp -->|"/health, /swagger, /api/v1/auth/login e refresh"| open["aberta"]
+    grp -->|"/internal/*"| tok{{"X-Internal-Token"}}
+    grp -->|"/api/v1/auth/logout,<br/>/service-orders/code/{code}, /service-orders/requester"| auth1{{"Auth: JWT HS256 com exp"}}
+    grp -->|"demais /api/v1,<br/>inclusive /api/v1/auth/register"| auth2{{"Auth: JWT HS256 com exp"}}
 
-    m2 -->|sim| pub["HTTP_PROXY → NLB<br/><b>sem authorizer</b><br/>login, registro, refresh"]
-    m2 -->|não| m3{"começa com /api/v1/ ?"}
+    tok -->|"sem token configurado"| r503(["503"])
+    tok -->|"diferente"| r401a(["401"])
+    tok -->|"igual"| hint["handler interno"]
 
-    m3 -->|sim| prot["ANY /api/v1/{proxy+}<br/><b>authorizer CUSTOM</b>"]
-    m3 -->|não| m4{"método é GET ?"}
+    auth1 -->|"ausente ou inválido"| r401b(["401"])
+    auth1 -->|"ok"| posse{{"document do token<br/>= document pedido?"}}
+    posse -->|"não"| r403a(["403"])
+    posse -->|"sim"| hcli["handler do cliente<br/>(OS de outro cliente: 404)"]
 
-    m4 -->|sim| open["GET /{proxy+} → NLB<br/><b>sem authorizer</b><br/>/health, /swagger"]
-    m4 -->|não| nf(["404 — rota não declarada"])
+    auth2 -->|"ausente ou inválido"| r401c(["401"])
+    auth2 -->|"ok"| role{{"RequireRole(admin)"}}
+    role -->|"outro papel"| r403b(["403"])
+    role -->|"admin"| uuid{{"UUIDParams: {id} é UUID?"}}
+    uuid -->|"não"| r400(["400"])
+    uuid -->|"sim"| hadm["handler da equipe"]
 
-    prot --> az{{"Lambda authorizer<br/>TTL de cache = 0"}}
-    az -->|"token ausente, malformado,<br/>expirado, assinatura inválida,<br/>sem sub ou sem role"| deny(["401"])
-    az -->|"válido"| fwd["HTTP_PROXY → NLB<br/>+ contexto: subject, role, document"]
-
-    style deny fill:#ffe4e1,stroke:#c66
-    style nf fill:#ffe4e1,stroke:#c66
-    style az fill:#fff4e0,stroke:#d90
-    style issuer fill:#e6f4ea,stroke:#4a7
+    style r401a fill:#ffe4e1,stroke:#c66
+    style r401b fill:#ffe4e1,stroke:#c66
+    style r401c fill:#ffe4e1,stroke:#c66
+    style r403a fill:#ffe0b2,stroke:#e80
+    style r403b fill:#ffe0b2,stroke:#e80
+    style r503 fill:#ffe4e1,stroke:#c66
+    style r400 fill:#ffe4e1,stroke:#c66
 ```
 
-### Tabela de rotas do gateway
+O `UUIDParams` roda nos grupos `service-orders`, `requesters`, `vehicles`, `services` e `parts`, depois da autenticação e do papel. Na consulta do cliente por código, o handler recusa código não numérico ou ≤ 0 e CPF/CNPJ inválido com 400 antes de conferir a posse. O `logout` usa o mesmo grupo autenticado das rotas do cliente, sem a checagem de posse. As rotas estão em [`cmd/api/routes/routes.go`](../../cmd/api/routes/routes.go) e em cada `handler.go` de `internal/adapters/inbound/http`.
 
-| Ordem | Rota | Integração | Authorizer | Por quê |
-|---|---|---|---|---|
-| 1 | `POST /auth` | `AWS_PROXY` → issuer | não | É onde o CPF vira token; exigir token aqui seria circular |
-| 2 | `POST /api/v1/auth/{proxy+}` | `HTTP_PROXY` → NLB | não | Login da operação por e-mail e senha — outro fluxo de identidade |
-| 3 | `ANY /api/v1/{proxy+}` | `HTTP_PROXY` → NLB | **sim** | Todo o resto da API |
-| 4 | `GET /{proxy+}` | `HTTP_PROXY` → NLB | não | `/health` para as probes e o Swagger |
+### Inventário do os-service
 
-**Por que a 2 precisa existir:** sem ela, `POST /api/v1/auth/login` cairia na regra 3 e exigiria um token para obter um token. A rota mais específica vence, e é isso que abre a exceção.
-
-**Por que a 4 é só `GET`:** limita a superfície aberta. Um `POST` para um caminho não declarado devolve 404 no gateway, sem chegar na aplicação.
-
----
-
-## 3. Roteamento na aplicação
-
-O roteador do Gin monta quatro grupos, cada um com uma pilha de middlewares diferente.
-
-```mermaid
-flowchart TD
-    entra(["Requisição no pod"]) --> glob["<b>Middlewares globais</b><br/>Recovery → New Relic → CorrelationID → RequestLogger"]
-
-    glob --> raiz{"caminho"}
-
-    raiz -->|"/health"| health["200 — sem log,<br/>excluído para não poluir<br/>com probe do kubelet"]
-    raiz -->|"/swagger/*"| swagger["UI do Swagger"]
-    raiz -->|"/api/v1/..."| g{"grupo"}
-
-    g -->|"POST /auth/register<br/>POST /auth/login<br/>POST /auth/refresh"| aberto["<b>Aberto</b><br/>sem middleware adicional"]
-
-    g -->|"POST /auth/logout"| prot["<b>protected</b><br/>+ Auth"]
-
-    g -->|"GET /service-orders/code/:code<br/>GET /service-orders/requester<br/>PUT /service-orders/code/:code/status"| cli["<b>protected</b><br/>+ Auth<br/>+ posse do documento"]
-
-    g -->|"todo o restante"| adm["<b>admin</b><br/>+ Auth<br/>+ RequireRole(admin)"]
-
-    prot --> auth{{"Auth<br/>valida HS256, exige sub e role"}}
-    cli --> auth
-    adm --> auth
-
-    auth -->|inválido| e401(["401"])
-    auth -->|válido| papel{"grupo exige admin?"}
-
-    papel -->|sim| role{{"RequireRole"}}
-    papel -->|não| dono{"grupo do cliente?"}
-
-    role -->|"role ≠ admin"| e403a(["403"])
-    role -->|"role = admin"| handler["handler"]
-
-    dono -->|sim| own{{"authorizeDocument"}}
-    dono -->|não| handler
-
-    own -->|"documento ≠ o do token"| e403b(["403<br/>ErrDocumentMismatch"])
-    own -->|"igual, ou token sem documento"| handler
-
-    style e401 fill:#ffe4e1,stroke:#c66
-    style e403a fill:#ffe4e1,stroke:#c66
-    style e403b fill:#ffe4e1,stroke:#c66
-    style auth fill:#fff4e0,stroke:#d90
-    style role fill:#fff4e0,stroke:#d90
-    style own fill:#fff4e0,stroke:#d90
-```
-
-### A checagem de posse
-
-`authorizeDocument` compara o documento pedido com a claim `document` do token:
-
-| Token | Documento pedido | Resultado |
+| Grupo | Rotas | Acesso |
 |---|---|---|
-| `document = 529…725` | `529…725` | passa |
-| `document = 529…725` | `390…705` | **403** |
-| sem claim `document` (token de operação) | qualquer | passa — a operação já tem acesso pelas rotas administrativas |
+| Saúde e documentação | `GET /health`, `/health/live`, `/health/ready`, `/swagger/*` | aberta |
+| Autenticação da equipe | `POST /api/v1/auth/login` e `/refresh`; `POST /api/v1/auth/logout`; `POST /api/v1/auth/register` | login e refresh abertas; logout com qualquer JWT; register só `admin` ([ADR-0023](../adr/0023-registro-restrito-a-equipe.md)) |
+| Interna | `GET /internal/requesters/{document}` | `X-Internal-Token` |
+| Cliente | `GET /api/v1/service-orders/code/{code}?document=`, `GET /api/v1/service-orders/requester?document=` | JWT com o `document` pedido |
+| Solicitantes | `POST`, `GET` em `/api/v1/requesters`; `GET /document/{document}`; `GET`, `PUT`, `DELETE /{id}`; `GET /{id}/vehicles` | `admin` |
+| Veículos, serviços | `POST`, `GET` na coleção; `GET`, `PUT`, `DELETE /{id}` | `admin` |
+| Peças | as mesmas e `PATCH /api/v1/parts/{id}/stock` | `admin` |
+| Ordens de serviço | `POST`, `GET /api/v1/service-orders`; `GET /{id}`, `/{id}/details`, `/{id}/history`; `POST /{id}/cancel`, `/{id}/deliver`; `GET /metrics/execution-time` | `admin` |
 
-Sem ela, qualquer cliente autenticado leria as ordens de serviço de qualquer outro conhecendo apenas o CPF. Registrada na [RFC-0003](../rfc/0003-autenticacao-por-cpf.md).
+Contratos completos no [Swagger](../swagger.yaml). Papéis e posse dos outros serviços em [`../SEGURANCA.md`](../SEGURANCA.md).
 
----
-
-## 4. Inventário completo — 37 rotas
-
-Todas sob o prefixo `/api/v1`.
-
-### Abertas (3)
-
-| Método | Rota | Quem usa |
-|---|---|---|
-| `POST` | `/auth/register` | operação |
-| `POST` | `/auth/login` | operação |
-| `POST` | `/auth/refresh` | operação |
-
-Fora do prefixo: `GET /health` e `GET /swagger/*any`.
-
-### Autenticadas, qualquer papel (1)
-
-| Método | Rota |
-|---|---|
-| `POST` | `/auth/logout` |
-
-### Cliente — autenticado por CPF, com posse do documento (3)
-
-| Método | Rota | Papel no fluxo |
-|---|---|---|
-| `GET` | `/service-orders/code/{code}` | consulta o orçamento |
-| `GET` | `/service-orders/requester` | lista as próprias OS |
-| `PUT` | `/service-orders/code/{code}/status` | aprova (`in_execution`) ou recusa (`received`) |
-
-### Administrativas — exigem `role: admin` (30)
-
-| Recurso | Rotas |
-|---|---|
-| **Solicitantes** | `POST /requesters` · `GET /requesters` · `GET /requesters/{id}` · `GET /requesters/document/{document}` · `PUT /requesters/{id}` · `DELETE /requesters/{id}` · `GET /requesters/{id}/vehicles` |
-| **Veículos** | `POST /vehicles` · `GET /vehicles` · `GET /vehicles/{id}` · `PUT /vehicles/{id}` · `DELETE /vehicles/{id}` |
-| **Serviços** | `POST /services` · `GET /services` · `GET /services/{id}` · `PUT /services/{id}` · `DELETE /services/{id}` |
-| **Peças** | `POST /parts` · `GET /parts` · `GET /parts/{id}` · `PUT /parts/{id}` · `DELETE /parts/{id}` · `PATCH /parts/{id}/stock` |
-| **Ordens de serviço** | `POST /service-orders` · `GET /service-orders` · `GET /service-orders/{id}` · `PUT /service-orders/{id}` · `PUT /service-orders/{id}/status` · `DELETE /service-orders/{id}` · `GET /service-orders/metrics/execution-time` |
-
----
-
-## 5. Mapa de códigos de resposta
-
-Onde cada código pode nascer, e quem o produz.
+## 4. Onde nasce cada código de resposta
 
 ```mermaid
 flowchart LR
-    subgraph gwl["No gateway"]
+    subgraph gwl["API Gateway"]
         g404["404<br/>rota não declarada"]
-        g401["401<br/>authorizer negou"]
-        g429["429<br/>throttling<br/>100 req/s, burst 200"]
+        g401["401<br/>sem header Authorization"]
+        g403["403<br/>authorizer recusou"]
+        g429["429<br/>throttling"]
     end
 
-    subgraph lam["Na Lambda issuer"]
-        l400["400<br/>payload inválido<br/>ou CPF inválido"]
+    subgraph lam["Lambda auth-issuer"]
+        l400["400<br/>payload ou CPF inválido"]
         l404["404<br/>cliente não encontrado"]
         l403["403<br/>cliente inativo"]
-        l500["500<br/>falha ao consultar<br/>ou assinar"]
+        l503["503<br/>os-service fora"]
     end
 
-    subgraph appl["Na aplicação"]
-        a401["401<br/>token ausente, inválido<br/>ou sem sub/role"]
-        a403["403<br/>papel insuficiente,<br/>documento alheio,<br/>transição proibida"]
-        a404["404<br/>recurso inexistente"]
-        a409["409<br/>já existe"]
-        a422["422<br/>regra de domínio violada"]
-        a500["500<br/>erro interno"]
+    subgraph appl["os-service"]
+        a400["400<br/>id que não é UUID, código,<br/>CPF/CNPJ ou placa inválidos,<br/>corpo inválido, X-Simulate-Failure inválido"]
+        a401["401<br/>token ausente ou inválido,<br/>credenciais erradas"]
+        a403["403<br/>papel insuficiente,<br/>documento alheio"]
+        a404["404<br/>recurso inexistente,<br/>inclusive no DELETE"]
+        a409["409<br/>já existe, transição inválida,<br/>atualização concorrente,<br/>cadastro em uso por OS"]
+        a422["422<br/>estoque insuficiente,<br/>veículo de outro cliente"]
+        a500["500<br/>erro não mapeado"]
     end
 
     style g401 fill:#ffe4e1,stroke:#c66
+    style g403 fill:#ffe0b2,stroke:#e80
     style a401 fill:#ffe4e1,stroke:#c66
     style a403 fill:#ffe0b2,stroke:#e80
     style l403 fill:#ffe0b2,stroke:#e80
 ```
 
-O mesmo código pode vir de camadas diferentes, e isso importa ao depurar. Um `401` do gateway **não aparece nos logs da aplicação** — a requisição nunca chega no pod. Se o log da aplicação está vazio para uma chamada que o cliente jura ter feito, o suspeito é o authorizer, e a evidência está no access log do gateway em CloudWatch.
-
----
-
-## 6. Fronteira entre repositórios
-
-Quem declara o quê:
-
-```mermaid
-flowchart TB
-    subgraph k8s["postech-tc3-infra-k8s"]
-        api["aws_apigatewayv2_api"]
-        rotas["4 rotas + 2 integrações"]
-        authz["aws_apigatewayv2_authorizer"]
-        perm["aws_lambda_permission"]
-    end
-
-    subgraph lam["postech-tc3-lambda-auth"]
-        fi["função issuer"]
-        fa["função authorizer"]
-    end
-
-    subgraph app["postech-tc3-app"]
-        gin["grupos de rota do Gin"]
-        svc["Service LoadBalancer → NLB"]
-    end
-
-    fi -.->|"invoke_arn"| rotas
-    fa -.->|"invoke_arn"| authz
-    svc -.->|"app_backend_url"| rotas
-    perm -.->|"autoriza invocação"| lam
-
-    style k8s fill:#e8f0fe,stroke:#4a7
-    style lam fill:#fff4e0,stroke:#d90
-    style app fill:#e6f4ea,stroke:#4a7
-```
-
-As três ligações pontilhadas são **valores passados à mão** entre repositórios, não referências de Terraform — os states são separados. A ordem de aplicação é:
-
-1. `infra-database` → RDS de pé.
-2. `infra-k8s` → cluster e gateway sem rotas (as variáveis de Lambda e backend ficam vazias).
-3. `lambda-auth` → publica as funções e imprime os `invoke_arn` no resumo do job.
-4. `app` → deploy cria o NLB; `kubectl get svc workshop-api` dá o hostname.
-5. `infra-k8s` de novo → agora com `lambda_issuer_invoke_arn`, `lambda_authorizer_invoke_arn` e `app_backend_url` preenchidos.
-
-O passo 5 existe porque as variáveis são opcionais de propósito: sem elas o gateway sobe vazio, o que quebra a dependência circular entre gateway, Lambda e NLB.
+O mesmo código pode vir de camadas diferentes, e isso importa ao depurar. Um 401 ou 403 do gateway não aparece nos logs do serviço, porque a requisição nunca chega ao pod: a evidência está no access log do gateway (campo `authorizer`) e nos logs da Lambda authorizer. O corpo de erro dos serviços é sempre `{"error": {"code", "message"}}`; a tabela erro → status está em [`internal/adapters/inbound/http/errors.go`](../../internal/adapters/inbound/http/errors.go) e na [ADR-0006](../adr/0006-domain-errors-sentinels.md).

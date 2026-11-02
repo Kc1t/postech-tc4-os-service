@@ -1,6 +1,6 @@
 # ADR-0022: Notificação ao cliente por Lambda consumindo a fila de eventos da OS
 
-- **Status:** Accepted
+- **Status:** Aceita
 - **Data:** 2026-10
 - **Decisão por:** Reservoir Devs
 
@@ -24,27 +24,27 @@ flowchart LR
     brevo --> cli(["Cliente"])
 ```
 
-- **Fila própria assinando `os-events`** ([ADR-0013](./0013-mensageria-sns-sqs-dlq.md)): visibilidade de 180 s (seis vezes o timeout de 30 s da function), DLQ depois de 5 entregas, alarme na DLQ.
+- **Fila própria assinando `os-events`** ([ADR-0013](./0013-mensageria-sns-sqs-dlq.md)): visibilidade de 180 s (seis vezes o timeout de 30 s da function), DLQ depois de 5 entregas, alarme do CloudWatch na DLQ. No New Relic, a falha aparece antes de chegar à DLQ, nos alertas de taxa de erro da Lambda, de falha de envio e de mensagem malformada.
 - **Event source mapping** com `batch_size = 1`, concorrência máxima 5 e `ReportBatchItemFailures`: só a mensagem que falhou volta para a fila. Com lote de 1, cada invocação continua o trace distribuído da mudança de status que a originou.
 - **Oito status geram e-mail:** `received`, `in_diagnosis`, `awaiting_approval`, `awaiting_payment` (com o link de pagamento), `in_execution`, `finished`, `delivered` e `cancelled` (com o motivo). O caminho feliz manda sete. O `awaiting_budget` é interno e não gera e-mail. Para o e-mail de "aguardando pagamento" sair com o link, o orquestrador só publica esse status quando chega o `PaymentLinkCreated`.
 - **Idempotência por `message_id`:** antes de enviar, a Lambda grava o ID numa tabela DynamoDB (`postech-tc4-prod-notifier-dedup`) com escrita condicional. Se o ID já existe, é duplicata e não envia. Se o envio falha, apaga a reserva para a nova tentativa. O TTL (`expires_at`, 7 dias por padrão) limpa a tabela.
 - **Envio pelo relay SMTP da Brevo** (`smtp-relay.brevo.com:587`), o mesmo provedor da Fase 3, com um layout HTML e o texto de cada status. O log mascara e-mail e documento.
-- **Mensagem inválida** (envelope ou payload fora do contrato) volta para a fila e, depois de 5 tentativas, fica na DLQ para análise. Tipo de evento desconhecido, status sem template ou cliente sem e-mail são ignorados com sucesso.
+- **Mensagem inválida** (envelope ou payload que não decodifica) volta para a fila e, depois de 5 tentativas, fica na DLQ para análise. Tipo de evento desconhecido, status sem template ou cliente sem e-mail são ignorados com sucesso.
 - **Fora da VPC e com a layer do New Relic**, ligada quando a license key está configurada ([ADR-0014](./0014-lambdas-fora-da-vpc.md)). Cada envio registra o evento `NotificationSent` no New Relic.
 
 O os-service não envia mais e-mail: o adapter SMTP e a porta `EmailNotifier` saíram do código.
 
 ## Alternativas consideradas
 
-1. **Manter o SMTP no pod (ADR-0011).** Descartado: deixaria a lacuna da Fase 3 aberta. Com o evento já publicado, o envio no pod seria uma segunda notificação do mesmo fato, síncrona e sem retry.
+1. **Manter o SMTP no pod (ADR-0011).** Descartado porque deixaria a lacuna da Fase 3 aberta. Com o evento já publicado, o envio no pod seria uma segunda notificação do mesmo fato, síncrona e sem retry.
 
-2. **Amazon SES no lugar da Brevo.** É o desenho alvo da ADR-0011 e o provedor nativo. Descartado pelo mesmo motivo de lá: conta nova do SES começa em sandbox e só entrega para endereços verificados, o que impede demonstrar a entrega a um cliente qualquer. A Brevo já tinha conta, domínio remetente e credencial da Fase 3. Trocar de provedor é trocar o adapter `internal/mail` da Lambda, que implementa a interface `Sender` do handler.
+2. **Amazon SES no lugar da Brevo.** É o desenho alvo da ADR-0011 e o provedor nativo. Descartado pelo mesmo motivo de lá: a conta nova do SES começa em sandbox e só entrega para endereços verificados, o que impede demonstrar a entrega a um cliente qualquer. A Brevo já tinha conta, domínio remetente e credencial da Fase 3. Trocar de provedor é trocar o adapter `internal/mail` da Lambda, que implementa a interface `Sender` do handler.
 
-3. **Lambda assinando o SNS direto, sem fila.** Uma peça a menos. Descartado: na invocação assíncrona, um erro da function é tentado de novo só duas vezes por padrão, e não há controle de lote, concorrência nem DLQ do lado de quem consome. Com a fila, um SMTP fora do ar vira mensagem esperando, não e-mail perdido.
+3. **Lambda assinando o SNS direto, sem fila.** Uma peça a menos. Descartado porque, na invocação assíncrona, um erro da function é tentado de novo só duas vezes por padrão, e não há controle de lote, concorrência nem DLQ do lado de quem consome. Com a fila, um SMTP fora do ar vira mensagem esperando, não e-mail perdido.
 
-4. **Assinatura de e-mail do próprio SNS.** Zero código. Descartado: a assinatura é por tópico, não por cliente; o destinatário precisa confirmar a inscrição; e o corpo é o JSON do evento, sem template.
+4. **Assinatura de e-mail do próprio SNS.** Nenhum código. Descartado porque a assinatura é por tópico, não por cliente; o destinatário precisa confirmar a inscrição; e o corpo é o JSON do evento, sem template.
 
-5. **Quarto microsserviço de notificação no EKS.** Mesma lógica, rodando como pod. Descartado: um deployment com réplicas sempre ligadas para um consumo esporádico, que a Lambda cobra por invocação. E o desafio pede serverless para notificação.
+5. **Quarto microsserviço de notificação no EKS.** Mesma lógica, rodando como pod. Descartado porque seria um deployment com réplicas sempre ligadas para um consumo esporádico, que a Lambda cobra por invocação. E o desafio pede serverless para notificação.
 
 ## Consequências
 
@@ -52,7 +52,7 @@ O os-service não envia mais e-mail: o adapter SMTP e a porta `EmailNotifier` sa
 
 - A lacuna da Fase 3 fecha: a notificação é serverless, assíncrona e com retry.
 - A mudança de status não espera o SMTP. A latência e as falhas do envio ficam fora da saga.
-- SMTP fora do ar não perde e-mail: a mensagem volta para a fila, tenta de novo e, no limite, fica na DLQ com alarme. O redrive não duplica envio, por causa da tabela de dedup.
+- SMTP fora do ar não perde e-mail: a mensagem volta para a fila, tenta de novo e, no limite, fica na DLQ, com alerta no New Relic e alarme no CloudWatch. O redrive não duplica envio, por causa da tabela de dedup.
 - O os-service não sabe que a notificação existe. Um canal novo (SMS, push) é outra fila assinando `os-events`.
 - O e2e local verifica a notificação de ponta a ponta: sete e-mails no Mailpit no caminho feliz.
 
@@ -68,4 +68,4 @@ O os-service não envia mais e-mail: o adapter SMTP e a porta `EmailNotifier` sa
 
 - Lambda: [`postech-tc4-notification-lambda/internal/notifier/handler.go`](https://github.com/Kc1t/postech-tc4-notification-lambda/blob/main/internal/notifier/handler.go) e [`infra/main.tf`](https://github.com/Kc1t/postech-tc4-notification-lambda/blob/main/infra/main.tf)
 - Evento: [`pkg/contracts/contracts.go`](../../pkg/contracts/contracts.go) (`os.ServiceOrderStatusChanged`)
-- AWS — [Using Lambda with Amazon SQS](https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html)
+- AWS: [Using Lambda with Amazon SQS](https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html)

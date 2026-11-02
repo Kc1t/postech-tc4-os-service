@@ -1,6 +1,6 @@
 # ADR-0018: Transactional outbox, inbox idempotente e lock otimista
 
-- **Status:** Accepted
+- **Status:** Aceita
 - **Data:** 2026-10
 - **Decisão por:** Reservoir Devs
 
@@ -43,22 +43,22 @@ O consumidor registra o `message_id` **na mesma transação** dos efeitos do han
 
 - **`service_orders.version` e `saga_instances.version`:** o `Update` grava com `WHERE id = ? AND version = ?` e incrementa a versão. Nenhuma linha afetada vira `ErrConcurrentUpdate`: 409 (`CONCURRENT_UPDATE`) na API e rollback com nova tentativa pela fila no consumidor.
 - **No billing,** `budgets` e `payments` seguem a mesma regra.
-- **No DynamoDB,** o `STATE` é gravado com a condição `version = :esperada`.
+- **No DynamoDB,** o `STATE` é criado com `attribute_not_exists(pk)` e atualizado com a condição `version = :esperada`.
 - **Nos passos da saga,** o lock otimista se soma a um lock pessimista: o handler trava a linha da saga com `FOR UPDATE` antes de ler a OS, sempre nessa ordem (saga, depois OS) para não haver deadlock com o cancelamento e o worker de prazos.
 
 ## Alternativas consideradas
 
-1. **Publicar depois do commit, com retry em memória.** Perde a mensagem quando o pod morre entre o commit e a publicação, e o HPA e o rolling update reciclam pods o tempo todo.
+1. **Publicar depois do commit, com retry em memória.** Descartado porque perde a mensagem quando o pod morre entre o commit e a publicação, e o HPA e o rolling update reciclam pods o tempo todo.
 
-2. **CDC com Debezium.** Lê o WAL do PostgreSQL e publica sem tabela de outbox. Descartado: exige Kafka Connect rodando e replicação lógica habilitada no RDS. É infraestrutura para manter de pé maior que o próprio relay.
+2. **CDC com Debezium.** Lê o WAL do PostgreSQL e publica sem tabela de outbox. Descartado porque exige Kafka Connect rodando e replicação lógica habilitada no RDS. É infraestrutura para manter de pé maior que o próprio relay.
 
 3. **DynamoDB Streams + Lambda como relay no execution.** Seria o outbox nativo do DynamoDB. Descartado para manter uma semântica só nos três serviços (mesmo envelope, mesma propagação de trace, mesma contagem de pendentes) e não criar uma terceira Lambda para filtrar o stream.
 
-4. **Deduplicação do SQS FIFO no lugar do inbox.** A janela é de cinco minutos e só cobre o envio. Não protege contra reentrega por visibilidade expirada nem contra a mesma mensagem publicada duas vezes pelo relay depois de cinco minutos.
+4. **Deduplicação do SQS FIFO no lugar do inbox.** Descartada porque a janela é de cinco minutos e só cobre o envio. Não protege contra reentrega por visibilidade expirada nem contra a mesma mensagem publicada duas vezes pelo relay depois de cinco minutos.
 
-5. **Só lock pessimista.** Bastaria nos passos da saga, mas não na API. As escritas da equipe na OS seriam serializadas por trava, e um handler lento seguraria a linha.
+5. **Só lock pessimista.** Bastaria nos passos da saga. Descartado porque não serve à API: as escritas da equipe na OS seriam serializadas por trava, e um handler lento seguraria a linha.
 
-6. **Sem controle de concorrência (última escrita vence).** Uma resposta da saga e um cancelamento simultâneo poderiam se sobrescrever, deixando OS cancelada com execução em andamento.
+6. **Sem controle de concorrência (última escrita vence).** Descartado porque uma resposta da saga e um cancelamento simultâneo poderiam se sobrescrever, deixando OS cancelada com execução em andamento.
 
 ## Consequências
 
@@ -82,4 +82,4 @@ O consumidor registra o `message_id` **na mesma transação** dos efeitos do han
 
 - Implementação: [`pkg/outbox/outbox.go`](../../pkg/outbox/outbox.go), [`pkg/inbox/inbox.go`](../../pkg/inbox/inbox.go), [`internal/adapters/outbound/postgresql/messenger.go`](../../internal/adapters/outbound/postgresql/messenger.go), [`internal/adapters/outbound/postgresql/serviceorder_repository.go`](../../internal/adapters/outbound/postgresql/serviceorder_repository.go)
 - execution-service: [`internal/adapters/outbound/dynamodb/repository.go`](https://github.com/Kc1t/postech-tc4-execution-service/blob/main/internal/adapters/outbound/dynamodb/repository.go) e [`outbox_relay.go`](https://github.com/Kc1t/postech-tc4-execution-service/blob/main/internal/adapters/outbound/dynamodb/outbox_relay.go)
-- Chris Richardson — [Pattern: Transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html) e [Idempotent Consumer](https://microservices.io/patterns/communication-style/idempotent-consumer.html)
+- Chris Richardson: [Pattern: Transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html) e [Idempotent Consumer](https://microservices.io/patterns/communication-style/idempotent-consumer.html)

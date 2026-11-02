@@ -1,6 +1,10 @@
-# Observabilidade — New Relic
+# Observabilidade da fase 3: New Relic
 
-Tudo que a Fase 3 exige de monitoramento: dashboards, alertas e a origem de cada métrica.
+> **Registro da fase 3, mantido como histórico.** Este documento, o [`dashboard.json`](./dashboard.json), o [`alerts.json`](./alerts.json) e o `scripts/create-newrelic-alerts.sh` descrevem o monolito `workshop-api`. Os eventos de log `service_order_created`, `service_order_status_changed` e `integration_failure` não existem mais.
+>
+> **Na fase 4**, o dashboard "Ordem de Serviço (prod)", os 16 alertas com runbook e os SLOs são Terraform em [`postech-tc4-infra-k8s/observability`](https://github.com/Kc1t/postech-tc4-infra-k8s/tree/main/observability), aplicados pelo workflow `observability` daquele repositório. Os três serviços têm APM com trace distribuído atravessando SNS/SQS e o Postgres no trace (`nrpgx5`), as três Lambdas usam a layer do New Relic, e os eventos de negócio são os logs da saga (`saga_started`, `saga_step`, `saga_completed`, `saga_compensated`, `saga_expired`). Fontes de cada painel na [seção Observabilidade do README](../../README.md#observabilidade) e em [`sequencia-ordem-servico.md`](../diagrams/sequencia-ordem-servico.md#origem-dos-números-do-dashboard).
+
+Tudo que a fase 3 exigia de monitoramento: dashboards, alertas e a origem de cada métrica.
 
 ## Por que New Relic e não Datadog
 

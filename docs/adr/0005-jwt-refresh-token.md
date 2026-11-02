@@ -1,79 +1,84 @@
 # ADR-0005: Autenticação JWT com refresh token rotativo
 
-- **Status:** Accepted
+- **Status:** Aceita, revisada em 2026-10
 - **Data:** 2026-04
 - **Decisão por:** Reservoir Devs
 
+> **Revisão nas fases 3 e 4:** o login por e-mail e senha descrito aqui é o da equipe da oficina. Na fase 3 o cliente passou a se autenticar por CPF numa Lambda própria ([RFC-0003](../rfc/0003-autenticacao-por-cpf.md)), e o "portal público" do item 5 deixou de existir: as rotas do cliente foram para trás do middleware `Auth` ([ADR-0007](0007-api-gateway-comunicacao.md)) e conferem se o `document` do token é o dono da OS (403 se não for). Na fase 4, a aprovação do orçamento saiu do os-service para o billing-service (`POST /api/v1/budgets/{id}/approve` e `/reject`). Ainda na fase 4, o registro de usuário passou a exigir JWT de `admin` e a criar usuário da equipe ([ADR-0023](0023-registro-restrito-a-equipe.md)). As notas de implementação no fim corrigem três pontos em que o texto original não batia com o código.
+
 ## Contexto
 
-O Tech Challenge exige **autenticação JWT para APIs administrativas**. O grupo precisa decidir:
+O Tech Challenge exige autenticação JWT para as APIs administrativas. Era preciso decidir:
 
-- Estrutura do token (qual padrão de claims, tempo de expiração).
-- Como permitir renovação sem forçar login frequente.
-- Como revogar acesso de um usuário comprometido.
-- Como tratar o portal público de consulta de OS (que **não** exige autenticação).
+- A estrutura do token (claims, expiração).
+- Como renovar sem forçar login frequente.
+- Como revogar o acesso de um usuário comprometido.
+- Como tratar o portal público de consulta de OS (que, na fase 1, não exigia autenticação).
 
 ## Decisão
 
-Implementar autenticação em duas camadas:
+Autenticação em duas peças, mais bloqueio de conta.
 
 ### 1. Access token (JWT)
 
-- Tipo: `Bearer` no header `Authorization`.
-- TTL: **15 minutos**.
-- Algoritmo: `HS256` com chave secreta carregada de variável de ambiente.
-- Claims: `sub` (user id), `email`, `role` (`admin` ou `client`), `iat`, `exp`.
+- `Bearer` no header `Authorization`.
+- Validade de **15 minutos** (`ACCESS_TOKEN_EXP_MIN`).
+- `HS256` com o segredo em `JWT_SECRET`.
+- Claims: `sub` (id do usuário), `email`, `role` (`admin` ou `client`), `iat`, `exp`.
 
 ### 2. Refresh token rotativo
 
-- TTL: **7 dias**.
-- Armazenado no banco (`refresh_tokens`) com referência ao usuário, IP de emissão e hash do token.
-- A cada uso, o refresh token antigo é **revogado** e um novo é emitido.
-- Endpoint público: `POST /api/v1/auth/refresh`.
-- Operação atômica no repositório (`RotateToken`) — ver [ADR-0006](./0006-domain-errors-sentinels.md) sobre transações no repositório.
+- Validade de **7 dias** (`REFRESH_TOKEN_EXP_DAYS`).
+- Guardado na tabela `refresh_tokens` só como hash, com o usuário, a expiração e a marca de revogado.
+- A cada uso, o refresh antigo é revogado e um novo é emitido, na mesma transação (`RotateToken`, que só revoga se o token ainda não estava revogado).
+- Rota pública: `POST /api/v1/auth/refresh`.
 
-### 3. Logout explícito
+### 3. Logout
 
-`POST /api/v1/auth/logout` revoga o refresh token atual. Access tokens não são revogáveis (ficam válidos até `exp`); a janela de exposição é mitigada pelo TTL curto.
+`POST /api/v1/auth/logout` revoga os refresh tokens do usuário. Access tokens não são revogáveis e valem até o `exp`; o prazo curto limita a exposição.
 
-### 4. Account lockout
+### 4. Bloqueio de conta
 
-Após **5 tentativas de login falhadas** em sequência, a conta é bloqueada por **15 minutos** (campos `failed_attempts` e `locked_until` na entidade `User`). Esta lógica vive **no domínio**, não em middleware.
+Depois de **5 tentativas de login erradas** seguidas (`MAX_FAILED_LOGINS`), a conta fica bloqueada por **15 minutos** (`LOGIN_LOCK_MIN`), com os campos `failed_attempts` e `locked_until` do usuário. A regra fica no domínio (`User.RegisterFailedLogin`), não em middleware. Conta bloqueada recebe o mesmo 401 de credencial errada, e a senha é comparada mesmo quando o e-mail não existe (contra um hash fictício), para que nem a resposta nem o tempo revelem quais e-mails existem ou estão bloqueados.
 
-### 5. Portal público
+### 5. Portal público (fase 1)
 
-Endpoints `GET /api/v1/service-orders/code/:code`, `GET /api/v1/service-orders/customer` e `PUT /api/v1/service-orders/code/:code/status` são **explicitamente públicos** (sem middleware de auth). Identificação se dá pelo **código da OS** (token de acesso implícito que o cliente recebeu).
+As rotas de consulta do cliente (`GET /api/v1/service-orders/code/:code` e a busca por solicitante) e a aprovação do orçamento eram públicas, identificadas pelo código da OS. Substituído na fase 3, como diz a nota no topo.
 
 ## Alternativas consideradas
 
-1. **Sessions com cookies HttpOnly.** Mais simples para um SPA do mesmo domínio, mas o TC pode evoluir para múltiplos clientes (mobile, parceiros). JWT funciona em todos os casos.
-2. **Apenas access token de longa duração.** Solução comum em prototipagem, mas permite que um token vazado dure dias. Inaceitável.
-3. **OAuth2 / OIDC com provider externo (Auth0, Keycloak).** Excelente para produção, porém adiciona dependência externa fora do escopo de um MVP.
-4. **Refresh tokens não rotativos (mesmo refresh válido por todo TTL).** Simples mas perde a capacidade de detectar reuso (token roubado pode ser usado várias vezes). Optamos pelo rotativo.
+1. **Sessão com cookie HttpOnly.** Mais simples para um SPA no mesmo domínio. Descartada porque o sistema pode ter outros clientes (mobile, parceiros), e o JWT serve a todos.
+2. **Só access token de longa duração.** Comum em protótipos. Descartada porque um token vazado valeria por dias.
+3. **OAuth2/OIDC com provedor externo (Auth0, Keycloak).** Bom para produção. Descartado por trazer uma dependência externa fora do escopo do MVP.
+4. **Refresh token sem rotação.** Mais simples. Descartado porque um refresh roubado poderia ser usado várias vezes durante toda a validade.
 
 ## Consequências
 
 ### Positivas
 
-- TTL curto do access token reduz janela de exploração.
-- Rotação do refresh permite **detectar reuso** (se um refresh já revogado for apresentado, é sinal de roubo — mitigado revogando todos os tokens do usuário).
-- Account lockout protege contra brute-force de senha sem depender de WAF/Cloudflare.
-- Roles em claim simplificam autorização nos middlewares (`requireRole("admin")`).
-- Portal público para clientes não exige cadastro — UX simplificada.
+- O prazo curto do access token reduz a janela de uso de um token vazado.
+- Com a rotação, um refresh só funciona uma vez: o reuso de um refresh já revogado é recusado com 401.
+- O bloqueio de conta protege contra força bruta de senha sem depender de WAF.
+- A role no claim simplifica a autorização (`RequireRole("admin")`).
 
 ### Negativas
 
-- Stateless do access token impede revogação imediata; aceito dado o TTL de 15 min.
-- Refresh token rotativo exige cuidado com **race conditions**: se duas requisições do mesmo cliente apresentarem o mesmo refresh simultaneamente, uma falha. Mitigado pela operação atômica `RotateToken` (transação no repositório).
-- Account lockout pode ser usado como vetor de **DoS** (atacante trava contas legítimas). Mitigação adicional (CAPTCHA, lockout por IP) fica para fases futuras.
+- O access token não pode ser revogado antes do `exp`; aceito pelo prazo de 15 minutos.
+- Duas requisições com o mesmo refresh ao mesmo tempo: só uma passa, a outra recebe 401. É o comportamento esperado da rotação, garantido pela transação do `RotateToken`.
+- O bloqueio pode ser usado para travar contas legítimas. CAPTCHA ou bloqueio por IP ficam para depois.
 
 ## Notas de implementação
 
-- Implementação do `TokenService` em `internal/adapters/outbound/jwt/service.go` (não em `pkg/`, pois depende de `entities.User`).
-- Use cases recebem `ports.TokenService` (interface), nunca a biblioteca de JWT diretamente — preserva o domínio limpo (ver [ADR-0002](./0002-hexagonal-architecture.md)).
-- `BCRYPT_COST=12` para hashing de senhas (configurável via env).
+- `TokenService` em `internal/adapters/outbound/jwt/service.go`. Os casos de uso recebem a interface `ports.TokenService`, nunca a biblioteca de JWT ([ADR-0002](0002-hexagonal-architecture.md)).
+- Senhas com bcrypt, `BCRYPT_COST=12` (configurável).
+- `POST /api/v1/auth/register` exige JWT de `admin` e cria outro usuário da equipe, com role `admin` ([ADR-0023](0023-registro-restrito-a-equipe.md)); até a fase 4 era pública e criava role `client`. O primeiro `admin` é criado na subida a partir de `ADMIN_EMAIL` e `ADMIN_PASSWORD`.
+- O middleware `Auth` também aceita o token emitido pela Lambda de CPF (mesmo segredo) e, quando há claim `document`, a guarda no contexto para a checagem de posse.
+- Diferenças em relação ao texto original desta ADR:
+  - A tabela `refresh_tokens` não guarda o IP de emissão.
+  - O reuso de um refresh revogado só é recusado (401); não revoga os demais tokens do usuário.
+  - O logout revoga todos os refresh tokens do usuário (`RevokeByUserID`), não só o da sessão atual.
 
 ## Referências
 
 - RFC 7519 (JSON Web Token).
-- Auth0 — *Refresh Token Rotation* (https://auth0.com/docs/secure/tokens/refresh-tokens/refresh-token-rotation).
+- Auth0, *Refresh Token Rotation*: https://auth0.com/docs/secure/tokens/refresh-tokens/refresh-token-rotation

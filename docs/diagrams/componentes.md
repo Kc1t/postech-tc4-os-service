@@ -1,87 +1,101 @@
-# Diagrama de Componentes
+# Diagrama de componentes
 
-Visão de nuvem da solução: APIs, banco e monitoramento.
+Visão de nuvem da fase 4: entrada, serviços, bancos, mensageria e monitoramento. A versão da fase 3 (monolito `workshop-api`) está no [`postech-tc3-app`](https://github.com/Kc1t/postech-tc3-app/blob/main/docs/diagrams/componentes.md).
 
 ```mermaid
 flowchart TB
-    cliente["Cliente da oficina<br/>(navegador / app)"]
-    operacao["Operação<br/>(atendente, mecânico, admin)"]
+    cliente["Cliente da oficina"]
+    equipe["Equipe da oficina<br/>(admin)"]
+    mp["Mercado Pago<br/>Checkout Pro"]
 
     subgraph aws["AWS · us-east-1"]
-        gw["API Gateway v2<br/>HTTP API<br/><i>postech-tc3-infra-k8s</i>"]
+        gw["API Gateway HTTP<br/>throttling · authorizer sem cache"]
 
-        subgraph serverless["Lambda · postech-tc3-lambda-auth"]
-            issuer["issuer<br/>CPF → JWT"]
-            authz["authorizer<br/>valida HS256"]
+        subgraph auth["Lambda · postech-tc4-lambda-auth"]
+            issuer["auth-issuer<br/>CPF → JWT"]
+            authz["auth-authorizer<br/>valida o JWT"]
         end
 
-        subgraph eks["EKS · postech-tc3-infra-k8s"]
-            nlb["NLB<br/>Service LoadBalancer"]
-            subgraph ns["namespace postech / postech-homolog"]
-                api["workshop-api<br/>Deployment 2–10 réplicas<br/><i>postech-tc3-app</i>"]
-                hpa["HPA<br/>CPU 70% · Mem 80%"]
-                ms["metrics-server<br/>(addon EKS)"]
-            end
-            nragent["New Relic<br/>nri-bundle"]
+        subgraph eks["EKS · namespace postech"]
+            os["os-service<br/>OS, cadastros, estoque<br/>orquestrador da saga"]
+            bi["billing-service<br/>orçamento e pagamento"]
+            ex["execution-service<br/>diagnóstico e reparo"]
+            nri["nri-bundle<br/>infra e logs dos pods"]
         end
 
-        rds[("RDS PostgreSQL 16<br/><i>postech-tc3-infra-database</i>")]
-        secrets["Secrets Manager<br/>credenciais do banco"]
-        ecr["ECR<br/>imagem da aplicação"]
-        cw["CloudWatch Logs<br/>gateway e lambdas"]
+        subgraph msg["Mensageria"]
+            sns{{"SNS<br/>os-events · billing-events · execution-events"}}
+            sqs[["SQS<br/>os-saga-replies · billing-commands<br/>execution-commands · notification-os-events<br/>(cada uma com DLQ)"]]
+        end
+
+        notifier["notifier<br/>postech-tc4-notification-lambda"]
+
+        rdsos[("RDS PostgreSQL 16<br/>workshop")]
+        rdsbi[("RDS PostgreSQL 16<br/>billing")]
+        ddbex[("DynamoDB<br/>executions")]
+        ddbnt[("DynamoDB<br/>notifier-dedup")]
+        sm["Secrets Manager<br/>credenciais dos bancos"]
+        ecr["ECR<br/>imagens dos serviços"]
     end
 
-    nr["New Relic<br/>APM · logs · dashboards · alertas"]
-    gha["GitHub Actions<br/>CI/CD dos 4 repositórios"]
-    ghs["GitHub Secrets<br/>POSTGRES_DSN · JWT_SECRET"]
+    smtp["SMTP (Brevo)"]
+    nr["New Relic<br/>APM · trace · logs · dashboard · alertas · SLOs"]
+    gha["GitHub Actions<br/>um pipeline por repositório"]
 
-    cliente -->|"POST /auth<br/>{cpf}"| gw
-    cliente -->|"Bearer JWT"| gw
-    operacao -->|"POST /api/v1/auth/login"| gw
+    cliente -->|"POST /auth {cpf}<br/>Bearer JWT"| gw
+    equipe -->|"POST /api/v1/auth/login<br/>Bearer JWT"| gw
+    mp -->|"webhook x-signature"| gw
 
     gw -->|"POST /auth"| issuer
-    gw -.->|"autoriza ANY /api/v1/{proxy+}"| authz
-    gw -->|"HTTP_PROXY"| nlb
-    nlb --> api
+    gw -.->|"rotas protegidas"| authz
+    gw -->|"HTTP_PROXY pelo NLB<br/>de cada serviço"| os & bi & ex
 
-    issuer -->|"SELECT document, status"| rds
-    api --> rds
-    rds -.->|"credenciais geradas"| secrets
-    ghs -.->|"Secret do k8s"| api
-    ghs -.->|"env da Lambda"| issuer
+    issuer -->|"GET /internal/requesters/{document}<br/>X-Internal-Token"| os
+    os -.->|"GET /details<br/>(API composition)"| bi & ex
+    bi -->|"preferência, consulta, estorno"| mp
 
-    ms --> hpa
-    hpa -->|"escala"| api
+    os -->|"comandos"| sqs
+    os & bi & ex -->|"eventos"| sns
+    sns --> sqs
+    sqs --> os & bi & ex
+    sqs --> notifier
+    notifier --> smtp
+    notifier --> ddbnt
 
-    api -->|"stdout JSON<br/>+ correlation id"| nragent
-    nragent --> nr
-    gw --> cw
-    issuer --> cw
-    authz --> cw
+    os --> rdsos
+    bi --> rdsbi
+    ex --> ddbex
+    rdsos & rdsbi -.->|"senha gerada pelo Terraform"| sm
 
-    gha -->|"build + push"| ecr
-    ecr --> api
-    gha -->|"terraform apply"| eks
-    gha -->|"terraform apply"| rds
-    gha -->|"terraform apply"| serverless
+    os & bi & ex -->|"agente Go"| nr
+    issuer & authz & notifier -->|"layer do New Relic"| nr
+    nri --> nr
+
+    gha -->|"build e push"| ecr
+    gha -->|"terraform apply e kubectl apply"| eks
+    gha -->|"terraform apply"| auth & notifier
 ```
 
-## Camadas de autenticação
+## Quem fala com quem
 
-| Rota no gateway | Autorização no gateway | Validação na aplicação |
-|---|---|---|
-| `POST /auth` | aberta | — |
-| `POST /api/v1/auth/{proxy+}` | aberta | — |
-| `GET /{proxy+}` | aberta | — |
-| `ANY /api/v1/{proxy+}` | authorizer Lambda | middleware `Auth` |
+| Origem | Destino | Como | Por quê |
+|---|---|---|---|
+| Cliente, equipe, Mercado Pago | serviços | API Gateway → NLB `<serviço>-public` → pod | entrada única, authorizer na borda |
+| Lambda issuer | os-service | `GET /internal/requesters/{document}` com `X-Internal-Token` | emitir o token sem abrir o banco do os-service ([ADR-0014](../adr/0014-lambdas-fora-da-vpc.md)) |
+| os-service | billing, execution | REST no Service do cluster, com JWT de serviço | leitura composta do `/details` ([ADR-0019](../adr/0019-api-composition-no-details.md)) |
+| os-service | billing, execution | comandos nas filas `billing-commands` e `execution-commands` | passos da saga ([ADR-0013](../adr/0013-mensageria-sns-sqs-dlq.md)) |
+| billing, execution | os-service | eventos nos tópicos `billing-events` e `execution-events`, fila `os-saga-replies` | respostas da saga |
+| os-service | notifier | evento `os.ServiceOrderStatusChanged` no tópico `os-events`, fila `notification-os-events` | e-mail a cada mudança de status ([ADR-0022](../adr/0022-notificacao-por-lambda.md)) |
 
-As duas camadas validam o mesmo JWT HS256 com o mesmo segredo. Justificativa em [ADR-0007](../adr/0007-api-gateway-comunicacao.md).
+Nenhum serviço acessa o banco de outro ([ADR-0012](../adr/0012-banco-por-servico.md)).
 
 ## Fronteiras de repositório
 
 | Repositório | Provisiona |
 |---|---|
-| `postech-tc3-infra-database` | RDS, subnet group, security group, secret |
-| `postech-tc3-infra-k8s` | EKS, node group, metrics-server, API Gateway, rotas, authorizer, agente New Relic |
-| `postech-tc3-lambda-auth` | Duas Lambdas, security group, log groups |
-| `postech-tc3-app` | Imagem no ECR e manifests aplicados no cluster |
+| `postech-tc4-infra-k8s` | EKS e node group, namespace com quota, API Gateway, rotas e authorizer, tópicos, filas, DLQs e alarmes, agente do New Relic no cluster, dashboard, alertas e SLOs |
+| `postech-tc4-os-service` | RDS `workshop` e o secret da credencial, imagem no ECR, manifests do serviço |
+| `postech-tc4-billing-service` | RDS `billing` e o secret da credencial, imagem no ECR, manifests do serviço |
+| `postech-tc4-execution-service` | tabela DynamoDB `executions`, imagem no ECR, manifests do serviço |
+| `postech-tc4-lambda-auth` | Lambdas `auth-issuer` e `auth-authorizer` e os log groups |
+| `postech-tc4-notification-lambda` | Lambda `notifier`, a tabela de deduplicação e o gatilho na fila `notification-os-events` |

@@ -1,8 +1,10 @@
 # ADR-0002: Arquitetura hexagonal (Ports & Adapters)
 
-- **Status:** Accepted
+- **Status:** Aceita, revisada em 2026-10
 - **Data:** 2026-04
 - **Decisão por:** Reservoir Devs
+
+> **Revisão na fase 4:** os três microsserviços seguem a mesma estrutura. No os-service entraram adapters de entrada para a fila (`inbound/messaging`) e para o worker de prazos (`inbound/scheduler`), e um adapter de saída para os outros serviços (`outbound/services`); o orquestrador da saga é um caso de uso (`application/usecase/saga`). O código comum aos serviços (contratos, mensageria, outbox, inbox, cliente HTTP) fica em `pkg/`.
 
 ## Contexto
 
@@ -15,7 +17,7 @@ O Tech Challenge da Fase 1 da FIAP SOAT permite, explicitamente, a adoção de *
 
 ## Decisão
 
-Adotar **arquitetura hexagonal (Ports & Adapters)** dentro de um monolito. O domínio fica no centro e expõe interfaces (ports). Frameworks e infraestrutura são adapters que dependem do domínio, nunca o contrário.
+Adotar **arquitetura hexagonal (Ports & Adapters)** dentro do monolito (na fase 4, dentro de cada microsserviço). O domínio fica no centro e expõe interfaces (ports). Frameworks e infraestrutura são adapters que dependem do domínio, nunca o contrário.
 
 ### Camadas
 
@@ -36,18 +38,17 @@ Dependências apontam **sempre para dentro**. O único componente que conhece to
 
 ## Alternativas consideradas
 
-1. **Camadas tradicionais (controller → service → repository).** Mais simples, mas o `service` acabaria importando GORM/Gin diretamente, dificultando testes e troca de tecnologia.
-2. **Clean Architecture (Uncle Bob).** Muito similar ao hexagonal, porém com terminologia mais carregada (entities/use cases/interface adapters/frameworks). Optamos por hexagonal por ser mais conciso e explícito sobre "o que é porta e o que é adapter".
-3. **Vertical Slice Architecture.** Boa para sistemas com features muito independentes, mas exigiria mais boilerplate e ainda é incomum em Go.
+1. **Camadas tradicionais (controller → service → repository).** Mais simples. Descartada porque o `service` acabaria importando GORM e Gin diretamente, o que dificulta testes e troca de tecnologia.
+2. **Clean Architecture.** Muito parecida com a hexagonal, com terminologia mais carregada (entities, use cases, interface adapters, frameworks). Descartada por ser menos explícita sobre o que é porta e o que é adapter.
+3. **Vertical Slice Architecture.** Boa para features muito independentes. Descartada porque exigiria mais boilerplate e é incomum em Go.
 
 ## Consequências
 
 ### Positivas
 
-- Domínio testável sem subir banco nem servidor HTTP (usando mocks gerados via `mockery`).
-- Fácil substituição de frameworks (trocar Gin por gRPC ou GORM por `sqlc` impacta só os adapters).
+- Domínio testável sem subir banco nem servidor HTTP, com mocks das portas gerados pelo `mockgen` (gomock, `make mocks`).
+- Substituição de frameworks localizada: trocar Gin por gRPC ou GORM por `sqlc` mexe só nos adapters.
 - Separação clara: handler é "burro", use case é regra de negócio, adapter é tradução.
-- Revisores sêniores (incluindo a banca) reconhecem o padrão como sinal de maturidade arquitetural.
 
 ### Negativas
 

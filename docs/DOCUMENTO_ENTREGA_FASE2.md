@@ -3,6 +3,8 @@
 
 **Grupo:** Reservoir Devs · **Pós-Tech FIAP — SOAT (15SOAT)**
 
+> **Registro da fase 2 (monolito no Kubernetes), mantido como histórico.** Caminhos, rotas e repositórios citados aqui são os daquela entrega. A arquitetura atual está no [README](../README.md) e no [documento de entrega da fase 4](DOCUMENTO_ENTREGA_FASE4.md).
+
 ---
 
 ## 1. Grupo

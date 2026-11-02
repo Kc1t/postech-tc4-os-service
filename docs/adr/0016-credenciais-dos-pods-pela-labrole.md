@@ -1,6 +1,6 @@
 # ADR-0016: Credenciais AWS dos pods pela LabRole, via IMDS com hop limit 2
 
-- **Status:** Accepted
+- **Status:** Aceita
 - **Data:** 2026-10
 - **Decisão por:** Reservoir Devs
 
@@ -36,15 +36,15 @@ O launch template não declara security group, para o EKS continuar aplicando o 
 
 ## Alternativas consideradas
 
-1. **IRSA (IAM Roles for Service Accounts).** É o padrão do EKS: um provedor OIDC do cluster e uma role por service account, com escopo mínimo por serviço. Inviável no lab, que não permite criar a role nem a relação de confiança com o OIDC.
+1. **IRSA (IAM Roles for Service Accounts).** É o padrão do EKS: um provedor OIDC do cluster e uma role por service account, com escopo mínimo por serviço. Descartado por ser inviável no lab, que não permite criar a role nem a relação de confiança com o OIDC.
 
-2. **EKS Pod Identity.** Mais simples que o IRSA (um addon e uma associação por service account) e é o que o comentário do `eks.tf` aponta como certo fora do lab. Esbarra no mesmo bloqueio: exige criar uma role por serviço.
+2. **EKS Pod Identity.** Mais simples que o IRSA (um addon e uma associação por service account) e é o que o comentário do `eks.tf` aponta como certo fora do lab. Descartado pelo mesmo bloqueio: exige criar uma role por serviço.
 
-3. **Chave de acesso em Secret Kubernetes.** Funcionaria sem mexer nos nós. Descartada: as credenciais do lab são de sessão e expiram em horas, então os pods parariam de consumir as filas no meio da demonstração até alguém atualizar o Secret e reiniciar tudo. Seria ainda uma credencial de usuário humano guardada no cluster.
+3. **Chave de acesso em Secret Kubernetes.** Funcionaria sem mexer nos nós. Descartada porque as credenciais do lab são de sessão e expiram em horas, então os pods parariam de consumir as filas no meio da demonstração até alguém atualizar o Secret e reiniciar tudo. Seria ainda uma credencial de usuário humano guardada no cluster.
 
-4. **`hostNetwork: true` nos pods.** Com a rede do nó, o hop limit 1 bastaria. Descartado: o pod passa a disputar portas com o nó e fica fora do modelo de rede do cluster, o que esvazia a `NetworkPolicy` de cada serviço.
+4. **`hostNetwork: true` nos pods.** Com a rede do nó, o hop limit 1 bastaria. Descartado porque o pod passa a disputar portas com o nó e fica fora do modelo de rede do cluster, o que esvazia a `NetworkPolicy` de cada serviço.
 
-5. **Manter a `LabEksNodeRole`.** É a role "certa" para worker. Os pods ficariam sem SQS, SNS e DynamoDB, e o lab não deixa criar uma role nova com essas permissões.
+5. **Manter a `LabEksNodeRole`.** É a role "certa" para worker. Descartada porque os pods ficariam sem SQS, SNS e DynamoDB, e o lab não deixa criar uma role nova com essas permissões.
 
 ## Consequências
 
@@ -66,5 +66,5 @@ Em produção real, a troca é por EKS Pod Identity com uma role por serviço (S
 ## Referências
 
 - Implementação: [`postech-tc4-infra-k8s/eks.tf`](https://github.com/Kc1t/postech-tc4-infra-k8s/blob/main/eks.tf) (launch template e node group), [`pkg/awsx/awsx.go`](../../pkg/awsx/awsx.go)
-- AWS — [Configure the instance metadata options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-IMDS-existing-instances.html)
-- AWS — [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html)
+- AWS: [Configure the instance metadata options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-IMDS-existing-instances.html)
+- AWS: [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html)
