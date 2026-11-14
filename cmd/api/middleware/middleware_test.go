@@ -234,3 +234,21 @@ func TestCorrelationID_VaiParaOContexto(t *testing.T) {
 		t.Fatalf("correlation id = %q", got)
 	}
 }
+
+func TestCORS_Curinga(t *testing.T) {
+	r := gin.New()
+	r.Use(CORS([]string{"*"}))
+	r.GET("/", func(c *gin.Context) { c.Status(http.StatusOK) })
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Origin", "https://qualquer.com")
+	r.ServeHTTP(w, req)
+	if w.Header().Get("Access-Control-Allow-Origin") != "https://qualquer.com" || w.Header().Get("Vary") != "Origin" {
+		t.Fatalf("\"*\" libera qualquer origem: %v", w.Header())
+	}
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("sem Origin não há CORS: %v", w.Header())
+	}
+}
