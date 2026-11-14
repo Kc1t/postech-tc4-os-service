@@ -217,7 +217,7 @@ O os-service não registra dados do cliente como atributo de log. O log de acess
 - **`NetworkPolicy`** em cada serviço: entrada só na porta 8080/TCP (NLB, probes e pods do namespace).
 - **Contêiner:** imagem `alpine:3.22` com `USER 10001`; no pod, `runAsNonRoot`, `seccompProfile: RuntimeDefault`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false` e `capabilities: drop: ["ALL"]` nos três serviços.
 - **Nós:** IMDSv2 obrigatório (`http_tokens = "required"`), hop limit 2 para os pods alcançarem a credencial ([ADR-0016](adr/0016-credenciais-dos-pods-pela-labrole.md)).
-- **CORS:** allowlist em `CORS_ALLOWED_ORIGINS`, nunca `*`. Origem fora da lista não recebe `Access-Control-Allow-Origin`; o billing ainda ignora `*` na configuração e responde 403 `ORIGIN_NOT_ALLOWED` ao preflight de origem não permitida.
+- **CORS:** allowlist em `CORS_ALLOWED_ORIGINS`. Origem fora da lista não recebe `Access-Control-Allow-Origin`; o billing e o execution respondem 403 `ORIGIN_NOT_ALLOWED` ao preflight de origem não permitida. `*` sozinho libera todas as origens (a resposta devolve a própria origem, com `Vary: Origin`) e é o valor usado enquanto o ambiente do Learner Lab muda de endereço a cada sessão; para fechar, troque pela lista das origens do front. Curinga parcial (`https://*.x.com`) é recusado na subida do billing e do execution.
 - **Demonstração de falhas:** `FAULT_INJECTION_ENABLED` vem ligado no deploy para o vídeo. O header `X-Simulate-Failure` só tem efeito na abertura da OS, que exige papel `admin`.
 
 ## 8. Cadeia de CI

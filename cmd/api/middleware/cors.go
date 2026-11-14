@@ -9,15 +9,21 @@ import (
 
 // CORS responde só para as origens da allowlist (CORS_ALLOWED_ORIGINS). Origem fora da lista
 // não recebe Access-Control-Allow-Origin e o navegador bloqueia a resposta; chamadas sem
-// Origin (servidor a servidor, curl) seguem normalmente.
+// Origin (servidor a servidor, curl) seguem normalmente. Um "*" na lista libera qualquer
+// origem (a resposta devolve a própria origem, com Vary: Origin).
 func CORS(allowed []string) gin.HandlerFunc {
 	set := make(map[string]bool, len(allowed))
+	allowAll := false
 	for _, o := range allowed {
-		set[strings.TrimRight(o, "/")] = true
+		o = strings.TrimRight(strings.TrimSpace(o), "/")
+		if o == "*" {
+			allowAll = true
+		}
+		set[o] = true
 	}
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		if origin != "" && set[origin] {
+		if origin != "" && (allowAll || set[strings.TrimRight(origin, "/")]) {
 			h := c.Writer.Header()
 			h.Set("Access-Control-Allow-Origin", origin)
 			h.Add("Vary", "Origin")
