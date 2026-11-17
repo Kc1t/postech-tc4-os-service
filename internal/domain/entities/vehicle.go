@@ -57,7 +57,6 @@ func ReconstituteVehicle(id, requesterID, plate, brand, model string, year int, 
 func (v *Vehicle) ID() string           { return v.id }
 func (v *Vehicle) RequesterID() string  { return v.requesterID }
 func (v *Vehicle) Plate() string        { return v.plate.Value() }
-func (v *Vehicle) PlateVO() Plate       { return v.plate }
 func (v *Vehicle) Brand() string        { return v.brand }
 func (v *Vehicle) Model() string        { return v.model }
 func (v *Vehicle) Year() int            { return v.year }

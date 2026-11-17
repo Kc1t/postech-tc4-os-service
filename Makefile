@@ -40,11 +40,13 @@ test-db:
 	docker run -d --rm --name tc4-pg-test -p 55432:5432 -e POSTGRES_USER=test \
 		-e POSTGRES_PASSWORD=test -e POSTGRES_DB=testdb postgres:16-alpine
 
+# -p 1: os pacotes de repositório, outbox e inbox dividem o mesmo Postgres de teste e contam
+# linhas das mesmas tabelas; em paralelo um vê o que o outro gravou.
 test:
-	$(TEST_DB_ENV) go test ./... -count=1
+	$(TEST_DB_ENV) go test -p 1 ./... -count=1
 
 cover:
-	$(TEST_DB_ENV) go test -count=1 -coverprofile=coverage.out $(COVER_PKGS)
+	$(TEST_DB_ENV) go test -p 1 -count=1 -coverprofile=coverage.out $(COVER_PKGS)
 	go tool cover -func=coverage.out | tail -1
 
 # BDD da saga (godog): features/saga.feature contra o orquestrador real e o Postgres de teste.

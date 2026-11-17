@@ -1,10 +1,19 @@
-# Tech Challenge Fase 4 · Reservoir Devs
+<div class="capa">
+<p class="topo">Pós Tech FIAP<br>Software Architecture (SOAT)</p>
+<p class="autores">Kauã Miguel da Cunha<br>Pedro Henrique Carlini de Oliveira Ribeiro<br>Yuri Lopes Padlipskas<br>Diego Oliveira Andrade Rafael</p>
+<p class="titulo">Tech Challenge Fase 4<span class="sub">Microsserviços, Saga Pattern e observabilidade em uma oficina mecânica na AWS</span></p>
+<p class="rodape">São Paulo<br>2026</p>
+</div>
 
-## Documento de entrega
+<div class="rosto">
+<p class="topo">Kauã Miguel da Cunha<br>Pedro Henrique Carlini de Oliveira Ribeiro<br>Yuri Lopes Padlipskas<br>Diego Oliveira Andrade Rafael</p>
+<p class="titulo">Tech Challenge Fase 4: microsserviços, Saga Pattern e observabilidade em uma oficina mecânica na AWS</p>
+<p class="natureza">Documento de entrega da Fase 4 do Tech Challenge, apresentado à Pós Tech FIAP, curso Software Architecture (SOAT). Grupo Reservoir Devs (Grupo 112).</p>
+<p class="video">Vídeo de demonstração: <a href="{{VIDEO_URL}}">{{VIDEO_URL}}</a></p>
+<p class="rodape">São Paulo<br>2026</p>
+</div>
 
-**Grupo 112** · Pós Tech FIAP, Software Architecture (13SOAT) · Prazo: 17/11/2026
-
-> Base do PDF submetido no Portal do Aluno, gerado com `scripts/entrega-pdf.sh`. Os itens marcados com ⟨…⟩ são preenchidos depois do deploy final e da gravação do vídeo.
+<div id="sumario"></div>
 
 ## 1. Participantes
 
@@ -19,11 +28,11 @@
 
 | Entregável | Link |
 |---|---|
-| Vídeo de demonstração (até 15 min) | ⟨link do YouTube, não listado⟩ |
-| API Gateway (entrada única) | ⟨endpoint do gateway⟩ |
+| Vídeo de demonstração (até 15 min) | [Assistir no YouTube]({{VIDEO_URL}}) (não listado, 7 min 27 s) |
+| API Gateway (entrada única) | `{{GATEWAY_URL}}` |
 | Swagger | `docs/swagger.yaml` em cada repositório de serviço |
 | Postman | `postman_collection.json` em cada repositório de serviço; as três rodam juntas com `make postman` em `postech-tc4-infra-k8s/local` |
-| Dashboard do New Relic | ⟨links dos snapshots⟩ |
+| Dashboard do New Relic | [Dashboard "Ordem de Serviço (prod)"]({{NR_URL}}) |
 | Decisões de arquitetura | [ADRs](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/adr/README.md) e [RFCs](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/rfc/README.md) |
 | Segurança | [docs/SEGURANCA.md](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/SEGURANCA.md) |
 | Contratos das mensagens | [AsyncAPI](https://github.com/Kc1t/postech-tc4-os-service/blob/main/docs/asyncapi/asyncapi.yaml) |
@@ -42,6 +51,8 @@
 ## 3. Arquitetura final
 
 ![Arquitetura da fase 4: microsserviços, bancos e comunicação](diagrams/arquitetura-fase4.svg)
+
+<p class="fonte">Figura 1 – Arquitetura final: microsserviços, bancos e comunicação. Fonte: elaborado pelos autores (2026).</p>
 
 - **Síncrono (REST):** entrada pelo API Gateway HTTP, com Lambda authorizer; leitura composta da OS (`GET /service-orders/{id}/details`), em que o os-service consulta billing e execution com timeout, retry e circuit breaker; consulta do cliente pela Lambda issuer na rota interna `GET /internal/requesters/{document}`.
 - **Assíncrono (SNS e SQS):** todos os passos da saga. Comandos vão para a fila do serviço que executa (`billing-commands`, `execution-commands`); eventos saem pelo tópico do serviço que publica (`os-events`, `billing-events`, `execution-events`) e chegam à fila de quem consome (`os-saga-replies`, `notification-os-events`). Toda fila tem DLQ (`<fila>-dlq`), alerta no New Relic, alarme no CloudWatch e runbook.
@@ -125,11 +136,11 @@ A divisão segue as **capacidades de negócio** do enunciado (atendimento, cobra
 
 | Repositório | Cobertura (`go test`) | SonarQube | Evidência (resumo de cada execução) |
 |---|---|---|---|
-| os-service | 86,3% | 83,6%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-os-service/actions/workflows/ci.yml) |
-| billing-service | 95,7% | 94,7%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-billing-service/actions/workflows/ci.yml) |
-| execution-service | 95,6% | 95,3%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-execution-service/actions/workflows/ci.yml) |
-| lambda-auth | 91,4% | 90,6%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-lambda-auth/actions/workflows/ci.yml) |
-| notification-lambda | 92,0% | 89,0%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-notification-lambda/actions/workflows/ci.yml) |
+| os-service | 91,9% | 92,6%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-os-service/actions/workflows/ci.yml) |
+| billing-service | 95,8% | 96,5%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-billing-service/actions/workflows/ci.yml) |
+| execution-service | 95,8% | 96,8%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-execution-service/actions/workflows/ci.yml) |
+| lambda-auth | 91,4% | 92,6%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-lambda-auth/actions/workflows/ci.yml) |
+| notification-lambda | 92,0% | 92,7%, gate aprovado | [CI](https://github.com/Kc1t/postech-tc4-notification-lambda/actions/workflows/ci.yml) |
 
 Em todos: 0 bugs, 0 vulnerabilidades, 0 code smells e 0% de duplicação. O quality gate é próprio (cobertura ≥ 80%, duplicação ≤ 3% e nota A em confiabilidade, segurança e manutenibilidade), e cada pipeline também roda golangci-lint, gosec, govulncheck e tfsec; os três serviços ainda passam a imagem pelo Trivy e os manifestos pelo kubeconform (strict, schema do Kubernetes 1.35). Cada execução do CI publica no resumo do job a cobertura do `go test` e a tabela do SonarQube.
 
@@ -147,13 +158,3 @@ Nenhuma delas deixa um requisito do enunciado de fora. São escolhas de custo e 
 - **Um ambiente só na AWS.** A homologação é o ambiente e2e local, com os mesmos serviços e Lambdas no LocalStack, onde o caminho feliz e três compensações passam.
 - **NLBs públicos e HTTP entre o gateway e os serviços.** A defesa é o JWT validado no serviço, a checagem de posse e o token interno; fechar exigiria NLB interno com VPC Link.
 - **Leitura composta na hora.** O `/details` usa API composition, sem CQRS, com resposta parcial quando um serviço está fora.
-
-## 10. Antes de submeter
-
-- [x] Convites de colaborador enviados em 31/10 nos seis repositórios (`soat-architecture` e integrantes do grupo)
-- [ ] Convites aceitos (conferir em *Settings > Collaborators* de cada repositório)
-- [ ] Grupo trazido da fase anterior no portal
-- [ ] Deploy final no Learner Lab (`AWS_DEPLOY_ENABLED=true`) e endpoint do gateway preenchido acima
-- [ ] Vídeo no YouTube (não listado) e link acima
-- [ ] Snapshots do New Relic e números de cobertura conferidos com a última execução do CI
-- [ ] PDF gerado com `scripts/entrega-pdf.sh`

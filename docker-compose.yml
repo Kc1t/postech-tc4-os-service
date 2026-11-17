@@ -57,7 +57,9 @@ services:
     volumes:
       - ./deploy/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name os-saga-replies >/dev/null 2>&1"]
+      # Pronto quando os scripts de init (filas, tópicos, tabelas) terminaram sem erro. O endpoint responde
+      # em milissegundos; o awslocal leva uns 3 s para subir e estourava o timeout.
+      test: ["CMD-SHELL", "r=$$(curl -sf localhost:4566/_localstack/init/ready) && echo \"$$r\" | grep -q '\"completed\": true' && ! echo \"$$r\" | grep -q ERROR"]
       interval: 5s
       timeout: 5s
       retries: 30

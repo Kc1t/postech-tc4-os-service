@@ -52,7 +52,7 @@ Na descrição do vídeo no YouTube, colar os timestamps abaixo, ajustados aos t
 ## Bloco 2: deploy automatizado com testes (1:45 a 4:30)
 
 - Mostrar a proteção da `main` (*Settings > Branches*): PR obrigatório, checks exigidos, branch atualizada, valendo para administradores.
-- No PR do execution-service, abrir os checks: *Lint, SAST e dependências*, *Testes e cobertura* (95,6%), *Teste de componente (LocalStack)*, *SonarQube (quality gate)*, *Terraform do banco* (fmt, validate e tfsec), *Imagem* (build e Trivy) e *Manifestos K8s (kubeconform)*.
+- No PR do execution-service, abrir os checks: *Lint, SAST e dependências*, *Testes e cobertura* (95,8%), *Teste de componente (LocalStack)*, *SonarQube (quality gate)*, *Terraform do banco* (fmt, validate e tfsec), *Imagem* (build e Trivy) e *Manifestos K8s (kubeconform)*.
 - Abrir o resumo do job: a linha "Cobertura do execution-service" e a tabela do SonarQube com o gate, a cobertura, bugs, vulnerabilidades e duplicação.
 - Fazer o merge. No job *Deploy no EKS*: `terraform apply` da tabela DynamoDB, push da imagem no ECR, Secret e manifests no cluster, `rollout status` e smoke test pelo NLB.
 - No painel do `kubectl get pods -w`: os pods novos sobem antes dos antigos saírem (`maxSurge: 1`, `maxUnavailable: 0`).
